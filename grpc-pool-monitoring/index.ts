@@ -26,10 +26,10 @@ import Client, {
     ping?: SubscribeRequestPing | undefined;
   }
   var TelegramBot = require("node-telegram-bot-api");
-  const TELEGRAM_BOT_TOKEN = "6534890049:AAEa-J3-GFlu6gY5E7p5gVF538NhWERdqw4"
+  const TELEGRAM_BOT_TOKEN = "YOUR BOT KEY"
 
   const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling : true});
-  const msgId = -1002075281954;
+  const msgId = 1122332232 //your bot msgID (in Numbers);
   const TXN_FORMATTER = new TransactionFormatter();
   const RAYDIUM_PARSER = new RaydiumAmmParser();
   const RAYDIUM_PUBLIC_KEY = RaydiumAmmParser.PROGRAM_ID;
@@ -141,8 +141,8 @@ import Client, {
   }
   
   const client = new Client(
-    'https://grpc.us1.shyft.to/',
-    'b9fe2a65-b582-4fba-ac82-3497558b6568',
+    'YOUR Shyft GRPC URL ACCESS',
+    'YOUR TOKEN ACCESS',
     undefined,
   );
   
