@@ -142,7 +142,7 @@ import Client, {
   
   const client = new Client(
     'YOUR Shyft GRPC URL ACCESS',
-    'YOUR TOKEN ACCESS',
+    'YOUR X TOKEN',
     undefined,
   );
   
