@@ -92,8 +92,8 @@ import Client, {
   }
   //copy and paste other index.ts on other files///
   const client = new Client(
-    'https://grpc.us1.shyft.to/',
-    'b9fe2a65-b582-4fba-ac82-3497558b6568',
+    'YOUR X URL',
+    'YOUR X TOKEN',
     undefined,
   );
   const req: SubscribeRequest = {
