@@ -9,13 +9,15 @@ import Client, {
     SubscribeRequestFilterTransactions,
   } from "@triton-one/yellowstone-grpc";
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-  import { Connection, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
+  import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
-import { publicKey } from "@solana/buffer-layout-utils";
-const pumpfun = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
- //YMyDOr87OBzT6TWr 
- const api = 'api'
-const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confirmed');
+import { getDexScreener } from "./utils/dexScreener";
+
+const raydium_PROGRAM_ID = new PublicKey(
+  "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+);
+
+
   interface SubscribeRequest {
     accounts: { [key: string]: SubscribeRequestFilterAccounts };
     slots: { [key: string]: SubscribeRequestFilterSlots };
@@ -52,26 +54,20 @@ const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confir
     stream.on("data", async (data) => {
       try{
      const result = await tOutPut(data);
-     const bondingDetails = await getBondingCurveAddress(result.meta.postTokenBalances);
-     const Ca = result.meta.postTokenBalances[0].mint
-     const bondingCurve = bondingDetails.bondingCurve?bondingDetails.bondingCurve?.toString():"";
-     const PoolValue = bondingDetails.solBalance/1000000000
-     if(PoolValue >= 84){
-      console.log(`
-        BONDING CURVE COMPLETED
-        Latest Pool
-        Ca : ${Ca}
-        Bonding Curve Address : ${bondingCurve}
-        Pool Value : ${Number(PoolValue).toFixed(2)} SOL
-     `)
-     }else{
+     const mint = result?.meta?.postTokenBalances[0]?.mint;
+     const mintDetails = await getDexScreener(mint);
+     const priceUsd =  mintDetails?.priceUsd;
+     const priceChangeM5 = mintDetails?.priceChange.m5;
+     const priceChangeH1 = mintDetails?.priceChange.h1;
+     const priceChangeH24 = mintDetails?.priceChange.h24;
      console.log(`
-         Latest Pool
-         Ca : ${Ca}
-         Bonding Curve Address : ${bondingCurve}
-         Pool Value : ${Number(PoolValue).toFixed(2)} SOL
+        CA : ${mint}
+        Price USD : $${priceUsd}
+        Price Change 5mins : ${priceChangeM5}
+        Price Change 1Hr : ${priceChangeH1}
+        Price Change 24Hr : ${priceChangeH24}
       `)
-     }
+     
   }catch(error){
     if(error){
       console.log(error)
@@ -120,7 +116,7 @@ const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confir
         vote: false,
         failed: false,
         signature: undefined,
-        accountInclude: [pumpfun], //Address 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+        accountInclude: [raydium_PROGRAM_ID.toString()], //Address 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
         accountExclude: [],
         accountRequired: [],
       },
@@ -134,17 +130,4 @@ const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confir
     commitment: CommitmentLevel.CONFIRMED, //for receiving confirmed txn updates
   };
   subscribeCommand(client, req);
-async function getBondingCurveAddress(transaction : any[]){
-  let bondingCurve;
-  let solBalance;
-  const eachOwners = transaction?.flatMap(inner => inner.owner);
-  for (const owner in eachOwners){
-    const address = new PublicKey(eachOwners[owner]);
-    const systemOwner = await connection.getAccountInfo(address);
-    if(systemOwner.owner.toString() === pumpfun)
-      bondingCurve = address;
-      solBalance = systemOwner.lamports;
-      return {bondingCurve,solBalance}
-  }
-  return {bondingCurve,solBalance}
-}
+  

@@ -1,10 +1,10 @@
 import { decodeTransact } from "./decodeTransaction";
 
 export function tOutPut(data){
-    const dataTx = data?.transaction?.transaction
-    const signature = decodeTransact(dataTx?.signature);
-    const message = dataTx?.transaction?.message
-    const header = message?.header;
+    const dataTx = data.transaction.transaction
+    const signature = decodeTransact(dataTx.signature);
+    const message = dataTx.transaction?.message
+    const header = message.header;
     const accountKeys = message.accountKeys.map((t)=>{
         return  decodeTransact(t)
     })
