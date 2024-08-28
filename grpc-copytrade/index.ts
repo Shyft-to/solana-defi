@@ -9,10 +9,13 @@ import Client, {
     SubscribeRequestFilterTransactions,
   } from "@triton-one/yellowstone-grpc";
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-  import { VersionedTransactionResponse } from "@solana/web3.js";
-  import { TransactionFormatter } from "./Account/transaction-formatter";
-
-
+  import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
+import { tOutPut } from "./utils/transactionOutput";
+import { getDexScreener } from "./utils/dexScreener";
+  const raydium_PROGRAM_ID = new PublicKey(
+    "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+  );
+  
   interface SubscribeRequest {
     accounts: { [key: string]: SubscribeRequestFilterAccounts };
     slots: { [key: string]: SubscribeRequestFilterSlots };
@@ -25,8 +28,8 @@ import Client, {
     accountsDataSlice: SubscribeRequestAccountsDataSlice[];
     ping?: SubscribeRequestPing | undefined;
   }
-  const TXN_FORMATTER = new TransactionFormatter();
-  async function handleStream(client: Client, args: SubscribeRequest) {
+
+    async function handleStream(client: Client, args: SubscribeRequest) {
     // Subscribe for events
     const stream = await client.subscribe();
   
@@ -48,14 +51,30 @@ import Client, {
     // Handle updates
     stream.on("data", async (data) => {
       try{
-     if(data?.account?.account){
-      const txn = await TXN_FORMATTER.formTransactionFromJson(
-        data?.account?.account,
-      )
-      const lamport = data?.account?.account?.lamport
-      console.log(txn)
-     }
-    
+     const result = await tOutPut(data);
+     const tokenDetails = result?.meta?.postTokenBalances;
+     const mint = tokenDetails[0]?.mint
+     const tokenInfo = await getDexScreener(mint);
+     const pair = tokenInfo?.pairAddress;
+     const name = tokenInfo?.baseToken.name;
+     const symbol = tokenInfo?.baseToken.symbol
+     const marketcap = tokenInfo?.fdv;
+     const signature = result.signature;
+     const amount = tokenDetails[0].uiTokenAmount.uiAmount;
+     const time = new Date();
+     const priceBought = tokenInfo?.priceUsd * amount
+     console.log(`
+        Swapped Time :: ${time.getHours()}:${time.getMinutes()}
+        CA : ${mint}
+        Name : ${name}
+        Symbol : ${symbol}
+        Price : ${tokenInfo?.priceUsd}
+        Pair : ${pair}
+        MarketCap : ${marketcap}
+        Amount Swapped : ${amount} ${symbol}
+        Amount Value in Usd : $${priceBought} 
+        tx : https://solscan.io/tx/${signature}
+      `)
   }catch(error){
     if(error){
       console.log(error)
@@ -90,28 +109,34 @@ import Client, {
       }
     }
   }
-  //copy and paste other index.ts on other files///
+  
   const client = new Client(
-    'YOUR X URL',
-    'YOUR X TOKEN',
+    'gRPC REGION URL',
+    'gRPC TOKEN',
     undefined,
   );
-  const req: SubscribeRequest = {
+  const req = {
+    accounts: {},
     slots: {},
-    accounts: {
-      "spl": {
-        account: ["5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm"],
-        owner: [],
-        filters: [],
+    transactions: {
+      copyTrade: {
+        vote: false,
+        failed: false,
+        signature: undefined,
+        accountInclude: ['Wallet Address'], //Wallet address you would love to monitor
+        accountExclude: [],
+        accountRequired: [raydium_PROGRAM_ID.toString()],
       },
     },
-    transactions: {},
     transactionsStatus: {},
+    entry: {},
     blocks: {},
     blocksMeta: {},
-    entry: {},
     accountsDataSlice: [],
-    commitment: CommitmentLevel.CONFIRMED,
+    ping: undefined,
+    commitment: CommitmentLevel.CONFIRMED, //for receiving confirmed txn updates
   };
   subscribeCommand(client, req);
+  
+
   
