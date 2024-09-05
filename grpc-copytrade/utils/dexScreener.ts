@@ -4,7 +4,19 @@ export async function getDexScreener(token) {
    const response = await fetch(url);
      const data = await response.json();
      if(data.pairs[0].dexId=='raydium'){
-      return data.pairs[0]
+        const info = data.pairs[0];
+        const pair = info.pairAddress;
+        const name = info.baseToken.name;
+        const symbol = info.baseToken.symbol
+        const marketcap = info.fdv;
+        const price = info.priceUsd
+      return {
+        name,
+        symbol,
+        price,
+        pair,
+        marketcap
+      }
      }else{
       return undefined
      }

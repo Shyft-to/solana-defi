@@ -13,7 +13,7 @@ import Client, {
   import { TransactionFormatter } from "../Account/transaction-formatter";
   import { SignatureFormater } from "./deserializeTxn";
 
- //YMyDOr87OBzT6TWr 
+
   interface SubscribeRequest {
     accounts: { [key: string]: SubscribeRequestFilterAccounts };
     slots: { [key: string]: SubscribeRequestFilterSlots };

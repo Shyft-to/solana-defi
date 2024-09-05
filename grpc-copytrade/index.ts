@@ -55,23 +55,19 @@ import { getDexScreener } from "./utils/dexScreener";
      const tokenDetails = result?.meta?.postTokenBalances;
      const mint = tokenDetails[0]?.mint
      const tokenInfo = await getDexScreener(mint);
-     const pair = tokenInfo?.pairAddress;
-     const name = tokenInfo?.baseToken.name;
-     const symbol = tokenInfo?.baseToken.symbol
-     const marketcap = tokenInfo?.fdv;
      const signature = result.signature;
      const amount = tokenDetails[0].uiTokenAmount.uiAmount;
      const time = new Date();
-     const priceBought = tokenInfo?.priceUsd * amount
+     const priceBought = tokenInfo.price * amount
      console.log(`
         Swapped Time :: ${time.getHours()}:${time.getMinutes()}
         CA : ${mint}
-        Name : ${name}
-        Symbol : ${symbol}
-        Price : ${tokenInfo?.priceUsd}
-        Pair : ${pair}
-        MarketCap : ${marketcap}
-        Amount Swapped : ${amount} ${symbol}
+        Name : ${tokenInfo.name}
+        Symbol : ${tokenInfo.symbol}
+        Price : ${tokenInfo.price}
+        Pair : ${tokenInfo.pair}
+        MarketCap : ${tokenInfo.marketcap}
+        Amount Swapped : ${amount} ${tokenInfo.symbol}
         Amount Value in Usd : $${priceBought} 
         tx : https://solscan.io/tx/${signature}
       `)
@@ -139,4 +135,13 @@ import { getDexScreener } from "./utils/dexScreener";
   subscribeCommand(client, req);
   
 
-  
+  // Swapped Time :: 15:6
+  // CA : 82qt3HNBkvqpo46FYcBcHXNnUf3tMq6GNBkoARt3pump
+  // Name : So Much Higher
+  // Symbol : SMH
+  // Price : 0.001132
+  // Pair : 7oguisXbogr7o3o713dpe1PH2uwixtLBi4zabmAPvGsW
+  // MarketCap : 1132770
+  // Amount Swapped : 42932.733913 SMH
+  // Amount Value in Usd : $48.599854789515994
+  // tx : https://solscan.io/tx/4SBAtV7CUkvsdKUfL5ywNN1yLbbp7rhRRc7543wna5NnZ5Px8EVhAqaZLx6urQLDdTyXaM6mQtzykMyfDx3ZMHxs

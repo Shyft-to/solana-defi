@@ -10,6 +10,8 @@ import Client, {
   } from "@triton-one/yellowstone-grpc";
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
   import { VersionedTransactionResponse } from "@solana/web3.js";
+import { tOutPut } from "./utils/transactionOutput";
+import { getTokenInfo } from "./utils/tokenInfo";
 
 
   interface SubscribeRequest {
@@ -24,7 +26,8 @@ import Client, {
     accountsDataSlice: SubscribeRequestAccountsDataSlice[];
     ping?: SubscribeRequestPing | undefined;
   }
-  async function handleStream(client: Client, args: SubscribeRequest) {
+
+    async function handleStream(client: Client, args: SubscribeRequest) {
     // Subscribe for events
     const stream = await client.subscribe();
   
@@ -45,17 +48,22 @@ import Client, {
   
     // Handle updates
     stream.on("data", async (data) => {
-      try{   
-        const blockhash = data.blockMeta.blockhash;
-        const parentBlockhash = data.blockMeta.parentBlockhash;
-        const blockTime = data.blockMeta.blockTime.timestamp;
-        const slot = data.blockMeta.slot;
-        console.log(`
-            Blockhash : ${blockhash}
-            Parent Blockhash : ${parentBlockhash}
-            Block Time : ${blockTime}
-            Slot : ${slot}
-            `)
+      try{
+     const result = await tOutPut(data);
+     if(result?.logFilter == true){
+         const tokenStream = result?.meta?.postTokenBalances[0];
+         const mint = tokenStream?.mint
+         const tokenInfo = await getTokenInfo(mint);
+         console.log(`
+           CA| ${mint}
+           Name| ${tokenInfo?.name}
+           Symbol| ${tokenInfo?.symbol}
+           Desc| ${tokenInfo?.desc}
+           Decimal| ${tokenInfo?.decimal}
+           Supply| ${tokenInfo?.supply} 
+           https://solscan/tx/${result.signature}     
+          `)
+      }
   }catch(error){
     if(error){
       console.log(error)
@@ -90,21 +98,33 @@ import Client, {
       }
     }
   }
-  //copy and paste this index on the the main index.ts file
+  
   const client = new Client(
-    'YOUR X URL',
-    'YOUR X TOKEN',
+    'gRPC REGION URL',
+    'gRPC TOKEN',
     undefined,
   );
-  const req: SubscribeRequest = {
-    slots: {},
+
+  const req = {
     accounts: {},
-    transactions: {},
+    slots: {},
+    transactions: {
+      bondingCurve: {
+        vote: false,
+        failed: false,
+        signature: undefined,
+        accountInclude: ['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'], //Address 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+        accountExclude: [],
+        accountRequired: [],
+      },
+    },
     transactionsStatus: {},
-    blocks: {},
-    blocksMeta: { blockmetadata: {} },
     entry: {},
+    blocks: {},
+    blocksMeta: {},
     accountsDataSlice: [],
+    ping: undefined,
+    commitment: CommitmentLevel.CONFIRMED, //for receiving confirmed txn updates
   };
   subscribeCommand(client, req);
   
