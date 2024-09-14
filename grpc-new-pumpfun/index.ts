@@ -49,7 +49,7 @@ import { getTokenInfo } from "./utils/tokenInfo";
     // Handle updates
     stream.on("data", async (data) => {
       try{
-     const result = await tOutPut(data);
+       const result = await tOutPut(data);
      if(result?.logFilter == true){
          const tokenStream = result?.meta?.postTokenBalances[0];
          const mint = tokenStream?.mint
@@ -109,7 +109,7 @@ import { getTokenInfo } from "./utils/tokenInfo";
     accounts: {},
     slots: {},
     transactions: {
-      bondingCurve: {
+      Pumpfun: {
         vote: false,
         failed: false,
         signature: undefined,

@@ -11,7 +11,12 @@ import Client, {
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
   import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
-import { getDexScreener } from "./utils/dexScreener";
+import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
+import { getMarketInfo } from "./utils/marketInfo";
+//import { getSolBalance, getTokenBalance } from "./utils/walletInfo";
+import { getTokenInfo } from "./utils/tokenInfo";
+import { getSolBalance, getTokenBalance } from "./utils/walletInfo";
+import { decimal } from "@solana/buffer-layout-utils";
 
 const raydium_PROGRAM_ID = new PublicKey(
   "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
@@ -54,23 +59,34 @@ const raydium_PROGRAM_ID = new PublicKey(
     stream.on("data", async (data) => {
       try{
      const result = await tOutPut(data);
-     const mint = result?.meta?.postTokenBalances[0]?.mint;
-     const mintDetails = await getDexScreener(mint);
-     const priceUsd =  mintDetails?.priceUsd;
-     const priceChangeM5 = mintDetails?.priceChange.m5;
-     const priceChangeH1 = mintDetails?.priceChange.h1;
-     const priceChangeH24 = mintDetails?.priceChange.h24;
+     const baseVault = result.poolstate.baseVault.toString();
+     const quoteVault = result.poolstate.quoteVault.toString();
+     const mint = result.poolstate.baseMint.toString();
+  //   console.log(result)
+    const tokenInfo = await getTokenInfo(mint)
+    const quoteBal = await getSolBalance(quoteVault);
+    const baseBal = await getTokenBalance(baseVault)/ 10 ** tokenInfo.decimal;
+     const marketInfo = await getMarketInfo(baseBal,quoteBal,tokenInfo.currentSupply)
+     const quoteBal$ = marketInfo.quote$
+     const price = marketInfo.price;
+     const marketcap = marketInfo.marketcap;
+     const supply = marketInfo.currentSupply;
+     if(supply === undefined && tokenInfo.decimal === undefined){
+     }else{
      console.log(`
         CA : ${mint}
-        Price USD : $${priceUsd}
-        Price Change 5mins : ${priceChangeM5}
-        Price Change 1Hr : ${priceChangeH1}
-        Price Change 24Hr : ${priceChangeH24}
+        Supply : ${supply}
+        BaseVault : ${baseVault}
+        quoteVault : ${quoteVault}
+        decimal : ${tokenInfo.decimal}
+        Price : $${price}
+        MarketCap : $${marketcap}
+        PoolInfo : ${quoteBal}($${quoteBal$})
+                   ${baseBal}
       `)
-     
+     }
   }catch(error){
     if(error){
-      console.log(error)
     }
   }
 });
@@ -108,26 +124,50 @@ const raydium_PROGRAM_ID = new PublicKey(
     'gRPC TOKEN',
     undefined,
   );
-  const req = {
-    accounts: {},
-    slots: {},
-    transactions: {
-      bondingCurve: {
-        vote: false,
-        failed: false,
-        signature: undefined,
-        accountInclude: [raydium_PROGRAM_ID.toString()], //Address 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
-        accountExclude: [],
-        accountRequired: [],
-      },
+  const req: SubscribeRequest = {
+    "slots": {},
+    "accounts": {
+      "raydium": {
+        "account": [],
+        "filters": [
+          {
+            "memcmp": {
+              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('quoteMint').toString(), // Filter for only tokens paired with SOL
+              "base58": "So11111111111111111111111111111111111111112"
+            }
+          },
+          {
+            "memcmp": {
+              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('marketProgramId').toString(), // Filter for only Raydium markets that contain references to Serum
+              "base58": "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
+            }
+          },
+          {
+            "memcmp": {
+              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapQuoteInAmount').toString(), // Hack to filter for swapped tokens. There is probably a better way to do this
+              "bytes": Uint8Array.from([])
+            }
+           },
+          {
+            "memcmp": {
+              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapBaseOutAmount').toString(), // Hack to filter for swapped. There is probably a better way to do this
+              "bytes": Uint8Array.from([])
+            }
+          }
+        ],
+        "owner": ["675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"] // raydium program id to subscribe to
+      }
     },
-    transactionsStatus: {},
+    "transactions": {},
+    "blocks": {},
+    "blocksMeta": {
+      "block": []
+    },
+    "accountsDataSlice": [],
+    "commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
     entry: {},
-    blocks: {},
-    blocksMeta: {},
-    accountsDataSlice: [],
-    ping: undefined,
-    commitment: CommitmentLevel.CONFIRMED, //for receiving confirmed txn updates
-  };
+    transactionsStatus: {}
+  }
+  
   subscribeCommand(client, req);
   

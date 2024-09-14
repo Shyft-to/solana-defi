@@ -13,7 +13,6 @@ import { VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
 import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
 
-//YMyDOr87OBzT6TWr 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
   slots: { [key: string]: SubscribeRequestFilterSlots };
@@ -55,7 +54,7 @@ interface SubscribeRequest {
         new Date(),
         ":",
         `New transaction https://translator.shyft.to/tx/${info.signature} \n`,
-        JSON.stringify(info, null, 2) + "\n",
+        JSON.stringify(data, null, 2) + "\n",
       );
     }
 }catch(error){
@@ -119,13 +118,13 @@ const request: SubscribeRequest = {
         {
           "memcmp": {
             "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapQuoteInAmount').toString(), // Hack to filter for only new tokens. There is probably a better way to do this
-            "bytes": Uint8Array.from([0])
+            "bytes": Uint8Array.from([])
           }
          },
         {
           "memcmp": {
             "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapBaseOutAmount').toString(), // Hack to filter for only new tokens. There is probably a better way to do this
-            "bytes": Uint8Array.from([0])
+            "bytes": Uint8Array.from([])
           }
         }
       ],

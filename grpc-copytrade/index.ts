@@ -11,7 +11,10 @@ import Client, {
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
   import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
-import { getDexScreener } from "./utils/dexScreener";
+import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
+import { getSolBalance, getTokenBalance } from "utils/walletInfo";
+import { getTokenInfo } from "utils/tokenInfo";
+import { getMarketInfo } from "utils/marketInfo";
   const raydium_PROGRAM_ID = new PublicKey(
     "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
   );
@@ -49,35 +52,44 @@ import { getDexScreener } from "./utils/dexScreener";
     });
   
     // Handle updates
+     
+    // Handle updates
     stream.on("data", async (data) => {
       try{
      const result = await tOutPut(data);
-     const tokenDetails = result?.meta?.postTokenBalances;
-     const mint = tokenDetails[0]?.mint
-     const tokenInfo = await getDexScreener(mint);
-     const signature = result.signature;
-     const amount = tokenDetails[0].uiTokenAmount.uiAmount;
-     const time = new Date();
-     const priceBought = tokenInfo.price * amount
+     const baseVault = result.poolstate.baseVault.toString();
+     const quoteVault = result.poolstate.quoteVault.toString();
+     const mint = result.poolstate.baseMint.toString();
+  //   console.log(result)
+    const tokenInfo = await getTokenInfo(mint)
+    const quoteBal = await getSolBalance(quoteVault);
+    const baseBal = await getTokenBalance(baseVault)/ 10 ** tokenInfo.decimal;
+     const marketInfo = await getMarketInfo(baseBal,quoteBal,tokenInfo.currentSupply)
+     const quoteBal$ = marketInfo.quote$
+     const price = marketInfo.price;
+     const marketcap = marketInfo.marketcap;
+     const supply = marketInfo.currentSupply;
+     if(supply === undefined && tokenInfo.decimal === undefined){
+     }else{
      console.log(`
-        Swapped Time :: ${time.getHours()}:${time.getMinutes()}
         CA : ${mint}
-        Name : ${tokenInfo.name}
-        Symbol : ${tokenInfo.symbol}
-        Price : ${tokenInfo.price}
-        Pair : ${tokenInfo.pair}
-        MarketCap : ${tokenInfo.marketcap}
-        Amount Swapped : ${amount} ${tokenInfo.symbol}
-        Amount Value in Usd : $${priceBought} 
-        tx : https://solscan.io/tx/${signature}
+        Supply : ${supply}
+        BaseVault : ${baseVault}
+        QuoteVault : ${quoteVault}
+        Decimal : ${tokenInfo.decimal}
+        Swap in : ${result.poolstate.swapBaseInAmount}
+        Swap Out : ${result.poolstate.swapQuoteOutAmount}
+        Price : $${price}
+        MarketCap : $${marketcap}
+        PoolInfo : ${quoteBal}($${quoteBal$})
+                   ${baseBal}
       `)
+     }
   }catch(error){
     if(error){
-      console.log(error)
     }
   }
 });
-  
     // Send subscribe request
     await new Promise<void>((resolve, reject) => {
       stream.write(args, (err: any) => {
@@ -111,26 +123,55 @@ import { getDexScreener } from "./utils/dexScreener";
     'gRPC TOKEN',
     undefined,
   );
-  const req = {
-    accounts: {},
-    slots: {},
-    transactions: {
-      copyTrade: {
-        vote: false,
-        failed: false,
-        signature: undefined,
-        accountInclude: ['Wallet Address'], //Wallet address you would love to monitor
-        accountExclude: [],
-        accountRequired: [raydium_PROGRAM_ID.toString()],
-      },
+  const req: SubscribeRequest = {
+    "slots": {},
+    "accounts": {
+      "raydium": {
+        "account": [],
+        "filters": [
+          {
+            "memcmp": {
+              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('quoteMint').toString(), // Filter for only tokens paired with SOL
+              "base58": "So11111111111111111111111111111111111111112"
+            }
+          },
+          {
+            "memcmp": {
+              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('marketProgramId').toString(), // Filter for only Raydium markets that contain references to Serum
+              "base58": "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
+            }
+          },
+          { 
+           "memcmp": {
+            "offset" : LIQUIDITY_STATE_LAYOUT_V4.offsetOf('owner').toString(),
+            "base58" : "inputAddress"
+          }
+          },
+          {
+            "memcmp": {
+              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapQuoteInAmount').toString(), // Hack to filter for only new tokens. There is probably a better way to do this
+              "bytes": Uint8Array.from([])
+            }
+           },
+          {
+            "memcmp": {
+              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapBaseOutAmount').toString(), // Hack to filter for only new tokens. There is probably a better way to do this
+              "bytes": Uint8Array.from([])
+            }
+          }
+        ],
+        "owner": ["675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"] // raydium program id to subscribe to
+      }
     },
-    transactionsStatus: {},
+    "transactions": {},
+    "blocks": {},
+    "blocksMeta": {
+      "block": []
+    },
+    "accountsDataSlice": [],
+    "commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
     entry: {},
-    blocks: {},
-    blocksMeta: {},
-    accountsDataSlice: [],
-    ping: undefined,
-    commitment: CommitmentLevel.CONFIRMED, //for receiving confirmed txn updates
+    transactionsStatus: {}
   };
   subscribeCommand(client, req);
   

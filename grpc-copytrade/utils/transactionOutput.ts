@@ -1,25 +1,16 @@
+import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
 import { decodeTransact } from "./decodeTransaction";
 
 export function tOutPut(data){
-    const dataTx = data.transaction.transaction
-    const signature = decodeTransact(dataTx.signature);
-    const message = dataTx.transaction?.message
-    const header = message.header;
-    const accountKeys = message.accountKeys.map((t)=>{
-        return  decodeTransact(t)
-    })
-    const recentBlockhash =  decodeTransact(message.recentBlockhash);
-    const instructions = message.instructions
-    const meta = dataTx?.meta
+    const dataTx = data?.account?.account;
+    const signature = decodeTransact(dataTx?.txnSignature);
+    const pubKey = decodeTransact(dataTx?.pubkey)
+    const owner = decodeTransact(dataTx?.owner);
+    const poolstate = LIQUIDITY_STATE_LAYOUT_V4.decode(dataTx.data); 
     return {
         signature,
-        message:{
-           header,
-           accountKeys,
-           recentBlockhash,
-           instructions
-        },
-        meta
+        pubKey,
+        owner,
+        poolstate
     }
-
 }

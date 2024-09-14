@@ -1,5 +1,5 @@
 var myHeaders = new Headers();
-const api = 'Your api'
+const api = 'api'
 
 myHeaders.append("x-api-key", api);
 
