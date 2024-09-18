@@ -1,4 +1,4 @@
- const api = "api"
+ const api = "your api" 
 var myHeaders = new Headers();
 myHeaders.append("x-api-key", api);
 
@@ -13,6 +13,6 @@ var requestOptions:any = {
     const infoJson = await info.json();
     const result = infoJson.result;
     const currentSupply = result?.current_supply;
-    const decimal = result?.decimals;
-    return {currentSupply,decimal} 
+    return currentSupply 
    }
+  

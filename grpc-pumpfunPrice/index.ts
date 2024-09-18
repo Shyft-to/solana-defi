@@ -54,7 +54,9 @@ const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confir
     // Handle updates
     stream.on("data", async (data) => {
       try{
-      const result = await tOutPut(data);
+  
+       const result = await tOutPut(data);
+   //    console.log(result)
      const bondingDetails = await getBondingCurveAddress(result.meta.postTokenBalances);
      const Ca = result.meta.postTokenBalances[0].mint
      const tokenInfo = await getTokenInfo(Ca);
@@ -64,9 +66,7 @@ const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confir
      const marketInfo = calculateInfo(PoolValue,tokenBalances,tokenInfo);
      if(tokenInfo === undefined){
      }else{
-     if(PoolValue >= 84){
       console.log(`
-        BONDING CURVE COMPLETED
         Latest Pool
         Ca : ${Ca}
         Bonding Curve Address : ${bondingCurve}
@@ -76,18 +76,7 @@ const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confir
         MarketCap : ${marketInfo.marketPrice}
         current Supply : ${tokenInfo}
      `)
-     }else{
-     console.log(`
-          Latest Pool
-        Ca : ${Ca}
-        Bonding Curve Address : ${bondingCurve}
-        Pool Value SOL : ${Number(PoolValue).toFixed(2)} SOL
-        Pool Value : ${tokenBalances}
-        Price : $${marketInfo.price}
-        MarketCap : ${marketInfo.marketPrice}
-        current Supply : ${tokenInfo}
-      `)
-     }
+     
    }
   }catch(error){
     if(error){
@@ -132,7 +121,7 @@ const req = {
   accounts: {},
   slots: {},
   transactions: {
-    bondingCurve: {
+    pumpfun: {
       vote: false,
       failed: false,
       signature: undefined,

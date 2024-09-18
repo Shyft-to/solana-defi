@@ -155,7 +155,7 @@ const raydium_PROGRAM_ID = new PublicKey(
             }
           }
         ],
-        "owner": ["675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"] // raydium program id to subscribe to
+        "owner": [raydium_PROGRAM_ID.toString()] // raydium program id to subscribe to
       }
     },
     "transactions": {},
