@@ -11,7 +11,7 @@ import Client, {
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
   import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
-import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
+import { Liquidity, LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
 import { getSolBalance, getTokenBalance } from "utils/walletInfo";
 import { getTokenInfo } from "utils/tokenInfo";
 import { getMarketInfo } from "utils/marketInfo";
@@ -56,11 +56,11 @@ import { getMarketInfo } from "utils/marketInfo";
     // Handle updates
     stream.on("data", async (data) => {
       try{
-     const result = await tOutPut(data);
+    const result = await tOutPut(data);
      const baseVault = result.poolstate.baseVault.toString();
      const quoteVault = result.poolstate.quoteVault.toString();
      const mint = result.poolstate.baseMint.toString();
-  //   console.log(result)
+    console.log(result)
     const tokenInfo = await getTokenInfo(mint)
     const quoteBal = await getSolBalance(quoteVault);
     const baseBal = await getTokenBalance(baseVault)/ 10 ** tokenInfo.decimal;
@@ -84,7 +84,7 @@ import { getMarketInfo } from "utils/marketInfo";
         PoolInfo : ${quoteBal}($${quoteBal$})
                    ${baseBal}
       `)
-     }
+    }
   }catch(error){
     if(error){
     }
@@ -123,66 +123,29 @@ import { getMarketInfo } from "utils/marketInfo";
     'gRPC TOKEN',
     undefined,
   );
-  const req: SubscribeRequest = {
-    "slots": {},
-    "accounts": {
-      "raydium": {
-        "account": [],
-        "filters": [
-          {
-            "memcmp": {
-              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('quoteMint').toString(), // Filter for only tokens paired with SOL
-              "base58": "So11111111111111111111111111111111111111112"
-            }
+const req: SubscribeRequest = {
+  slots: {},
+  accounts: {
+    usdc: {
+      account: [],
+      owner: ["JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"],
+      filters: [
+        {
+          memcmp: {
+            offset: String(0),
+            base58: "",
           },
-          {
-            "memcmp": {
-              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('marketProgramId').toString(), // Filter for only Raydium markets that contain references to Serum
-              "base58": "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
-            }
-          },
-          { 
-           "memcmp": {
-            "offset" : LIQUIDITY_STATE_LAYOUT_V4.offsetOf('owner').toString(),
-            "base58" : "inputAddress"
-          }
-          },
-          {
-            "memcmp": {
-              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapQuoteInAmount').toString(), // Hack to filter for only new tokens. There is probably a better way to do this
-              "bytes": Uint8Array.from([])
-            }
-           },
-          {
-            "memcmp": {
-              "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapBaseOutAmount').toString(), // Hack to filter for only new tokens. There is probably a better way to do this
-              "bytes": Uint8Array.from([])
-            }
-          }
-        ],
-        "owner": ["675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"] // raydium program id to subscribe to
-      }
+        },
+      ],
     },
-    "transactions": {},
-    "blocks": {},
-    "blocksMeta": {
-      "block": []
-    },
-    "accountsDataSlice": [],
-    "commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
-    entry: {},
-    transactionsStatus: {}
-  };
+  },
+  transactions: {},
+  transactionsStatus: {},
+  blocks: {},
+  blocksMeta: {},
+  entry: {},
+  accountsDataSlice: [],
+  commitment: CommitmentLevel.CONFIRMED,
+};
   subscribeCommand(client, req);
   
-
-  // Swapped Time :: 15:6
-  // CA : 82qt3HNBkvqpo46FYcBcHXNnUf3tMq6GNBkoARt3pump
-  // Name : So Much Higher
-  // Symbol : SMH
-  // Price : 0.001132
-  // Pair : 7oguisXbogr7o3o713dpe1PH2uwixtLBi4zabmAPvGsW
-  // MarketCap : 1132770
-  // Amount Swapped : 42932.733913 SMH
-  // Amount Value in Usd : $48.599854789515994
-  // tx : https://solscan.io/tx/4SBAtV7CUkvsdKUfL5ywNN1yLbbp7rhRRc7543wna5NnZ5Px8EVhAqaZLx6urQLDdTyXaM6mQtzykMyfDx3ZMHxs
