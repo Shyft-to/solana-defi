@@ -11,7 +11,10 @@ import Client, {
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
   import { VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
-
+import { buyTXN } from "./utils/txnParser/buyTxn";
+import { sellTXN } from "./utils/txnParser/sellTxn";
+import { TXN } from "./utils/txnParser/tokenAmount";
+const pumpfun = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 
   interface SubscribeRequest {
     accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -49,7 +52,29 @@ import { tOutPut } from "./utils/transactionOutput";
     stream.on("data", async (data) => {
       try{
      const result = await tOutPut(data);
-     console.log(result);
+     const buyTxn = buyTXN(result.meta.logMessages);
+     const sellTxn = sellTXN(result.meta.logMessages);
+     const txnParser = await TXN(result.signature.toString());
+     if(buyTxn && txnParser.signer !== undefined){
+      
+      console.log(`
+        TYPE : BUY
+        MINT : ${txnParser.token}
+        SIGNER : ${txnParser.signer}
+        IN  : ${txnParser.solAmount/1000000000} SOL
+        OUT : ${txnParser.tokenAmount}
+        SIGNATURE : ${result.signature}
+        `)
+     }
+      if(sellTxn && txnParser.signer !== undefined){
+      console.log(`
+        TYPE : SELL
+        MINT : ${txnParser.token}
+        SIGNER : ${txnParser.signer}
+        IN : ${txnParser.tokenAmount}
+        SIGNATURE : ${result.signature}
+        `)
+     } 
   }catch(error){
     if(error){
       console.log(error)
@@ -90,26 +115,26 @@ import { tOutPut } from "./utils/transactionOutput";
     'gRPC TOKEN',
     undefined,
   );
-  const req = {
-    accounts: {},
-    slots: {},
-    transactions: {
-      bondingCurve: {
-        vote: false,
-        failed: false,
-        signature: undefined,
-        accountInclude: ['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'], //Address 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
-        accountExclude: [],
-        accountRequired: [],
-      },
+const req = {
+  accounts: {},
+  slots: {},
+  transactions: {
+    bondingCurve: {
+      vote: false,
+      failed: false,
+      signature: undefined,
+      accountInclude: ['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'], //Address 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+      accountExclude: [],
+      accountRequired: [],
     },
-    transactionsStatus: {},
-    entry: {},
-    blocks: {},
-    blocksMeta: {},
-    accountsDataSlice: [],
-    ping: undefined,
-    commitment: CommitmentLevel.CONFIRMED, //for receiving confirmed txn updates
-  };
+  },
+  transactionsStatus: {},
+  entry: {},
+  blocks: {},
+  blocksMeta: {},
+  accountsDataSlice: [],
+  ping: undefined,
+  commitment: CommitmentLevel.CONFIRMED, //for receiving confirmed txn updates
+};
   subscribeCommand(client, req);
   
