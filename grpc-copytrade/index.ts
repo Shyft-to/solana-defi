@@ -1,151 +1,172 @@
 import Client, {
-    CommitmentLevel,
-    SubscribeRequestAccountsDataSlice,
-    SubscribeRequestFilterAccounts,
-    SubscribeRequestFilterBlocks,
-    SubscribeRequestFilterBlocksMeta,
-    SubscribeRequestFilterEntry,
-    SubscribeRequestFilterSlots,
-    SubscribeRequestFilterTransactions,
-  } from "@triton-one/yellowstone-grpc";
-  import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-  import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { tOutPut } from "./utils/transactionOutput";
-import { Liquidity, LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
-import { getSolBalance, getTokenBalance } from "utils/walletInfo";
-import { getTokenInfo } from "utils/tokenInfo";
-import { getMarketInfo } from "utils/marketInfo";
-  const raydium_PROGRAM_ID = new PublicKey(
-    "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-  );
-  
-  interface SubscribeRequest {
-    accounts: { [key: string]: SubscribeRequestFilterAccounts };
-    slots: { [key: string]: SubscribeRequestFilterSlots };
-    transactions: { [key: string]: SubscribeRequestFilterTransactions };
-    transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-    blocks: { [key: string]: SubscribeRequestFilterBlocks };
-    blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-    entry: { [key: string]: SubscribeRequestFilterEntry };
-    commitment?: CommitmentLevel | undefined;
-    accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-    ping?: SubscribeRequestPing | undefined;
-  }
+  CommitmentLevel,
+  SubscribeRequestAccountsDataSlice,
+  SubscribeRequestFilterAccounts,
+  SubscribeRequestFilterBlocks,
+  SubscribeRequestFilterBlocksMeta,
+  SubscribeRequestFilterEntry,
+  SubscribeRequestFilterSlots,
+  SubscribeRequestFilterTransactions,
+} from "@triton-one/yellowstone-grpc";
+import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
+import { VersionedTransactionResponse } from "@solana/web3.js";
+import { TransactionFormatter } from "./utils/transaction-formatter";
+import { RaydiumAmmParser } from "./utils/raydium-amm-parser";
 
-    async function handleStream(client: Client, args: SubscribeRequest) {
-    // Subscribe for events
-    const stream = await client.subscribe();
-  
-    // Create `error` / `end` handler
-    const streamClosed = new Promise<void>((resolve, reject) => {
-      stream.on("error", (error) => {
-        console.log("ERROR", error);
-        reject(error);
-        stream.end();
-      });
-      stream.on("end", () => {
-        resolve();
-      });
-      stream.on("close", () => {
-        resolve();
-      });
+interface SubscribeRequest {
+  accounts: { [key: string]: SubscribeRequestFilterAccounts };
+  slots: { [key: string]: SubscribeRequestFilterSlots };
+  transactions: { [key: string]: SubscribeRequestFilterTransactions };
+  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
+  blocks: { [key: string]: SubscribeRequestFilterBlocks };
+  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
+  entry: { [key: string]: SubscribeRequestFilterEntry };
+  commitment?: CommitmentLevel | undefined;
+  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
+  ping?: SubscribeRequestPing | undefined;
+}
+
+const TXN_FORMATTER = new TransactionFormatter();
+const RAYDIUM_PARSER = new RaydiumAmmParser();
+const RAYDIUM_PUBLIC_KEY = RaydiumAmmParser.PROGRAM_ID;
+
+async function handleStream(client: Client, args: SubscribeRequest) {
+  // Subscribe for events
+  const stream = await client.subscribe();
+
+  // Create `error` / `end` handler
+  const streamClosed = new Promise<void>((resolve, reject) => {
+    stream.on("error", (error) => {
+      console.log("ERROR", error);
+      reject(error);
+      stream.end();
     });
-  
-    // Handle updates
-     
-    // Handle updates
-    stream.on("data", async (data) => {
-      try{
-    const result = await tOutPut(data);
-     const baseVault = result.poolstate.baseVault.toString();
-     const quoteVault = result.poolstate.quoteVault.toString();
-     const mint = result.poolstate.baseMint.toString();
-    console.log(result)
-    const tokenInfo = await getTokenInfo(mint)
-    const quoteBal = await getSolBalance(quoteVault);
-    const baseBal = await getTokenBalance(baseVault)/ 10 ** tokenInfo.decimal;
-     const marketInfo = await getMarketInfo(baseBal,quoteBal,tokenInfo.currentSupply)
-     const quoteBal$ = marketInfo.quote$
-     const price = marketInfo.price;
-     const marketcap = marketInfo.marketcap;
-     const supply = marketInfo.currentSupply;
-     if(supply === undefined && tokenInfo.decimal === undefined){
-     }else{
-     console.log(`
-        CA : ${mint}
-        Supply : ${supply}
-        BaseVault : ${baseVault}
-        QuoteVault : ${quoteVault}
-        Decimal : ${tokenInfo.decimal}
-        Swap in : ${result.poolstate.swapBaseInAmount}
-        Swap Out : ${result.poolstate.swapQuoteOutAmount}
-        Price : $${price}
-        MarketCap : $${marketcap}
-        PoolInfo : ${quoteBal}($${quoteBal$})
-                   ${baseBal}
-      `)
-    }
-  }catch(error){
-    if(error){
-    }
-  }
-});
-    // Send subscribe request
-    await new Promise<void>((resolve, reject) => {
-      stream.write(args, (err: any) => {
-        if (err === null || err === undefined) {
-          resolve();
-        } else {
-          reject(err);
+    stream.on("end", () => {
+      resolve();
+    });
+    stream.on("close", () => {
+      resolve();
+    });
+  });
+
+  // Handle updates
+  stream.on("data", (data) => {
+    if (data?.transaction) {
+      const txn = TXN_FORMATTER.formTransactionFromJson(
+        data.transaction,
+        Date.now(),
+      );
+      const decodedRaydiumIxs = decodeRaydiumTxn(txn);
+
+      if (!decodedRaydiumIxs?.length) return;
+      const createPoolIx = decodedRaydiumIxs.find((decodedRaydiumIx) => {
+        if (
+          decodedRaydiumIx.name === "swapIn" ||
+          decodedRaydiumIx.name === "swapOut"
+        ) {
+          return decodedRaydiumIx;
         }
       });
-    }).catch((reason) => {
-      console.error(reason);
-      throw reason;
-    });
-  
-    await streamClosed;
-  }
-  
-  async function subscribeCommand(client: Client, args: SubscribeRequest) {
-    while (true) {
-      try {
-        await handleStream(client, args);
-      } catch (error) {
-        console.error("Stream error, restarting in 1 second...", error);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+       if (createPoolIx) {
+        const info  = getMintToken(data);
+        const stringify : any = stringifyWithBigInt(createPoolIx.args);
+        console.log(
+          `Signature: ${txn.transaction.signatures[0]}
+           CA : ${info.ca}
+           Pool Info : ${stringify}
+           Owner : ${info.signer}
+          `
+        );
       }
     }
+  });
+
+  // Send subscribe request
+  await new Promise<void>((resolve, reject) => {
+    stream.write(args, (err: any) => {
+      if (err === null || err === undefined) {
+        resolve();
+      } else {
+        reject(err);
+      }
+    });
+  }).catch((reason) => {
+    console.error(reason);
+    throw reason;
+  });
+
+  await streamClosed;
+}
+function stringifyWithBigInt(obj: any): string {
+  return JSON.stringify(obj, (key, value) => 
+    typeof value === 'bigint' ? value.toString() : value);
+}
+async function subscribeCommand(client: Client, args: SubscribeRequest) {
+  while (true) {
+    try {
+      await handleStream(client, args);
+    } catch (error) {
+      console.error("Stream error, restarting in 1 second...", error);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
   }
-  
-  const client = new Client(
-    'gRPC REGION URL',
-    'gRPC TOKEN',
-    undefined,
-  );
+}
+
+const client = new Client(
+  'gRPC REGION URL',
+  'gRPC TOKEN',
+  undefined,
+);
+
 const req: SubscribeRequest = {
+  accounts: {},
   slots: {},
-  accounts: {
-    usdc: {
-      account: [],
-      owner: ["JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"],
-      filters: [
-        {
-          memcmp: {
-            offset: String(0),
-            base58: "",
-          },
-        },
-      ],
+  transactions: {
+    raydiumLiquidityPoolV4: {
+      vote: false,
+      failed: false,
+      signature: undefined,
+      accountInclude: [], //input wallet
+      accountExclude: [],
+      accountRequired: [RAYDIUM_PUBLIC_KEY.toBase58()],
     },
   },
-  transactions: {},
   transactionsStatus: {},
+  entry: {},
   blocks: {},
   blocksMeta: {},
-  entry: {},
   accountsDataSlice: [],
+  ping: undefined,
   commitment: CommitmentLevel.CONFIRMED,
 };
-  subscribeCommand(client, req);
-  
+
+subscribeCommand(client, req);
+
+function decodeRaydiumTxn(tx: VersionedTransactionResponse) {
+  if (tx.meta?.err) return;
+
+  const allIxs = TXN_FORMATTER.flattenTransactionResponse(tx);
+
+  const raydiumIxs = allIxs.filter((ix) =>
+    ix.programId.equals(RAYDIUM_PUBLIC_KEY),
+  );
+
+  const decodedIxs = raydiumIxs.map((ix) =>
+    RAYDIUM_PARSER.parseInstruction(ix),
+  );
+
+  return decodedIxs;
+}
+function getMintToken(tx){
+  const data : any[] = tx.transaction.transaction.meta.preTokenBalances;
+  const filter = data.filter((t)=> t.mint !== "So11111111111111111111111111111111111111112")
+  const ca = filter[0].mint;
+  const signer = filter[0].owner;
+   return {
+    ca,
+    signer
+  };
+}
+function getMintTokenB(txn){
+
+}

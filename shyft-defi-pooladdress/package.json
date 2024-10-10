@@ -1,0 +1,11 @@
+{
+  "name": "pooladdress",
+  "version": "1.0.0",
+  "description": "fetching pool address with shyft api",
+  "main": "index.ts",
+  "scripts": {
+    "test": "npm run start"
+  },
+  "author": "",
+  "license": "ISC"
+}
