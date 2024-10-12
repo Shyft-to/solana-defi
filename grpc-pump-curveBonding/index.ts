@@ -113,12 +113,12 @@ const req: SubscribeRequest = {
     "filters": [
       {
         "memcmp": {
-          "offset": structure.offsetOf('complete').toString(), // Hack to filter for swapped. There is probably a better way to do this
+          "offset": structure.offsetOf('complete').toString(), // Hacks to filter complete bonding curve
           "bytes" : Uint8Array.from([1])
         }
       }
     ],
-    "owner": [pumpfun] // raydium program id to subscribe to
+    "owner": [pumpfun] // pumpfun program id to subscribe to
   }
 },
 "transactions": {},
