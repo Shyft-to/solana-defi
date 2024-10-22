@@ -7,11 +7,13 @@ export function tOutPut(data){
     const pubKey = decodeTransact(dataTx?.pubkey)
     const owner = decodeTransact(dataTx?.owner);
     const poolstate = LIQUIDITY_STATE_LAYOUT_V4.decode(dataTx.data); 
+    const slot = data?.account.slot
     return {
         signature,
         pubKey,
         owner,
-        poolstate
+        poolstate,
+        slot
     }
 
 }
