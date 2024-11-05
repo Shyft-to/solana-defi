@@ -1,17 +1,25 @@
-export function transactionOutput(txn){
-    const type = txn?.instructions[0]?.name === "create"?txn?.instructions[0]?.name:txn?.instructions[1]?.name;
-    const events = txn?.events[0]?.data;
-    const mint = events?.mint;
-    const args = txn?.instructions[0]?.name === "create"?txn?.instructions[0]:txn?.instructions[1];
-    const name = args?.name;
-    const symbols = args?.symbols;
-    const uri = args?.uri
-    
-    return{
-        type,
-        mint,
-        name,
-        symbols,
-        uri
+import { decodeTransact } from "./decodeTransaction";
+
+export function tOutPut(data){
+    const dataTx = data.transaction.transaction
+    const signature = decodeTransact(dataTx.signature);
+    const message = dataTx.transaction?.message
+    const header = message.header;
+    const accountKeys = message.accountKeys.map((t)=>{
+        return  decodeTransact(t)
+    })
+    const recentBlockhash =  decodeTransact(message.recentBlockhash);
+    const instructions = message.instructions
+    const meta = dataTx?.meta
+    return {
+        signature,
+        message:{
+           header,
+           accountKeys,
+           recentBlockhash,
+           instructions
+        },
+        meta
     }
+
 }

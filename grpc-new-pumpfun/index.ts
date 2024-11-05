@@ -9,14 +9,11 @@ import Client, {
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { Idl } from "@project-serum/anchor";
-import { SolanaParser } from "@shyft-to/solana-transaction-parser";
-import { TransactionFormatter } from "./utils/transaction-formatter";
-import pumpFunIdl from "./idls/pump_0.1.0.json";
-import { SolanaEventParser } from "./utils/event-parser";
-import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import { transactionOutput } from "./utils/transactionOutput";
+import { Connection, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
+import { tOutPut } from "./utils/transactionOutput";
+import { publicKey } from "@solana/buffer-layout-utils";
+
+const pumpfun = 'TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM';
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -31,22 +28,7 @@ interface SubscribeRequest {
   ping?: SubscribeRequestPing | undefined;
 }
 
-const TXN_FORMATTER = new TransactionFormatter();
-const PUMP_FUN_PROGRAM_ID = new PublicKey(
-  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
-);
-const PUMP_FUN_IX_PARSER = new SolanaParser([]);
-PUMP_FUN_IX_PARSER.addParserFromIdl(
-  PUMP_FUN_PROGRAM_ID.toBase58(),
-  pumpFunIdl as Idl,
-);
-const PUMP_FUN_EVENT_PARSER = new SolanaEventParser([], console);
-PUMP_FUN_EVENT_PARSER.addParserFromIdl(
-  PUMP_FUN_PROGRAM_ID.toBase58(),
-  pumpFunIdl as Idl,
-);
-
-async function handleStream(client: Client, args: SubscribeRequest) {
+  async function handleStream(client: Client, args: SubscribeRequest) {
   // Subscribe for events
   const stream = await client.subscribe();
 
@@ -66,26 +48,25 @@ async function handleStream(client: Client, args: SubscribeRequest) {
   });
 
   // Handle updates
-  stream.on("data", (data) => {
-    if (data?.transaction) {
-      const txn = TXN_FORMATTER.formTransactionFromJson(
-        data.transaction,
-        Date.now(),
-      );
-      const parsedTxn = decodePumpFunTxn(txn);
+  stream.on("data", async (data) => {
+    try{
 
-      if (!parsedTxn) return;
-      const tOutput = transactionOutput(parsedTxn)
-      if(tOutput.type !== undefined && tOutput.type === 'create'){
-      console.log(
-        `
-        TYPE : ${tOutput?.type}
-        MINT : ${tOutput?.mint}
-        `
-      )
-     }
-    }
-  });
+     const result = await tOutPut(data);
+
+     const Ca = result.meta.postTokenBalances[0].mint
+   
+    console.log(`
+      NEWLY MINTED
+      Ca : ${Ca}
+    
+   `)
+   
+ 
+}catch(error){
+  if(error){
+  }
+}
+});
 
   // Send subscribe request
   await new Promise<void>((resolve, reject) => {
@@ -114,51 +95,32 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
     }
   }
 }
-
 const client = new Client(
   'gRPC REGION URL',
   'gRPC TOKEN',
   undefined,
 );
-const req: SubscribeRequest = {
-  accounts: {},
-  slots: {},
-  transactions: {
-    pumpFun: {
-      vote: false,
-      failed: false,
-      signature: undefined,
-      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58()],
-      accountExclude: [],
-      accountRequired: [],
-    },
+
+const req = {
+accounts: {},
+slots: {},
+transactions: {
+  pumpfun: {
+    vote: false,
+    failed: false,
+    signature: undefined,
+    accountInclude: [pumpfun], //Address 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+    accountExclude: [],
+    accountRequired: [],
   },
-  transactionsStatus: {},
-  entry: {},
-  blocks: {},
-  blocksMeta: {},
-  accountsDataSlice: [],
-  ping: undefined,
-  commitment: CommitmentLevel.PROCESSED,
+},
+transactionsStatus: {},
+entry: {},
+blocks: {},
+blocksMeta: {},
+accountsDataSlice: [],
+ping: undefined,
+commitment: CommitmentLevel.PROCESSED, //for receiving confirmed txn updates
 };
 
-subscribeCommand(client, req);
-
-function decodePumpFunTxn(tx: VersionedTransactionResponse) {
-  if (tx.meta?.err) return;
-
-  const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
-    tx.transaction.message,
-    tx.meta.loadedAddresses,
-  );
-
-  const pumpFunIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_PROGRAM_ID),
-  );
-
-  if (pumpFunIxs.length === 0) return;
-  const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: pumpFunIxs, events };
-  bnLayoutFormatter(result);
-  return result;
-}
+subscribeCommand(client,req);
