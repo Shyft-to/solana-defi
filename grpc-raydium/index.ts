@@ -50,12 +50,13 @@ interface SubscribeRequest {
     try{
       if (data.account != undefined) {
        const info = await tOutPut(data);
-       console.log(
-        new Date(),
-        ":",
-        `New transaction https://translator.shyft.to/tx/${info.signature} \n`,
-        JSON.stringify(info, null, 2) + "\n",
-      );
+       console.log(info)
+      //  console.log(
+      //   new Date(),
+      //   ":",
+      //   `New transaction https://translator.shyft.to/tx/${info.signature} \n`,
+      //   JSON.stringify(info, null, 2) + "\n",
+      // );
     }
 }catch(error){
   if(error){
@@ -92,11 +93,12 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
   }
 }
 
+ 
 const client = new Client(
-  'gRPC REGION URL',
-  'gRPC TOKEN',
-  undefined,
-);
+  'https://grpc.ams.shyft.to/',
+  'gRPC Token',
+   undefined,
+  );
 
 const request: SubscribeRequest = {
   "slots": {},

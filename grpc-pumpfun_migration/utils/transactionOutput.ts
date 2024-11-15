@@ -9,7 +9,7 @@ import { bondingCurveData, decodeTransact } from "./decodeTransaction";
 export function tOutPut(data) {
     // Ensure data is defined and contains the necessary properties
     if (!data || !data.account || !data.account.account) {
-        throw new Error("Invalid data format");
+        return;
     }
 
     const dataTx = data.account.account;

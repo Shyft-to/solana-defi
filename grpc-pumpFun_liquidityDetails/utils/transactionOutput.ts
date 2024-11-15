@@ -1,7 +1,6 @@
 export function transactionOutput(txn){
     const type = txn.instructions[0].name === "sell"?"SELL":"BUY";
     const events = txn.events[0].data;
-    console.log(events);
     const mint = events?.mint;
     const solAmount = events?.solAmount/1000000000
     const tokenAmount = events?.tokenAmount;

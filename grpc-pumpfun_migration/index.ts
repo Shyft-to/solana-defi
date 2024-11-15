@@ -16,6 +16,7 @@ import { getTokenBalance } from "./utils/token";
 import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
 import { Boolean } from "@solana/buffer-layout";
 import { structure } from "./utils/decodeTransaction";
+import { getTokenInfo } from "./utils/defiApi";
 const pumpfun = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 
 
@@ -55,16 +56,22 @@ const stream = await client.subscribe();
   stream.on("data", async (data) => {
     try{
     const result = await tOutPut(data);
+    if(!result) return;
     const tokenInfo = await getTokenBalance(result.pubKey);
+    const poolInfo = await getTokenInfo(tokenInfo?.ca);
+    if(poolInfo.lp === undefined) return;
     console.log(
       `
-      CA : ${tokenInfo.ca}
-      Name : ${tokenInfo.name} (${tokenInfo.symbol})
-      POOL DETAILS : 0 ${tokenInfo.symbol}
-                     0 SOL
+      PUMPFUN -- RAYDIUM
+      CA : ${tokenInfo?.ca}
+      Name : ${tokenInfo?.name} (${tokenInfo?.symbol})
+      POOL DETAILS : Base Vault ${poolInfo?.baseVault}
+                     Quote Vault ${poolInfo?.quoteVault}
+                     Public Key ${poolInfo?.pubKey}
+                     LP Mint ${poolInfo?.lp}
       BONDING CURVE STATUS : COMPLETED                    
       `
-    )
+   )
 }catch(error){
   if(error){
     console.log(error)
