@@ -95,11 +95,10 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 
  
 const client = new Client(
-  'https://grpc.ams.shyft.to/',
-  'gRPC Token',
-   undefined,
-  );
-
+  'gRPC REGION URL',
+  'gRPC TOKEN',
+  undefined,
+);
 const request: SubscribeRequest = {
   "slots": {},
   "accounts": {
