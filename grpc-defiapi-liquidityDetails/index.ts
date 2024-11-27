@@ -53,9 +53,9 @@ interface SubscribeRequest {
   // Handle updates
   stream.on("data", async (data) => {
     try {
-       if(!data.account.account) return;
+       if(!data?.account?.account) return;
         const poolInfo = await getTokenInfo(token.toString());
-        if(poolInfo.fluxBeamLamports == undefined) return;
+        if(poolInfo?.fluxBeamLamports == undefined) return;
         // Extracting individual DEX data
 
         // Console logging each variable
@@ -134,12 +134,13 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
     }
   }
 } 
+  
+ 
 const client = new Client(
   'gRPC REGION URL',
   'gRPC TOKEN',
   undefined,
 );
-
 const req: SubscribeRequest = {
   slots: {},
   accounts: {

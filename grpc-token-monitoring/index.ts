@@ -9,9 +9,12 @@ import Client, {
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-import { VersionedTransactionResponse } from "@solana/web3.js";
+import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
-import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
+import { LIQUIDITY_STATE_LAYOUT_V4, Token } from "@raydium-io/raydium-sdk";
+
+
+const TOKEN = new PublicKey('4DFHSt7byviLNAjF8TQhxLfXHF1EBjzj8rGzA6tvTefU');
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -50,7 +53,7 @@ interface SubscribeRequest {
     try{
       if (data.account != undefined) {
        const info = await tOutPut(data);
-       console.log(info)
+       console.log(info);
     }
 }catch(error){
   if(error){
@@ -86,7 +89,6 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
     }
   }
 }
-
  
 const client = new Client(
   'gRPC REGION URL',
@@ -101,26 +103,20 @@ const request: SubscribeRequest = {
       "filters": [
         {
           "memcmp": {
-            "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('quoteMint').toString(), // Filter for only tokens paired with SOL
+            "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('quoteMint').toString(), 
             "base58": "So11111111111111111111111111111111111111112"
           }
         },
         {
           "memcmp": {
-            "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('marketProgramId').toString(), 
-            "base58": "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
-          }
-        },
-        {
-          "memcmp": {
-            "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapQuoteInAmount').toString(), 
-            "bytes": Uint8Array.from([0])
+            "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('baseMint').toString(),
+            "base58": TOKEN.toString()
           }
          },
         {
           "memcmp": {
-            "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('swapBaseOutAmount').toString(), 
-            "bytes": Uint8Array.from([0])
+            "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('marketProgramId').toString(), 
+            "base58": "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
           }
         }
       ],
