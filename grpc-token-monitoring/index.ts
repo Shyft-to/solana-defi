@@ -15,6 +15,7 @@ import { LIQUIDITY_STATE_LAYOUT_V4, Token } from "@raydium-io/raydium-sdk";
 
 
 const TOKEN = new PublicKey('4DFHSt7byviLNAjF8TQhxLfXHF1EBjzj8rGzA6tvTefU');
+const TOKENB = new PublicKey('85cQsFgbi8mBZxiPppbpPXuV7j1hA8tBwhjF4gKW6mHg');
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -89,7 +90,19 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
     }
   }
 }
- 
+const TokensToStream:any[] = [TOKEN,TOKENB]
+const miniSub = (tokens:any[]) => {
+  return tokens.map(token => {
+    return {
+      "memcmp": {
+        "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('baseMint').toString(),
+        "base58": token.toString()
+      }
+    };
+  });
+};
+
+  
 const client = new Client(
   'gRPC REGION URL',
   'gRPC TOKEN',
@@ -107,12 +120,7 @@ const request: SubscribeRequest = {
             "base58": "So11111111111111111111111111111111111111112"
           }
         },
-        {
-          "memcmp": {
-            "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('baseMint').toString(),
-            "base58": TOKEN.toString()
-          }
-         },
+          ...miniSub(TokensToStream),
         {
           "memcmp": {
             "offset": LIQUIDITY_STATE_LAYOUT_V4.offsetOf('marketProgramId').toString(), 
