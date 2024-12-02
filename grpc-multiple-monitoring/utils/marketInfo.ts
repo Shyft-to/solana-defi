@@ -3,7 +3,7 @@ import { getSolBalance, getTokenBalance } from "./walletInfo";
 
 export async function getMarketInfo(baseBal, quoteBal, currentSupply) {
     try {
-      const quote$ = quoteBal * 241.85//quoteBal * sol value in $$;
+      const quote$ = quoteBal * 225.85//quoteBal * sol value in $$;
       const price = quote$ / baseBal;
       const marketcap = currentSupply * price;
   

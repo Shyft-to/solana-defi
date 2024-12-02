@@ -16,6 +16,41 @@ import {  getSolBalance, getTokenBalance } from "./utils/walletInfo";
 import { getMarketInfo } from "./utils/marketInfo";
 import { getTokenInfo } from "./utils/tokenInfo";
 
+  const tokens = [
+    "AzAMgBCY7xM5FfJuVzb4dm46TJEfrmrar7XX9doEpump",
+    "HmRpmbeGosahTzChmTmKzFHR5SmgSgXFAXKumajgpump",
+    "65FTWaP4ERLYFkQ4QaKgFUeKncACdtx1dfEFyKJapump",
+    "J5sHn79BS1n64SeT4RJXqYP1g1ZVSXjchYgXS848pump",
+    "7S37Wv8v9BLQ7bCBTSmCgpCHEb7ae9ZVV7YGwDSepump",
+    "AZZyEKLE288XgF795nkktMC9poBgsq93mkcZQxRrpump",
+    "71DiBwJoSSY38t8TAK93o1bepYL8gpxoP9g7Jkg9pump",
+    "HV4M7zRcxgArwFLxUgX7wpLF4qLmVemiFUiHUJ4Fpump",
+    "5n2WeFEQbfV65niEP63sZc3VA7EgC4gxcTzsGGuXpump",
+    "4oJh9x5Cr14bfaBtUsXN1YUZbxRhuae9nrkSyWGSpump",
+    "GBpE12CEBFY9C74gRBuZMTPgy2BGEJNCn4cHbEPKpump",
+    "oraim8c9d1nkfuQk9EzGYEUGxqL3MHQYndRw1huVo5h",
+    "DTTLrCGbqn6fmNuKjGYqWFeQU5Hz153f5C3pNnxepump",
+    "tqrRt3AsuGa3aYYSvABMDrPJEWVzpAnh3p6LxXGpump",
+    "HuLHkBebCrvSnpKrMBL9yk4PH1Fu1J6es4cnDx6kcSpY",
+    "uSuKePc3MotnSm4NeLMjcZofUqiAaBH8SNMJ3kwpump",
+    "MVipSZ3kMJskEmY9dsiC4VAQVPJbKQL25wkyacKpump",
+    "Au3i4Dh9UKb6SKg1ScVADcXwFdawesq72b52Mpmapump",
+    "BKXQnRzZFq1DXyiJiVC6Y5EbUYMgYCMx9U89D5Yrpump",
+    "3sy7mXKwRFrjUPayZy7yzWv8XRB82AWC97jN98wrpump",
+    "97Mbx6Jym1iEkQdVfLf5PMWL5tARGnQ5na5jhR9Lpump",
+    "8gxEGKvrJ4U7ygaoPopC4tpfbwTLyjPmZQzsjs2Ypump",
+    "EGNhB85H9EGx5yxYPVcBSGhrmEsgWdeVmSY8Fvbtpump",
+    "FexAz5fnPVUezWKDqjKMG5pz3GqCJMPNsmcWp5Srpump",
+    "9C8FQFHxaxNng2bkdjLK4W9cLZ61bN3Ybgymk5sbpump",
+    "Av8agXfDJZucEUb561JNP1SmktnWP6ZgN8Uum9z7pump",
+    "9huESaYrXtsdx4gGLHxrSZ9Uta3sN2SKZUYux5ZVpump",
+    "7FBXUry78ce5n1LLMAm4xnGWPFkQYZ5m3E8HFWL3UqwH",
+    "8i51XNNpGaKaj4G4nDdmQh95v4FKAxw8mhtaRoKd9tE8",
+    "AAdGJMGsJzfpERcYMpU4As1gNKKWrkKpQu9GCnvFpump",
+    "J9z7yu57rvZwsKFibdPrjCzy1MBn6VS8oGtbdskFpump",
+    "8QR8aemDXrXn5bRdCXLbYKbCKz9r6ivs3e2brPJ5pump"
+  ];
+  
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
   slots: { [key: string]: SubscribeRequestFilterSlots };
@@ -74,27 +109,35 @@ async function handleStream(client: Client, args: SubscribeRequest) {
        if (createPoolIx) {
         const info  = getMintToken(data);
         const accountKeys = getVaults(txn);
-        const quoteVault = accountKeys.solVault;
-        const baseVault = accountKeys.tokenVault;
-        const tokenInfo = await getTokenInfo(info.ca)
-        const quoteBal = await getSolBalance(quoteVault);
-        const baseBal = await getTokenBalance(baseVault)/ 10 ** tokenInfo.decimal;
-         const marketInfo = await getMarketInfo(baseBal,quoteBal,tokenInfo.currentSupply)
-         const quoteBal$ = marketInfo.quote$ //sol = $241, you can change it in ...getMarketInfo()
-         const price = marketInfo.price;
-         const marketcap = marketInfo.marketcap;
-         const supply = marketInfo.currentSupply;
-        const stringify : any = stringifyWithBigInt(createPoolIx.args);
-        console.log(
-          `Signature: ${txn.transaction.signatures[0]}
-           CA : ${info.ca}
-           Price : $${price}
-           MarketCap : ${marketcap}
-           Supply : ${supply}
-           Pool Info : ${stringify}
-           Owner : ${info.signer}
-          `
-        );
+        const quoteVault = accountKeys?.solVault;
+        const baseVault = accountKeys?.tokenVault;
+        if (!baseVault || !quoteVault) {
+          console.error('Vaults are undefined or missing.');
+           return;
+          }
+      //  console.log(`${baseVault} ${quoteVault}`)
+          const tokenInfo = await getTokenInfo(info.ca)
+          const quoteBal = await getSolBalance(quoteVault);
+          const baseBal = await getTokenBalance(baseVault)/ 10 ** tokenInfo.decimal;
+           const marketInfo = await getMarketInfo(baseBal,quoteBal,tokenInfo.currentSupply)
+           const quoteBal$ = marketInfo.quote$ //sol = $241, you can change it in ...getMarketInfo()
+           const price = marketInfo.price;
+           const marketcap = marketInfo.marketcap;
+           if(isNaN(price) && isNaN(marketcap)) return;
+           const supply = marketInfo.currentSupply;
+          const stringify : any = stringifyWithBigInt(createPoolIx.args);
+          console.log(
+            `Signature: ${txn.transaction.signatures[0]}
+             CA : ${info.ca}
+             BASE VAULT : ${baseVault}
+             QUOTE VAULT : ${quoteVault}
+             Price : $${price}
+             MarketCap : ${marketcap}
+             Supply : ${supply}
+             Pool Info : ${stringify}
+             Owner : ${info.signer}
+            `
+          );
       }
     }
   });
@@ -140,7 +183,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: ['bv88GZQfPHeTXHctPPxkbFCAKBCocXFSENYGYBppump','3FhZjjCn8KfDmd1ewG8p2gg9mLekhXT1V338ZJnKpump','PWGjTwYsKUnuavJS2a7irfqcZ3NF9YoiC53pF6KTedP'], //input wallet
+      accountInclude: tokens,
       accountExclude: [],
       accountRequired: [RAYDIUM_PUBLIC_KEY.toBase58()],
     },
@@ -151,7 +194,7 @@ const req: SubscribeRequest = {
   blocksMeta: {},
   accountsDataSlice: [],
   ping: undefined,
-  commitment: CommitmentLevel.CONFIRMED,
+  commitment: CommitmentLevel.PROCESSED,
 };
 
 subscribeCommand(client, req);
@@ -173,9 +216,9 @@ function decodeRaydiumTxn(tx: VersionedTransactionResponse) {
 }
 function getVaults(tx:VersionedTransactionResponse){
   const accountKeys = tx.meta.loadedAddresses.writable;
-  const solVault = accountKeys[0];
+  const solVault = accountKeys[2];
   const tokenVault = accountKeys[1];
-  return {solVault, tokenVault};
+  return {solVault, tokenVault,accountKeys};
 }
 function getMintToken(tx){
   const data : any[] = tx.transaction.transaction.meta.preTokenBalances;
