@@ -15,7 +15,7 @@ import { publicKey } from "@solana/buffer-layout-utils";
 import { getTokenBalance } from "./utils/token";
 import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
 import { Boolean } from "@solana/buffer-layout";
-import { structure } from "./utils/decodeTransaction";
+import { getBondingCurveAddress } from "./utils/getBonding";
 const pumpfun = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 
 
@@ -55,24 +55,25 @@ const stream = await client.subscribe();
   stream.on("data", async (data) => {
     try{
     const result = await tOutPut(data);
-    const tokenInfo = await getTokenBalance(result.pubKey);
-    console.log(
-      `
-      PUMPFUN PROGRESS::
-      CA : ${tokenInfo.ca}
-      Name : ${tokenInfo.name} (${tokenInfo.symbol})
-      POOL DETAILS : 0 ${tokenInfo.symbol}
-                     0 SOL
-                         
-      `
-    )
-}catch(error){
+    const bondingDetails = await getBondingCurveAddress(result.meta.postTokenBalances);
+    const Ca = result.meta.postTokenBalances[0].mint
+    const bondingCurve = bondingDetails.bondingCurve?bondingDetails.bondingCurve?.toString():"";
+    const PoolValue = bondingDetails.solBalance/1000000000
+    const poolStandard = 84;
+    const progress = (PoolValue/poolStandard) * 100;
+    console.log(`
+      BONDING CURVE PROGRESS
+      Ca : ${Ca}
+      Bonding Curve Address : ${bondingCurve}
+      Pool Value : ${Number(PoolValue).toFixed(2)} SOL
+      PROGRESS : ${Number(progress).toFixed(1)}% to Completion
+   `)
+   }catch(error){
   if(error){
     console.log(error)
   }
-}
-});
-
+   }
+    });
   // Send subscribe request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
@@ -106,43 +107,25 @@ const client = new Client(
   undefined,
 );
 const req: SubscribeRequest = {
-"slots": {},
-"accounts": {
-  "pumpfun": {
-    "account": [],
-    "filters": [
-      {
-        "memcmp": {
-          "offset": structure.offsetOf('complete').toString(), // Hack to filter for swapped. There is probably a better way to do this
-          "bytes" : Uint8Array.from([0])
-        }
-      }
-    ],
-    "owner": [pumpfun] // raydium program id to subscribe to
-  }
-},
-"transactions": {},
-"blocks": {},
-"blocksMeta": {
-  "block": []
-},
-"accountsDataSlice": [],
-"commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
-entry: {},
-transactionsStatus: {}
-}
-async function getBondingCurveAddress(transaction : any[]){
-  let bondingCurve;
-  let solBalance;
-  const eachOwners = transaction?.flatMap(inner => inner.owner);
-  for (const owner in eachOwners){
-    const address = new PublicKey(eachOwners[owner]);
-    const systemOwner = await connection.getAccountInfo(address);
-    if(systemOwner.owner.toString() === pumpfun)
-      bondingCurve = address;
-      solBalance = systemOwner.lamports;
-      return {bondingCurve,solBalance}
-  }
-  return {bondingCurve,solBalance}
-}
+  accounts: {},
+  slots: {},
+  transactions: {
+    pumpFun: {
+      vote: false,
+      failed: false,
+      signature: undefined,
+      accountInclude: [],//["Fhg5yuuNN7SSG6XrvQKnBmwe32uwvbua6GYKiLyfpump",'D2BXEnw5Ufsns8mfFvs3qaAAuH8gPQuE9bMFvqTSpump'],
+      accountExclude: [],
+      accountRequired: [pumpfun],
+    },
+  },
+  transactionsStatus: {},
+  entry: {},
+  blocks: {},
+  blocksMeta: {},
+  accountsDataSlice: [],
+  ping: undefined,
+  commitment: CommitmentLevel.CONFIRMED,
+};
+
 subscribeCommand(client, req);
