@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
 
-export const api = "api"
+export const api = "YMyDOr87OBzT6TWr"
 const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confirmed');
 
  export async function getSolBalance(address){
@@ -13,4 +13,9 @@ const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confir
   
     return balance;
  }  
+ export async function getTokenBalance(address){
+    const account = await connection.getTokenAccountBalance(new PublicKey(address))
+    const balance = Number(account.value.amount);
+    return balance;
+ }
  

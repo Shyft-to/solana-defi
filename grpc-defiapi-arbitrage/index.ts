@@ -19,7 +19,7 @@ const sol = new PublicKey(
   "So11111111111111111111111111111111111111112"
 );
 const token = new PublicKey(
-"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+"5LafQUrVco6o7KMz42eqVEJ9LW31StPyGjeeu5sKoMtA",
 ); // token we are interested in
 const raydium_PROGRAM_ID = new PublicKey(
   "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
@@ -62,19 +62,27 @@ interface SubscribeRequest {
     try{
      const poolInfo = await getTokenInfo(token.toString(),sol.toString());
      const raydium = poolInfo.raydium;
-     const fluxbeam = poolInfo?.fluxbeam;
+     const orca = poolInfo?.orca;
      if (!raydium) return;
-    if (!fluxbeam) return;
-     const fluxbeamVault = fluxbeam?.tokenAccountA;
-     const raydiumVault = raydium?.quoteMint === sol.toString()? raydium?.quoteVault:raydium?.baseVault;
-     const fVaultBal =await getSolBalance(fluxbeamVault);
-     const rVaultBal = await getSolBalance(raydiumVault)
+     if (!orca) return;
+     const orcaVaultA = orca?.tokenVaultA;
+     const orcaVaultB = orca?.tokenVaultB;
+     const raydiumVaultA = raydium?.quoteMint === sol.toString()? raydium?.quoteVault:raydium?.baseVault;
+     const raydiumVaultB = raydium?.baseMint !== sol.toString()? raydium?.baseVault:raydium?.quoteVault;
+     const fVaultBal =await getSolBalance(orcaVaultA);
+     const rVaultBal = await getSolBalance(raydiumVaultA)
      const arbitrageCal = arbCalculation(fVaultBal,rVaultBal);
-     if(fluxbeamVault !== undefined || rVaultBal !== undefined){
+     if(orcaVaultA !== undefined || rVaultBal !== undefined){
      console.log(`
         ARBITRAGE OPPORTUNITY FOUND
-        DEX A : RAYDIUM ${rVaultBal}
-        DEX B : FLUXBEAM ${fVaultBal}
+        DEX RAYDIUM
+        VAULT A : ${raydiumVaultA}
+        VAULT B : ${raydiumVaultB}
+        VAULT SOL  ${rVaultBal}
+        DEX FLUXBEAM 
+        VAULT A : ${orcaVaultA}
+        VAULT B : ${orcaVaultB}
+        VAULT SOL : ${fVaultBal}
         LIQUIDITY DIFF : ${arbitrageCal}
       `)
      }
@@ -110,12 +118,12 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
     }
   }
 } 
-const client = new Client(
-  'gRPC REGION URL',
-  'gRPC TOKEN',
-  undefined,
-);
-
+  
+  const client = new Client(
+    'https://grpc.ny.shyft.to/',
+    'b9fe2a65-b582-4fba-ac82-3497558b6568',
+    undefined,
+  );
 const req: SubscribeRequest = {
   "slots": {},
   "accounts": {
