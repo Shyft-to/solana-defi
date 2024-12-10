@@ -118,12 +118,11 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
     }
   }
 } 
-  
-  const client = new Client(
-    'https://grpc.ny.shyft.to/',
-    'b9fe2a65-b582-4fba-ac82-3497558b6568',
-    undefined,
-  );
+const client = new Client(
+  'gRPC REGION URL',
+  'gRPC TOKEN',
+  undefined,
+);
 const req: SubscribeRequest = {
   "slots": {},
   "accounts": {

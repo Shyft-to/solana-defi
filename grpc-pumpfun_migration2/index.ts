@@ -52,6 +52,7 @@ import { searchForInitialize2 } from "./utils/logTXN";
       try{
       const result = await tOutPut(data);
       const migratedTXN = searchForInitialize2(result)
+      if(!migratedTXN) return;
       console.log(migratedTXN);
   }catch(error){
     if(error){
@@ -91,7 +92,7 @@ import { searchForInitialize2 } from "./utils/logTXN";
     'gRPC REGION URL',
     'gRPC TOKEN',
     undefined,
-  );  
+  );
   const req = {
     accounts: {},
     slots: {},
