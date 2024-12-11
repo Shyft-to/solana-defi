@@ -123,6 +123,7 @@ const client = new Client(
   'gRPC TOKEN',
   undefined,
 );
+
 const req: SubscribeRequest = {
   "slots": {},
   "accounts": {

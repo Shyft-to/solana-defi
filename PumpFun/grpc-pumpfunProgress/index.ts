@@ -9,15 +9,15 @@ import Client, {
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-import { Connection, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { tOutPut } from "./utils/transactionOutput";
-import { publicKey } from "@solana/buffer-layout-utils";
-import { getTokenBalance } from "./utils/token";
-import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
-import { Boolean } from "@solana/buffer-layout";
+import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
+import { Idl } from "@project-serum/anchor";
+import { SolanaParser } from "@shyft-to/solana-transaction-parser";
+import { TransactionFormatter } from "./utils/transaction-formatter";
+import pumpFunIdl from "./idls/pump_0.1.0.json";
+import { SolanaEventParser } from "./utils/event-parser";
+import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
+import { transactionOutput } from "./utils/transactionOutput";
 import { getBondingCurveAddress } from "./utils/getBonding";
-const pumpfun = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
-
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -32,9 +32,24 @@ interface SubscribeRequest {
   ping?: SubscribeRequestPing | undefined;
 }
 
+const TXN_FORMATTER = new TransactionFormatter();
+const PUMP_FUN_PROGRAM_ID = new PublicKey(
+  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+);
+const PUMP_FUN_IX_PARSER = new SolanaParser([]);
+PUMP_FUN_IX_PARSER.addParserFromIdl(
+  PUMP_FUN_PROGRAM_ID.toBase58(),
+  pumpFunIdl as Idl,
+);
+const PUMP_FUN_EVENT_PARSER = new SolanaEventParser([], console);
+PUMP_FUN_EVENT_PARSER.addParserFromIdl(
+  PUMP_FUN_PROGRAM_ID.toBase58(),
+  pumpFunIdl as Idl,
+);
+
 async function handleStream(client: Client, args: SubscribeRequest) {
   // Subscribe for events
-const stream = await client.subscribe();
+  const stream = await client.subscribe();
 
   // Create `error` / `end` handler
   const streamClosed = new Promise<void>((resolve, reject) => {
@@ -53,27 +68,32 @@ const stream = await client.subscribe();
 
   // Handle updates
   stream.on("data", async (data) => {
-    try{
-    const result = await tOutPut(data);
-    const bondingDetails = await getBondingCurveAddress(result.meta.postTokenBalances);
-    const Ca = result.meta.postTokenBalances[0].mint
-    const bondingCurve = bondingDetails.bondingCurve?bondingDetails.bondingCurve?.toString():"";
-    const PoolValue = bondingDetails.solBalance/1000000000
-    const poolStandard = 84;
-    const progress = (PoolValue/poolStandard) * 100;
-    console.log(`
-      BONDING CURVE PROGRESS
-      Ca : ${Ca}
-      Bonding Curve Address : ${bondingCurve}
-      Pool Value : ${Number(PoolValue).toFixed(2)} SOL
-      PROGRESS : ${Number(progress).toFixed(1)}% to Completion
-   `)
-   }catch(error){
-  if(error){
-    console.log(error)
-  }
-   }
-    });
+    if (data?.transaction) {
+      const txn = TXN_FORMATTER.formTransactionFromJson(
+        data.transaction,
+        Date.now(),
+      );
+      const parsedTxn = decodePumpFunTxn(txn);
+      if (!parsedTxn) return;
+      const tOutput = transactionOutput(parsedTxn)
+      const balance = await getBondingCurveAddress(tOutput.bondingCurve)
+      const progress = ((Number(balance)/84 )* 100);
+      console.log(
+        `
+        TYPE : ${tOutput.type}
+        MINT : ${tOutput.mint}
+        SIGNER : ${tOutput.user}
+        BONDING CURVE : ${tOutput.bondingCurve}
+        TOKEN AMOUNT : ${tOutput.tokenAmount}
+        SOL AMOUNT : ${tOutput.solAmount} SOL
+        POOL DETAILS : ${balance} SOL
+                      ${Number(progress).toFixed(2)}% to completion
+        SIGNATURE : ${txn.transaction.signatures[0]}
+        `
+      )
+    }
+  });
+
   // Send subscribe request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
@@ -100,7 +120,8 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
-}  
+}
+
 const client = new Client(
   'gRPC REGION URL',
   'gRPC TOKEN',
@@ -114,9 +135,9 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [],//["Fhg5yuuNN7SSG6XrvQKnBmwe32uwvbua6GYKiLyfpump",'D2BXEnw5Ufsns8mfFvs3qaAAuH8gPQuE9bMFvqTSpump'],
+      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58()],//["Hb9uyfUg8RbLsfSdud3LSW3yXx5PodM3XZmMS2ajpump",'DT1WapMVRafeBbJ2RcA7Rf2dF3g6pEa7vz7rxYLXpump]
       accountExclude: [],
-      accountRequired: [pumpfun],
+      accountRequired: [],
     },
   },
   transactionsStatus: {},
@@ -129,3 +150,22 @@ const req: SubscribeRequest = {
 };
 
 subscribeCommand(client, req);
+
+function decodePumpFunTxn(tx: VersionedTransactionResponse) {
+  if (tx.meta?.err) return;
+
+  const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
+    tx.transaction.message,
+    tx.meta.loadedAddresses,
+  );
+
+  const pumpFunIxs = paredIxs.filter((ix) =>
+    ix.programId.equals(PUMP_FUN_PROGRAM_ID),
+  );
+
+  if (pumpFunIxs.length === 0) return;
+  const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
+  const result = { instructions: pumpFunIxs, events };
+  bnLayoutFormatter(result);
+  return result;
+}
