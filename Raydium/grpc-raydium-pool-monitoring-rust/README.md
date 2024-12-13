@@ -1,4 +1,4 @@
-# Example in rust for subscribing to raydium pool updates
+# Subscribe to raydium pool updates using gRPC, in rust
 
 ```
 $ cargo run -- --endpoint https://grpc.ny.shyft.to --x-token <token> --pool-address <pool-address>
@@ -6,5 +6,6 @@ $ cargo run -- --endpoint https://grpc.ny.shyft.to --x-token <token> --pool-addr
 
 ## Notes
 
-rust gRPC client example: [this](https://github.com/rpcpool/yellowstone-grpc/tree/master/examples/rust)
-rust gRPC parsing utility: [this](https://github.com/rpcpool/yellowstone-vixen)
+gRPC client example in rust: [https://github.com/rpcpool/yellowstone-grpc/tree/master/examples/rust]
+
+gRPC parsing utilties: [https://github.com/rpcpool/yellowstone-vixen]
