@@ -74,7 +74,6 @@ import { sqrtPriceX64ToPrice } from "./utils/calculatePrice";
         `)
   }catch(error){
     if(error){
-      console.log(error)
     }
   }
 });
@@ -106,7 +105,6 @@ import { sqrtPriceX64ToPrice } from "./utils/calculatePrice";
       }
     }
   }
-
   const client = new Client(
     'gRPC REGION URL',
     'gRPC TOKEN',

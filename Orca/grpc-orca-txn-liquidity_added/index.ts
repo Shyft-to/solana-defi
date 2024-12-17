@@ -56,7 +56,6 @@ import { searchForInitialize2 } from "./utils/logTXN";
       console.log(migratedTXN);
   }catch(error){
     if(error){
-      console.log(error)
     }
   }
 });
