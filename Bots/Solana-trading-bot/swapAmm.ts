@@ -218,7 +218,7 @@ async function swapOnlyAmm(input: TestTxInputInfo) {
 
   //return { txids: await buildAndSendTx(innerTransactions,{maxRetries:30}) }
   
-  //return await createAndSendVOTX(innerTransactions[0].instructions,[wallet.payer])
+  //return await createAndSendVOTX(innerTransacti)()9ons[0].instructions,[wallet.payer])
   let success = await bull_dozer(innerTransactions);
   while (success < 1){
     success = await bull_dozer(innerTransactions);

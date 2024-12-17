@@ -11,6 +11,9 @@ import Client, {
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
   import { VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
+import { getTokenInfo } from "./utils/tokenInfo";
+//import { sqrtPriceX64ToPrice } from "@orca-so/whirlpool-sdk";
+import { sqrtPriceX64ToPrice } from "./utils/calculatePrice";
  
   interface SubscribeRequest {
     accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -50,7 +53,25 @@ import { tOutPut } from "./utils/transactionOutput";
     stream.on("data", async (data) => {
       try{
       const result = await tOutPut(data);
-      console.log(result.signature !==''?result:'');
+      const signature = result.signature;
+      const pubKey = result.pubKey;
+      const mintA = result.poolstate.tokenMintA;
+      const mintB = result.poolstate.tokenMintB;
+      const sqrtPrice = result.poolstate.sqrtPrice;
+      const decimalA = await getTokenInfo(mintA);
+      const decimalB = await getTokenInfo(mintB);
+      const price = sqrtPriceX64ToPrice(sqrtPrice,Number(decimalA),Number(decimalB));
+      const mintBPrice = 219/Number(price) 
+   //   const priceChecker = sqrtPriceX64ToPrice
+      console.log(`
+        signature : ${signature}
+        Public Key : ${pubKey}
+        Mint A : ${mintA}
+        Mint B : ${mintB}
+        SqrtPrice : ${sqrtPrice}
+        Price : ${price}
+        Mint B Price : ${mintBPrice}
+        `)
   }catch(error){
     if(error){
       console.log(error)
@@ -85,6 +106,7 @@ import { tOutPut } from "./utils/transactionOutput";
       }
     }
   }
+
   const client = new Client(
     'gRPC REGION URL',
     'gRPC TOKEN',

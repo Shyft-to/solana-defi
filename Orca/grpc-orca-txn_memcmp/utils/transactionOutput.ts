@@ -1,5 +1,5 @@
 
-import { getInitWhirlpoolConfigsTx, OrcaWhirlpoolClient } from "@orca-so/whirlpool-sdk";
+import { getInitWhirlpoolConfigsTx, OrcaWhirlpoolClient, sqrtPriceX64ToPrice } from "@orca-so/whirlpool-sdk";
 import { decodeTransact } from "./decodeTransaction";
 import { OrcaPool } from "@orca-so/whirlpool-sdk/dist/pool/orca-pool";
 import { AccountName, WHIRLPOOL_CODER } from "@orca-so/whirlpools-sdk";
@@ -14,7 +14,7 @@ export function tOutPut(data) {
     if (!data || !data.account || !data.account.account) {
     }
 
-    const dataTx = data.account.account;
+    const dataTx = data?.account?.account;
 
     // Safely decode each piece of transaction data
     const signature = dataTx.txnSignature ? decodeTransact(dataTx.txnSignature) : null;

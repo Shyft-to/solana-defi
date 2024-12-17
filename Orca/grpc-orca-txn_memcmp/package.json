@@ -13,6 +13,7 @@
     "@orca-so/whirlpool-sdk": "^0.4.2",
     "@orca-so/whirlpools-sdk": "^0.13.10",
     "@project-serum/anchor": "^0.26.0",
+    "decimal.js": "^10.4.3",
     "@shyft-to/solana-transaction-parser": "^1.1.17",
     "@solana/buffer-layout": "^4.0.1",
     "@solana/buffer-layout-utils": "^0.2.0",
