@@ -1,0 +1,21 @@
+[package]
+name = "grpc-raydium-pool-monitoring-rust"
+version = "1.0.0"
+authors = ["adilcpm"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow = "1.0.62"
+backoff = { version = "0.4.0", features = ["tokio"] }
+bs58 = "0.5.1"
+clap = { version = "4.3.0", features = ["derive"] }
+env_logger = "0.11.3"
+futures = "0.3.24"
+log = "0.4.17"
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "fs"] }
+tonic = "0.12.1"
+yellowstone-grpc-client = "4.0.0"
+yellowstone-grpc-proto = { version = "4.0.0", default-features = false ,features = ["plugin"] }
+yellowstone-vixen-core = { git = "https://github.com/rpcpool/yellowstone-vixen" }
+yellowstone-vixen-parser = { git = "https://github.com/rpcpool/yellowstone-vixen", features = ["raydium"] }
