@@ -1,4 +1,4 @@
-const api =  'YMyDOr87OBzT6TWr'
+const api =  ''
  var myHeaders = new Headers();
  myHeaders.append("x-api-key", api);
  

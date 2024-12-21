@@ -14,6 +14,7 @@ import { tOutPut } from "./utils/transactionOutput";
 import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
 import { getTokenInfo } from "./tools/getPooldetails";
 import { getSolBalance } from "./tools/getBalance";
+import { getBuyQuote, getSellQuote } from "./tools/getPrice";
 
 const sol = new PublicKey(
   "So11111111111111111111111111111111111111112"
@@ -24,7 +25,7 @@ const token = new PublicKey(
 const raydium_PROGRAM_ID = new PublicKey(
   "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
 );//listen to swaps
-
+const amount = 2 * 1000000000;
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
   slots: { [key: string]: SubscribeRequestFilterSlots };
@@ -63,26 +64,26 @@ interface SubscribeRequest {
      const poolInfo = await getTokenInfo(token.toString(),sol.toString());
      const raydium = poolInfo.raydium;
      const orca = poolInfo?.orca;
+     const buy = await getBuyQuote(token,amount);
+     const sell = await getSellQuote(token,buy.outAmount,buy.routePlan[0]?.swapInfo?.label)
      if (!raydium) return;
      if (!orca) return;
      const orcaVaultA = orca?.tokenVaultA;
      const orcaVaultB = orca?.tokenVaultB;
      const raydiumVaultA = raydium?.quoteMint === sol.toString()? raydium?.quoteVault:raydium?.baseVault;
      const raydiumVaultB = raydium?.baseMint !== sol.toString()? raydium?.baseVault:raydium?.quoteVault;
-     const fVaultBal =await getSolBalance(orcaVaultA);
-     const rVaultBal = await getSolBalance(raydiumVaultA)
-     const arbitrageCal = arbCalculation(fVaultBal,rVaultBal);
-     if(orcaVaultA !== undefined || rVaultBal !== undefined){
+     const arbitrageCal = arbCalculation(amount,sell.outAmount);
+     if(orcaVaultA !== undefined){
      console.log(`
         ARBITRAGE OPPORTUNITY FOUND
-        DEX RAYDIUM
+        DEX ${buy.routePlan[0]?.swapInfo?.label}
         VAULT A : ${raydiumVaultA}
         VAULT B : ${raydiumVaultB}
-        VAULT SOL  ${rVaultBal}
-        DEX FLUXBEAM 
+        AMOUNT IN  ${amount}
+        DEX ${sell.routePlan[0]?.swapInfo?.label}
         VAULT A : ${orcaVaultA}
         VAULT B : ${orcaVaultB}
-        VAULT SOL : ${fVaultBal}
+        AMOUNT OUT : ${sell.outAmount}
         LIQUIDITY DIFF : ${arbitrageCal}
       `)
      }
@@ -123,7 +124,6 @@ const client = new Client(
   'gRPC TOKEN',
   undefined,
 );
-
 const req: SubscribeRequest = {
   "slots": {},
   "accounts": {

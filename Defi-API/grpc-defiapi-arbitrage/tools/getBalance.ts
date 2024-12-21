@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
 
-export const api = "YMyDOr87OBzT6TWr"
+export const api = ""
 const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confirmed');
 
  export async function getSolBalance(address){

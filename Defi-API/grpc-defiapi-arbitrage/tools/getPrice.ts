@@ -2,27 +2,33 @@ import { createJupiterApiClient, QuoteGetRequest, QuoteResponse } from "@jup-ag/
 
 const jupiterQuoteApi = createJupiterApiClient();
 
-async function getQuote() {
-    const params: QuoteGetRequest = {
-        inputMint:  "5LafQUrVco6o7KMz42eqVEJ9LW31StPyGjeeu5sKoMtA",
-        outputMint: "So11111111111111111111111111111111111111112", // $WIF5LafQUrVco6o7KMz42eqVEJ9LW31StPyGjeeu5sKoMtA
-        amount: 38923052, // 0.0001 SOL
-        autoSlippage: true,
-        dexes:['Raydium'],
-        autoSlippageCollisionUsdValue: 1_000,
-        maxAutoSlippageBps: 1000, // 10%
-        minimizeSlippage: true,
-        onlyDirectRoutes: true,
-        asLegacyTransaction: false,
-      };
-          // get quote
-          const quote = await jupiterQuoteApi.quoteGet(params);
-         
-          if (!quote) {
-            throw new Error("unable to quote");
-          }
-          console.log(quote.routePlan)
-          return quote;
+export async function getBuyQuote(token,amount) {
+    const quoteResponse = await (
+    await fetch(`https://jup.ny.shyft.to/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${token}&amount=${amount}&dexes=Raydium`
+     ,{
+     //  method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+         'x-api-key' : 'api'
+      },
     }
-   getQuote();
+    )
+  ).json();
+  return quoteResponse;
+  }
+ export async function getSellQuote(token, amount,dex){
+  const quoteResponse = await (
+    await fetch(`https://jup.ny.shyft.to/quote?inputMint=${token}&outputMint=So11111111111111111111111111111111111111112&amount=${amount}&dexes=Whirlpool`
+     ,{
+     //  method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+         'x-api-key' : 'api'
+      },
+    }
+    )
+  ).json();
+  return quoteResponse;
+ }   
+ // getBuyQuote('5LafQUrVco6o7KMz42eqVEJ9LW31StPyGjeeu5sKoMtA',100000);
       
