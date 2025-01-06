@@ -156,7 +156,7 @@ async function getBondingCurveAddress(transaction : any[]){
 }
 
 function calculateInfo(solBal:number,tokenBal:number,currentSupply:number){
-   const $sol:number = solBal * 134.7;
+   const $sol:number = solBal //solBal *  sol value in $$ use any api to fetch sol price;
    const tokenBought:number = currentSupply - tokenBal;
    const tokenBoughtPrice:number = $sol / tokenBought;
    const tokenValue = tokenBoughtPrice * currentSupply;
