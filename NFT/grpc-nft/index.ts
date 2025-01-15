@@ -11,9 +11,6 @@ import Client, {
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
   import { VersionedTransactionResponse } from "@solana/web3.js";
 import { tOutPut } from "./utils/transactionOutput";
-import { getTokenInfo } from "./utils/tokenInfo";
-//import { sqrtPriceX64ToPrice } from "@orca-so/whirlpool-sdk";
-import { sqrtPriceX64ToPrice } from "./utils/calculatePrice";
  
   interface SubscribeRequest {
     accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -28,7 +25,7 @@ import { sqrtPriceX64ToPrice } from "./utils/calculatePrice";
     ping?: SubscribeRequestPing | undefined;
   } 
    
-   const ORCA = 'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc';
+   const Tensor_cNFT = 'TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp';
 
     async function handleStream(client: Client, args: SubscribeRequest) {
     // Subscribe for events
@@ -53,27 +50,10 @@ import { sqrtPriceX64ToPrice } from "./utils/calculatePrice";
     stream.on("data", async (data) => {
       try{
       const result = await tOutPut(data);
-      const signature = result.signature;
-      const pubKey = result.pubKey;
-      const mintA = result.poolstate.tokenMintA;
-      const mintB = result.poolstate.tokenMintB;
-      const sqrtPrice = result.poolstate.sqrtPrice;
-      const decimalA = await getTokenInfo(mintA);
-      const decimalB = await getTokenInfo(mintB);
-      const price = sqrtPriceX64ToPrice(sqrtPrice,Number(decimalA),Number(decimalB));
-      const mintBPrice = 219/Number(price) 
-   //   const priceChecker = sqrtPriceX64ToPrice
-      console.log(`
-        signature : ${signature}
-        Public Key : ${pubKey}
-        Mint A : ${mintA}
-        Mint B : ${mintB}
-        SqrtPrice : ${sqrtPrice}
-        Price : ${price}
-        Mint B Price : ${mintBPrice}
-        `)
+      console.log(result.signature !==''?result:'');
   }catch(error){
     if(error){
+      console.log(error)
     }
   }
 });
@@ -105,29 +85,32 @@ import { sqrtPriceX64ToPrice } from "./utils/calculatePrice";
       }
     }
   }
+  
   const client = new Client(
-    'gRPC REGION URL',
-    'gRPC TOKEN',
-    undefined,
-  );
-const req: SubscribeRequest = {
-  "slots": {},
-  "accounts": {
-    "ORCA": {
-      "account": [],
-      "filters": [],
-      "owner": [ORCA] // raydium program id to subscribe to
-    }
-  },
-  "transactions": {},
-  "blocks": {},
-  "blocksMeta": {
-    "block": []
-  },
-  "accountsDataSlice": [],
-  "commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
-  entry: {},
-  transactionsStatus: {}
-}
+    'https://grpc.ams.shyft.to/',
+    'b9fe2a65-b582-4fba-ac82-3497558b6568',
+    undefined,
+  );
+  const req = {
+    accounts: {},
+    slots: {},
+    transactions: {
+      moonshot: {
+        vote: false,
+        failed: false,
+        signature: undefined,
+        accountInclude: [Tensor_cNFT], 
+        accountExclude: [],
+        accountRequired: [],
+      },
+    },
+    transactionsStatus: {},
+    entry: {},
+    blocks: {},
+    blocksMeta: {},
+    accountsDataSlice: [],
+    ping: undefined,
+    commitment: CommitmentLevel.CONFIRMED, //for receiving confirmed txn updates
+  };
   subscribeCommand(client, req);
   

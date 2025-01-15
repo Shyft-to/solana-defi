@@ -1,21 +1,24 @@
 use {
+    anyhow::Context,
     backoff::{future::retry, ExponentialBackoff},
     clap::Parser as ClapParser,
     futures::{future::TryFutureExt, sink::SinkExt, stream::StreamExt},
     log::{error, info},
+    serde_json::json,
+    serde_json::Value,
+    solana_sdk::{signature::Signature},
+    solana_transaction_status::UiTransactionEncoding,
     std::{collections::HashMap, env, sync::Arc, time::Duration},
     tokio::sync::Mutex,
     tonic::transport::channel::ClientTlsConfig,
     yellowstone_grpc_client::{GeyserGrpcClient, Interceptor},
     yellowstone_grpc_proto::prelude::{
-        subscribe_update::UpdateOneof, CommitmentLevel, SubscribeRequest,
-        SubscribeRequestFilterAccounts, SubscribeRequestPing,
+        subscribe_update::UpdateOneof, CommitmentLevel, SubscribeRequest, SubscribeRequestPing,
+        SubscribeRequestFilterTransactions,SubscribeUpdateTransactionInfo
     },
-    yellowstone_vixen_core::Parser as VixenParser,
-    yellowstone_vixen_parser::raydium::{AccountParser as RaydiumParser, RaydiumProgramState},
+    yellowstone_grpc_proto::convert_from
 };
-
-type AccountFilterMap = HashMap<String, SubscribeRequestFilterAccounts>;
+type TransactionsFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
 
 #[derive(Debug, Clone, ClapParser)]
 #[clap(author, version, about)]
@@ -27,8 +30,8 @@ struct Args {
     #[clap(long, help = "X-Token")]
     x_token: String,
 
-    #[clap(long, help = "Pool address of the raydium pool to subscribe to")]
-    pool_address: String,
+    #[clap(long, help = "Program Id to subscribe to")]
+    address: String,
 }
 
 impl Args {
@@ -45,22 +48,23 @@ impl Args {
     }
 
     pub fn get_raydium_pool_subscribe_request(&self) -> anyhow::Result<SubscribeRequest> {
-        let mut accounts: AccountFilterMap = HashMap::new();
-
-        accounts.insert(
+        let mut transactions : TransactionsFilterMap = HashMap::new();
+        transactions.insert(
             "client".to_owned(),
-            SubscribeRequestFilterAccounts {
-                nonempty_txn_signature: None,
-                account: vec![self.pool_address.to_string()],
-                owner: vec![],
-                filters: vec![],
+            SubscribeRequestFilterTransactions {
+                vote: None,
+                failed: Some(false),
+                signature: None,
+                account_include:vec![self.address.to_string()] ,
+                account_exclude: vec![],
+                account_required: vec![],
             },
         );
 
         Ok(SubscribeRequest {
             slots: HashMap::default(),
-            accounts,
-            transactions: HashMap::default(),
+            accounts: HashMap::default(),
+            transactions,
             transactions_status: HashMap::default(),
             entry: HashMap::default(),
             blocks: HashMap::default(),
@@ -68,10 +72,11 @@ impl Args {
             commitment: Some(CommitmentLevel::Processed as i32),
             accounts_data_slice: Vec::default(),
             ping: None,
+            from_slot: None,
         })
     }
 }
-
+// .ok_or(anyhow::anyhow!("no created_at in the message"))?
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env::set_var(
@@ -130,25 +135,16 @@ async fn geyser_subscribe(
         match message {
             Ok(msg) => {
                 match msg.update_oneof {
-                    Some(UpdateOneof::Account(msg)) => {
-                        let result = RaydiumParser
-                            .parse(unsafe { std::mem::transmute(&msg) })
-                            .await
-                            .unwrap();
-                        match result {
-                            RaydiumProgramState::PoolState(pool_state) => {
-                                info!(
-                                    "Slot: {:?}\tSwap price: {:.2}",
-                                    msg.slot,
-                                    get_raydium_sol_usd_price(pool_state.sqrt_price_x64)
-                                );
-                            }
-                            _ => {}
-                        }
+                    Some(UpdateOneof::Transaction(msg)) => {
+                         let tx = msg
+                         .transaction
+                         .ok_or(anyhow::anyhow!("no transaction in the message"))?;
+                     let value = create_pretty_transaction(tx)?;
+                     info!("Message: {:?}",value);
+
                     }
                     Some(UpdateOneof::Ping(_)) => {
-                        // This is necessary to keep load balancers that expect client pings alive. If your load balancer doesn't
-                        // require periodic client pings then this is unnecessary
+                        // This is necessary to keep load balancers that expect client pings alive.
                         subscribe_tx
                             .send(SubscribeRequest {
                                 ping: Some(SubscribeRequestPing { id: 1 }),
@@ -156,7 +152,9 @@ async fn geyser_subscribe(
                             })
                             .await?;
                     }
-                    Some(UpdateOneof::Pong(_)) => {}
+                    Some(UpdateOneof::Pong(_)) => {
+                        // Handle pong response if needed
+                    }
                     None => {
                         error!("update not found in the message");
                         break;
@@ -173,14 +171,14 @@ async fn geyser_subscribe(
     info!("stream closed");
     Ok(())
 }
-
-/**
- * Convert sqrt_price_x64 to normal price
- *
- * This does not consider mint decimals. Nor this is the right way to calculate price.
- * Use only for SOL/USD
- */
-fn get_raydium_sol_usd_price(sqrt_price_x64: u128) -> f64 {
-    let sqrt_price = sqrt_price_x64 as f64 / (1u128 << 64) as f64;
-    sqrt_price * sqrt_price * 1000.0
+fn create_pretty_transaction(tx: SubscribeUpdateTransactionInfo) -> anyhow::Result<Value> {
+    Ok(json!({
+        "signature": Signature::try_from(tx.signature.as_slice()).context("invalid signature")?.to_string(),
+        "isVote": tx.is_vote,
+        "tx": convert_from::create_tx_with_meta(tx)
+            .map_err(|error| anyhow::anyhow!(error))
+            .context("invalid tx with meta")?
+            .encode(UiTransactionEncoding::Base64, Some(u8::MAX), true)
+            .context("failed to encode transaction")?,
+    }))
 }
