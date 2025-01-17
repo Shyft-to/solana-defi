@@ -3,6 +3,8 @@
 ```
  cargo run -- --endpoint https://grpc.ny.shyft.to --x-token<token> --address TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM
 
+--PS: this code only works for the program ID <address>
+-- DON'T attempt to use the code for any other program
 ## Notes
 
 gRPC client examples :https://github.com/Shyft-to/solana-defi
