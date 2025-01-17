@@ -105,8 +105,8 @@ import { sqrtPriceX64ToPrice } from "./utils/calculatePrice";
     }
   }
   const client = new Client(
-    'https://grpc.ams.shyft.to/',
-    'b9fe2a65-b582-4fba-ac82-3497558b6568',
+    'gRpc url',
+    'gRpc Token',
     undefined,
   );
 const req: SubscribeRequest = {
