@@ -45,5 +45,5 @@ $ npx ts-node index.ts
 
 ## Notes
 
-For more details on Shyft gRPC, checkout: [gRPCDocs]https://docs.shyft.to/solana-grpc-shredstream/grpc-docs
-For detailed examples, checkout: [ShyftBlogs]https://blogs.shyft.to/
+For more details on Shyft gRPC, checkout [gRPC Docs](https://docs.shyft.to/solana-grpc-shredstream/grpc-docs)
+ and for detailed examples, checkout [Shyft Blogs](https://blogs.shyft.to/)!
