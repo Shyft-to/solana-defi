@@ -31,6 +31,10 @@ struct Args {
     #[clap(long)]
     commitment: Option<ArgsCommitment>,
 
+    /// Timeout in milliseconds (default: 1000)
+    #[clap(long, default_value_t = 60)]
+    timeout: u64, // Keeping it u64 for flexibility
+
     /// Filter vote transactions
     #[clap(long)]
     vote: Option<bool>,
@@ -205,7 +209,7 @@ async fn main() -> anyhow::Result<()> {
     let mut _lc = LatencyCollector::new();
 
     let mut messages: BTreeMap<u64, (Option<u64>, Vec<(String, u64)>)> = BTreeMap::new();
-    let timeout = tokio::time::sleep(tokio::time::Duration::from_secs(10));
+    let timeout = tokio::time::sleep(tokio::time::Duration::from_secs(args.timeout_dur));
     tokio::select! {
         _ = timeout => {
             println!("Timeout reached, ending stream...");
