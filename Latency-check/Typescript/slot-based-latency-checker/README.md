@@ -1,6 +1,6 @@
-# Solana gRPC transaction based latency checker
+# Solana gRPC slot based latency checker
 
-This is a solana latency checker based on Solana transactions. Transactions are continuously streamed from gRPC, and are pushed to a queue (fastq). Another service (worker) reads from the queue, and call getTransaction RPC method for each transaction, and compare the blocktimes. For best results, it is recommended this coded runs on the same geolocation of the gRPC we are streaming from.
+This project focuses on real-time analysis of Solana transaction latency. It uses Shyft gRPC to simultaneously stream both transaction updates and block metadata. By correlating the transaction's "received time" with the corresponding block's "block time" from the block metadata stream (using the slot field), the project calculates the latency experienced by each transaction. This approach eliminates the need for separate RPC calls to fetch block times, improving efficiency and reducing latency in the analysis itself.
 
 Improvements and suggestions are welcome.  
 
@@ -19,9 +19,6 @@ X_TOKEN=add-your-token
 
 CONCURRENCY=100
 # no of items to be processed at a time by fastq
-
-RPC_URL=https://rpc.ny.shyft.to?api_key=<your-api-key>
-# your Solana RPC url
 
 PUBLIC_KEY_TO_LISTEN=675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8
 # address of the program you are receiving txns for

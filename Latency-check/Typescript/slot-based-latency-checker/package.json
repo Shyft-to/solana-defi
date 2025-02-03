@@ -1,0 +1,28 @@
+{
+  "name": "general-grpc-test-kit",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "abhi",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/lodash": "^4.17.4",
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@project-serum/anchor": "^0.26.0",
+    "@solana/buffer-layout": "^4.0.1",
+    "@solana/buffer-layout-utils": "^0.2.0",
+    "@solana/web3.js": "^1.92.3",
+    "@triton-one/yellowstone-grpc": "^1.4.1",
+    "dotenv": "^16.4.5",
+    "fastq": "^1.18.0",
+    "lodash": "^4.17.21"
+  }
+}
