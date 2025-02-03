@@ -31,6 +31,12 @@ interface SubscribeRequest {
   ping?: SubscribeRequestPing | undefined;
 }
 
+
+interface TransactionItem {
+  transaction: VersionedTransactionResponse;
+  created_at_received: number;
+}
+
 const TXN_FORMATTER = new TransactionFormatter();
 const PUBLIC_KEY_TO_LISTEN = process.env.PUBLIC_KEY_TO_LISTEN ?? "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
 const RUN_TIME = Number(process.env.RUN_TIME ?? 2) * 60 * 1000; 
@@ -73,8 +79,9 @@ const req: SubscribeRequest = {
 let accumLatency = 0;
 let count = 0;
 
-const worker: fastq.worker<VersionedTransactionResponse> = async (transaction: VersionedTransactionResponse) => {
+const worker: fastq.worker<TransactionItem> = async (txn_item : TransactionItem) => {
   // console.log("executing worker");
+  const {transaction, created_at_received} = txn_item;
   if (!transaction?.blockTime) {
     console.log(
       "No blocktime found for: ",
@@ -99,13 +106,15 @@ const worker: fastq.worker<VersionedTransactionResponse> = async (transaction: V
     );
     return;
   }
-  const transactionTime = transactionData?.blockTime as number * 1000;
+  const transactionTime = (transactionData?.blockTime ?? Date.now()) as number * 1000;
   const receivedTime = transaction?.blockTime;
+
   REPORT_GEN.collectData(transactionTime, receivedTime);
   
     const difference = receivedTime - transactionTime;
     const actualDifference = difference > 0 ? difference : 0;
     //console.log("Current Latency: ", actualDifference);
+    const differenceFromcreatedAt = receivedTime - created_at_received;
   
     accumLatency += actualDifference;
     count++;
@@ -116,8 +125,13 @@ const worker: fastq.worker<VersionedTransactionResponse> = async (transaction: V
       receivedTime,
       " RPC Blocktime: ",
       transactionTime,
-      " Latency: ",
+      " created at: ",
+      created_at_received,
+      "\nObserved Latency: ",
       actualDifference,
+      " ms",
+      " Latency from created at: ",
+        differenceFromcreatedAt,
       " ms"
     );
     console.log("Average Latency: ", accumLatency / count);
@@ -146,14 +160,17 @@ async function handleStream(client: Client, args: SubscribeRequest) {
   });
 
   stream.on("data", (data) => {
+    // console.dir(data,{depth: null})
     if (data?.transaction) {
+      const created_at_received = data?.createdAt?new Date(data?.createdAt).getTime():Date.now();
+
       const txn = TXN_FORMATTER.formTransactionFromJson(
         data.transaction,
         Date.now()
       );
       try {
-        //console.log("Received: ",txn.transaction?.signatures[0]);
-        q.push(txn);
+        // console.log("Received: ",txn.transaction?.signatures[0]);
+        q.push({transaction: txn, created_at_received: created_at_received});
         return;
       } catch (error) {
         console.error("parsing error: ", error, txn.transaction.signatures[0]);
@@ -176,9 +193,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
 
   setTimeout(() => {
     console.log("Ending stream now...");
-    // stream.write(unsubRequest, (err: any) => {
-    //   console.log(err);
-    // });
+    
     stream.end();
     stream.destroy();
     REPORT_GEN.generateReport();
@@ -191,14 +206,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
   
   async function subscribeCommand(client: Client, args: SubscribeRequest) {
     await handleStream(client, args);
-    // while (true) {
-    //   try {
-
-    //   } catch (error) {
-    //     console.error("Stream error, restarting in 1 second...", error);
-    //     await new Promise((resolve) => setTimeout(resolve, 1000));
-    //   }
-    // }
+    
   }
 
   subscribeCommand(client, req);
