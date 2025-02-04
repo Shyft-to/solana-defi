@@ -202,6 +202,7 @@ use {
   
     info!("stream opened");
     while let Some(message) = stream.next().await {
+        //println!("message received block: {:#?}", message);
         match message {
             Ok(msg) => {
                 match msg.update_oneof {
@@ -209,11 +210,15 @@ use {
                     let slot : &u64 = &msg.slot;
                     let slot_cloned = slot.clone();
                     let block_hash : &str = &msg.blockhash;
-                    let block_time = SystemTime::now()
+
+                    let block_time_from_stream: Option<i64> = msg.block_time.map(|t| t.timestamp);
+                    let block_time: i64 = block_time_from_stream.unwrap_or(0);
+
+                    let block_time_received = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .expect("Time went backwards")
-                    .as_secs() as i64;
-                    let datetime = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(block_time, 0), Utc);
+                    .as_millis() as i64;
+                    let datetime = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(block_time_received, 0), Utc);
                     let formatted_time = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
                   //   let transactions = msg.transactions;
                     let transactions: Vec<
@@ -223,6 +228,8 @@ use {
                       let raw_signature = txn.signature.clone();
                       let raw_signature_array: [u8; 64] = raw_signature.try_into().expect("Failed to convert to [u8; 64]");
                       let signature = Signature::from(raw_signature_array);
+                      info!("Signature: {}", signature);
+                      info!("Latency: {:?} ms", block_time_received - (block_time * 1000));
                       let meta = txn.meta.expect("Meta empty");
                       let raw_transaction = txn.transaction.expect("transaction empty");
                       let raw_message = raw_transaction.message.expect("message empty").clone();
@@ -423,11 +430,14 @@ use {
                                   }
                               }
                           ),
-                          block_time: Some(block_time),
+                          block_time: Some(block_time_received),
                       };
+                      
+                    //   info!("
+                    //   Time Gotten {:?}
+                    //   Txn {:?}",formatted_time,confirmed_txn_with_meta);
                       info!("
-                      Time Gotten {:?}
-                      Txn {:?}",formatted_time,confirmed_txn_with_meta);
+                      Time Gotten {:?}",formatted_time);
                       let decoded_txn: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                           TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
                               flatten_transaction_response(versioned_tx_with_meta)
@@ -480,8 +490,8 @@ use {
                       
                                       match serde_json::to_string_pretty(&decoded_instruction) {
                                           Ok(json_string) => {
-                                            info!("Pumpfun Txn {:?}",&json_string);
-                                            match create_db(slot_cloned,block_time,signature.to_string(), json_string) {
+                                            //info!("Pumpfun Txn {:?}",&json_string);
+                                            match create_db(slot_cloned,block_time_received,signature.to_string(), json_string) {
                                                 Ok(db_transaction) => {
                                                     //uncomment to write to the DataBase
                                                     //if let Err(e) = db::set_database(&db_transaction).await {
@@ -540,7 +550,7 @@ use {
                           
                                           match serde_json::to_string_pretty(&decoded_instruction) {
                                               Ok(json_string) =>  {
-                                              match create_db(slot_cloned,block_time,signature.to_string(), json_string) {
+                                              match create_db(slot_cloned,block_time_received,signature.to_string(), json_string) {
                                                     Ok(db_transaction) => {
                                                       
                                                //uncomment to write to the DataBase
