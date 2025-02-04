@@ -20,6 +20,8 @@ maplit = "1.0.2"
 serde_json = "1.0.135"
 solana-sdk = "2.1.7"
 solana-transaction-status = "2.1.7"
+solana-program = "2.1.7"
+solana-account-decoder-client-types = "2.1.7"
 tokio = { version = "1.21.2", features = ["rt-multi-thread", "fs"] }
 openssl = { version = "0.10", features = ["vendored"] }
 tonic = "0.12.1"
@@ -28,4 +30,8 @@ yellowstone-grpc-proto = { version = "4.0.0", default-features = false ,features
 yellowstone-vixen-core = { git = "https://github.com/rpcpool/yellowstone-vixen" }
 yellowstone-vixen-parser = { git = "https://github.com/rpcpool/yellowstone-vixen", features = ["raydium"] }
 indicatif = "0.17.9"
-supabase_rs = "0.4.0"
+pump_interface = { path = "./parsers/pump_interface", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_with = "3.0"
+postgres = "0.19"
+spl-token = "7.0.0"
