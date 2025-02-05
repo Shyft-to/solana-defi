@@ -4,7 +4,7 @@ use anyhow::Context;
 
 
 pub fn get_latest_slot() ->  anyhow::Result<u64>{
-    let rpc_url = "https://rpc.va.shyft.to?api_key=YMyDOr87OBzT6TWr"; 
+    let rpc_url = "https://rpc.va.shyft.to?api_key="; 
     let client = RpcClient::new(rpc_url.to_string());
 
     client.get_slot().context("Failed to fetch latest slot")
