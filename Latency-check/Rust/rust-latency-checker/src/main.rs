@@ -33,7 +33,7 @@ struct Args {
 
     /// Timeout in milliseconds (default: 1000)
     #[clap(long, default_value_t = 60)]
-    timeout: u64, // Keeping it u64 for flexibility
+    timeout_dur: u64, // Keeping it u64 for flexibility
 
     /// Filter vote transactions
     #[clap(long)]
