@@ -1,11 +1,8 @@
-# A Latency test program for streaming blocks and filtering with pumpfun program ID
+# Latency Test Program for Streaming Blocks and Filtering by Pumpfun Program ID
 
+This program measures the latency of streaming blocks while filtering transactions associated with the Pumpfun program ID. It does so by comparing on-chain blocks with transaction blocks to evaluate performance.
 
-This program test the latency for streaming blocks and filtering with pumpfun program ID. By comparing the blocks onchain and the transaction blocks.
-
-Include your API KEY in Latest_block.rs line(6)
-
-
+ps: Include your API KEY in Latest_block.rs line(6)
 
 run with:
 cargo run -- --endpoint https://grpc.ny.shyft.to --x-token<gRpc Token>
