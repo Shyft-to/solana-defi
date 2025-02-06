@@ -26,7 +26,7 @@ import { searchForInitialize2 } from "./utils/logTXN";
     ping?: SubscribeRequestPing | undefined;
   } 
    
-   const TOKEN = 'LDK9TCQNkcFgTiFnbYtmbPToUXgxJL55eGqq817cqDx';
+   const TOKEN = '8GrhA85mcgnaMjyXZ8Hdicayu7byXxbKyEd5UjLnpump';
 
     async function handleStream(client: Client, args: SubscribeRequest) {
     // Subscribe for events
@@ -51,8 +51,7 @@ import { searchForInitialize2 } from "./utils/logTXN";
     stream.on("data", async (data) => {
       try{
       const result = await tOutPut(data);
-      if(result.signature == '') return;
-      console.log(result);
+      console.log(result.signature);
   }catch(error){
     if(error){
       console.log(error)
@@ -88,8 +87,8 @@ import { searchForInitialize2 } from "./utils/logTXN";
     }
   }
   const client = new Client(
-    'GRPC URL',
-    'GRPC TOKEN',
+    'https://grpc.ny.shyft.to/',
+    '09306e57-22bd-42f5-a613-b7a341c8c52f',
     undefined,
   );
   const req = {

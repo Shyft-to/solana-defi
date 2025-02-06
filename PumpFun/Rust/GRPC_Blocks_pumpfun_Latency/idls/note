@@ -45,8 +45,6 @@ use {
   mod serialization;
   mod instruction_account_mapper;
   mod token_serializable;
-  mod latency_test;
-  mod latest_block;
   
   const DB_URL: &str = "postgres://postgres:monapaul5@localhost:5432/postgres";
   const OK_RESPONSE: &str = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n";
@@ -210,15 +208,14 @@ use {
                     Some(UpdateOneof::Block(msg)) => {
                     let slot : &u64 = &msg.slot;
                     let slot_cloned = slot.clone();
-                    let slot_received = slot.clone() as i64;
-                    let slot_onchain = latest_block::get_latest_slot().unwrap() as i64;
                     let block_hash : &str = &msg.blockhash;
                     let block_time = SystemTime::now()
-                       .duration_since(UNIX_EPOCH)
-                       .expect("Time went backwards")
-                       .as_secs() as i64;
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time went backwards")
+                    .as_secs() as i64;
                     let datetime = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(block_time, 0), Utc);
                     let formatted_time = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+                  //   let transactions = msg.transactions;
                     let transactions: Vec<
                     yellowstone_grpc_proto::prelude::SubscribeUpdateTransactionInfo,
                 > = msg.transactions;
@@ -428,14 +425,9 @@ use {
                           ),
                           block_time: Some(block_time),
                       };
-                      let latency_test = latency_test::run_latency(slot_onchain,slot_received); 
-                   
-                       info!("
-                        Time Each Block: {:?}
-                        Block Processing: {:?}
-                        Block Onchain: {:?}
-                        Difference: {:?}
-                       ",formatted_time,slot_received,slot_onchain,latency_test);
+                      info!("
+                      Time Gotten {:?}
+                      Txn {:?}",formatted_time,confirmed_txn_with_meta);
                       let decoded_txn: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                           TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
                               flatten_transaction_response(versioned_tx_with_meta)
@@ -488,7 +480,7 @@ use {
                       
                                       match serde_json::to_string_pretty(&decoded_instruction) {
                                           Ok(json_string) => {
-                                            //info!("Pumpfun Txn {:?}",&json_string);
+                                            info!("Pumpfun Txn {:?}",&json_string);
                                             match create_db(slot_cloned,block_time,signature.to_string(), json_string) {
                                                 Ok(db_transaction) => {
                                                     //uncomment to write to the DataBase

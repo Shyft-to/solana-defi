@@ -1,9 +1,9 @@
-# Building a Pumpfun Indexer with gRPC and PostgreSQL
+# A Latency test program for streaming blocks and filtering with pumpfun program ID
 
 
+This program test the latency for streaming blocks and filtering with pumpfun program ID. By comparing the blocks onchain and the transaction blocks.
 
-
-This project subscribes to blocks, streams Pump.fun transactions in real-time, and parses both Pump.fun and Token Program instructions. All transaction data is then written to a PostgreSQL database. The goal is to demonstrate how to build a custom Pumpfun indexer using gRPC and PostgreSQL efficiently.
+Include your API KEY in Latest_block.rs line(6)
 
 
 

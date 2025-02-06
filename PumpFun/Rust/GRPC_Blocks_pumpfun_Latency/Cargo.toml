@@ -35,3 +35,4 @@ serde = { version = "1.0", features = ["derive"] }
 serde_with = "3.0"
 postgres = "0.19"
 spl-token = "7.0.0"
+solana-client = "2.1.7"
