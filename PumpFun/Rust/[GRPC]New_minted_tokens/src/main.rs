@@ -20,6 +20,8 @@ use {
 };
 type TransactionsFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
 
+const PUMP_FUN_NEWLY_PROGRAM_ID : &str = "TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM"; 
+
 #[derive(Debug, Clone, ClapParser)]
 #[clap(author, version, about)]
 struct Args {
@@ -29,9 +31,6 @@ struct Args {
 
     #[clap(long, help = "X-Token")]
     x_token: String,
-
-    #[clap(long, help = "Program Id to subscribe to")]
-    address: String,
 }
 
 impl Args {
@@ -55,7 +54,7 @@ impl Args {
                 vote: None,
                 failed: Some(false),
                 signature: None,
-                account_include:vec![self.address.to_string()] ,
+                account_include:vec![PUMP_FUN_NEWLY_PROGRAM_ID.to_string()] ,
                 account_exclude: vec![],
                 account_required: vec![],
             },
@@ -145,7 +144,7 @@ async fn geyser_subscribe(
                      let post_token_balances = meta["postTokenBalances"].as_array().unwrap();
                      let mint = post_token_balances.get(0)
                                               .and_then(|item| item["mint"].as_str()
-                                              .map(|s|s.to_string()));                         
+                                              .map(|s|s.to_string())).unwrap();                         
                      info!("NEW TOKEN ALERT!!!\nSignature: {:?}\nMints: {:?}",signature,mint);                         
                     }                   
                     Some(UpdateOneof::Ping(_)) => {

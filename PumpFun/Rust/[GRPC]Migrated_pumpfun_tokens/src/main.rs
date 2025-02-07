@@ -20,6 +20,9 @@ use {
 };
 type TransactionsFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
 
+
+const MIGRATED_PROGRAMID : &str = "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg"; 
+
 #[derive(Debug, Clone, ClapParser)]
 #[clap(author, version, about)]
 struct Args {
@@ -29,9 +32,6 @@ struct Args {
 
     #[clap(long, help = "X-Token")]
     x_token: String,
-
-    #[clap(long, help = "Program Id to subscribe to")]
-    address: String,
 }
 
 impl Args {
@@ -55,7 +55,7 @@ impl Args {
                 vote: None,
                 failed: Some(false),
                 signature: None,
-                account_include:vec![self.address.to_string()] ,
+                account_include:vec![MIGRATED_PROGRAMID.to_string()] ,
                 account_exclude: vec![],
                 account_required: vec![],
             },
