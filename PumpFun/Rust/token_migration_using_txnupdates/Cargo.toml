@@ -1,0 +1,26 @@
+[package]
+name = "pump_fun_grpc_txn_stream_n_parse"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.62"
+backoff = { version = "0.4.0", features = ["tokio"] }
+bs58 = "0.5.1"
+clap = { version = "4.3.0", features = ["derive"] }
+env_logger = "0.11.3"
+futures = "0.3.24"
+log = "0.4.17"
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "fs"] }
+tonic = "0.12.1"
+yellowstone-grpc-client = "4.0.0"
+yellowstone-grpc-proto = { version = "4.0.0", default-features = false ,features = ["plugin"] }
+solana-sdk = "2.1.7"
+solana-transaction-status = "2.1.7"
+solana-program = "2.1.7"
+solana-account-decoder-client-types = "2.1.7"
+serde = {version = "1.0.217", features = ["derive"]}
+serde_with = "3.0"
+serde_json = "1.0.135"
+pump_interface = { path = "./parsers/pump_interface", features = ["serde"] }
+spl-token = "7.0.0"
