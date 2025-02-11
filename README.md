@@ -15,8 +15,8 @@ Please make sure you host your code/server in the same region as gRPC for lowest
 
 ## Resources
 
-[gRPC Docs](https://docs.shyft.to/solana-grpc-shredstream/grpc-docs) . 
-[Defi API Docs](https://docs.shyft.to) . 
+[gRPC Docs](https://docs.shyft.to/solana-fast-grpc/grpc-docs) . 
+[Defi API Docs](https://docs.shyft.to/solana-defi-apis/defi-apis) . 
 [Jup V6 API](https://shyft.to/solana-jupiter-swap-api) . 
 [Shyft Website](https://shyft.to/#solana-grpc-streaming-service)
 
