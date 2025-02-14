@@ -21,15 +21,16 @@ use {
      ConfirmedTransactionWithStatusMeta, InnerInstruction, InnerInstructions, Reward, RewardType,
       TransactionStatusMeta, TransactionTokenBalance, TransactionWithStatusMeta, VersionedTransactionWithStatusMeta
     }, std::{
-        collections::HashMap, env, fs, str::FromStr, sync::Arc, time::{Duration, SystemTime, UNIX_EPOCH}
+        collections::{BTreeMap, HashMap}, env, fs, str::FromStr, sync::Arc, time::{Duration, SystemTime, UNIX_EPOCH}
     }, tokio::sync::Mutex, tonic::transport::channel::ClientTlsConfig, 
     pump_interface::instructions::PumpProgramIx, 
     yellowstone_grpc_client::{GeyserGrpcClient, Interceptor}, yellowstone_grpc_proto::{
         geyser::SubscribeRequestFilterTransactions,
         prelude::{
-            subscribe_update::UpdateOneof, CommitmentLevel, SubscribeRequest, SubscribeRequestPing,
+            subscribe_update::UpdateOneof, CommitmentLevel, SubscribeRequest, SubscribeRequestPing, SubscribeRequestFilterBlocksMeta,
         },
-    }
+    },
+    maplit::hashmap,
 };
 use spl_token::instruction::TokenInstruction;
 use solana_program::{
@@ -44,6 +45,7 @@ type TxnFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
 
 const PUMP_PROGRAM_ID: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
 
 
 #[derive(Debug, Clone, ClapParser)]
@@ -90,7 +92,7 @@ impl Args {
             transactions,
             transactions_status: HashMap::default(),
             blocks: HashMap::default(),
-            blocks_meta: HashMap::default(),
+            blocks_meta: hashmap! { "".to_owned() => SubscribeRequestFilterBlocksMeta {} },
             entry: HashMap::default(),
             commitment: Some(CommitmentLevel::Processed as i32),
             accounts_data_slice: Vec::default(),
@@ -116,6 +118,7 @@ pub struct DecodedInstruction {
     #[serde(serialize_with = "serialize_option_pubkey")]
     pub parent_program_id: Option<Pubkey>,
 }
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -188,6 +191,7 @@ async fn geyser_subscribe(
 ) -> anyhow::Result<()> {
     let (mut subscribe_tx, mut stream) = client.subscribe_with_request(Some(request)).await?;
 
+    let mut messages: BTreeMap<u64, (Option<u64>, Vec<(String, u64)>)> = BTreeMap::new();
     info!("stream opened");
 
     while let Some(message) = stream.next().await {
@@ -195,6 +199,7 @@ async fn geyser_subscribe(
             Ok(msg) => match msg.update_oneof {
                 Some(UpdateOneof::Transaction(update)) => {
                     let slot = update.slot;
+                    let entry = messages.entry(update.slot).or_default();
                     let block_time = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .expect("Time went backwards")
@@ -216,6 +221,17 @@ async fn geyser_subscribe(
 
                         let raw_signature_array: [u8; 64] = raw_signature.try_into().expect("Failed to convert to [u8; 64]");
                         let signature = Signature::from(raw_signature_array);
+
+                        let current_time_millis = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .expect("Time went backwards")
+                        .as_secs() as u64;
+                        if let Some(timestamp) = entry.0 {
+                            info!("received txn {} at {}", signature, timestamp);
+                        } else {
+                            entry.1.push((signature.to_string(), current_time_millis));
+                        }
+                        
                         let recent_blockhash=  Hash::new_from_array(raw_message
                             .recent_blockhash
                             .clone()
@@ -525,6 +541,29 @@ async fn geyser_subscribe(
                             //     }                                
                             // }
                     })
+                    }
+                }
+                Some(UpdateOneof::BlockMeta(block)) => {
+                    let entry = messages.entry(block.slot).or_default();
+                    entry.0 = block.block_time.map(|obj| {
+                        //println!("block time: {}", obj.timestamp);
+                        obj.timestamp as u64 * 1000
+                    });
+                    if let Some(timestamp) = entry.0 {
+                        for (sig, txn_time) in &entry.1 {
+                            //let current_timestamp_millis = Utc::now().timestamp_millis();
+                            
+                            info!("received txn1 {} at {}", sig, timestamp);
+                            println!("\nLatency: {} ms",txn_time.saturating_sub(timestamp));
+                        }
+                    }
+
+                    while let Some(slot) = messages.keys().next().cloned() {
+                        if slot < block.slot - 20 {
+                            messages.remove(&slot);
+                        } else {
+                            break;
+                        }
                     }
                 }
                 Some(UpdateOneof::Ping(_)) => {

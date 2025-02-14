@@ -2045,6 +2045,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
+
+[[package]]
 name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2555,6 +2561,7 @@ dependencies = [
  "env_logger",
  "futures",
  "log",
+ "maplit",
  "pump_interface",
  "serde",
  "serde_json",
