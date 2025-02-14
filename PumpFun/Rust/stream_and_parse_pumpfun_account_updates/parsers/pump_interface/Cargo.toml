@@ -1,0 +1,32 @@
+[package]
+name = "pump_interface"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.borsh]
+version = "^0.10"
+
+[dependencies.num-derive]
+version = "^0.3"
+
+[dependencies.num-traits]
+version = "^0.2"
+
+[dependencies.serde]
+optional = true
+version = "^1.0"
+
+[dependencies.solana-program]
+version = "^2.1.7"
+
+[dependencies.thiserror]
+version = "^1.0"
+
+[dependencies.strum]
+version = "0.26.3"
+
+[dependencies.strum_macros]
+version = "0.26.4"
+
+[dependencies.Inflector]
+version = "=0.11.4"
