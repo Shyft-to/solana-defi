@@ -43,5 +43,3 @@ app.delete("/wallets/:address", (req, res) => {
 });
 
 app.listen(3000, () => console.log("API running on http://localhost:3000"));
-//http://localhost:3000/wallets/add?address=675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8
-// curl -X DELETE "http://localhost:3000/wallets/HLop31qo1Xp715oXuM7dmrTxDeUhuwkr55J2hkidrzSV"
