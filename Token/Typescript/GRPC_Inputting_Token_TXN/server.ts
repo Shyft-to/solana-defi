@@ -18,30 +18,31 @@ app.get("/wallets/add", (req, res) => {
     return res.status(400).json({ error: "Address is required and must be a string" });
   }
 
-  // Check if the wallet is already subscribed
-  if (subscribedWallets.includes(address)) {
-    return res.status(400).json({ error: "Wallet is already subscribed" });
+  const addresses = address.split(',');
+
+  const validAddresses = addresses.filter(addr => typeof addr === "string" && addr.trim() !== "");
+
+  if (validAddresses.length === 0) {
+    return res.status(400).json({ error: "No valid addresses provided" });
   }
 
-  // Add the wallet to the list
-  subscribedWallets.push(address);
+  // Add the new addresses to the subscribed list
+  subscribedWallets = [...validAddresses];
   res.json({ success: true, wallets: subscribedWallets });
 });
 
-// Remove a wallet
+
 app.delete("/wallets/:address", (req, res) => {
   const { address } = req.params;
 
-  // Check if the wallet exists
+
   if (!subscribedWallets.includes(address)) {
     return res.status(404).json({ error: "Wallet not found" });
   }
 
-  // Remove the wallet from the list
+  
   subscribedWallets = subscribedWallets.filter((w) => w !== address);
   res.json({ success: true, wallets: subscribedWallets });
 });
 
 app.listen(3000, () => console.log("API running on http://localhost:3000"));
-//http://localhost:3000/wallets/add?address=675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8
-// curl -X DELETE "http://localhost:3000/wallets/HLop31qo1Xp715oXuM7dmrTxDeUhuwkr55J2hkidrzSV"

@@ -26,7 +26,13 @@ interface SubscribeRequest {
   ping?: SubscribeRequestPing | undefined;
 }
 
-let subscribedWallets: string[] = ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"]//"6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"];
+let subscribedWallets: string[] = [
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "5n2WeFEQbfV65niEP63sZc3VA7EgC4gxcTzsGGuXpump",
+  "4oJh9x5Cr14bfaBtUsXN1YUZbxRhuae9nrkSyWGSpump",
+  "GBpE12CEBFY9C74gRBuZMTPgy2BGEJNCn4cHbEPKpump",
+  "oraim8c9d1nkfuQk9EzGYEUGxqL3MHQYndRw1huVo5h",
+];
 
 async function handleStream(client: Client, args: SubscribeRequest) {
   const stream = await client.subscribe();
@@ -51,42 +57,28 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       console.log(error);
     }
   });
-  
   async function updateSubscription() {
     try {
-      const newWallets = await fetchWallets();
+      const request = await fetchWallets();
   
-      if (newWallets.length === 0) {
-        console.log("No new wallets found, keeping existing subscription:", subscribedWallets);
+      if (request.length === 0) {
         return;
       }
+      const uniqueWallets = Array.from(new Set(request));
+      subscribedWallets = uniqueWallets;
+      // Update the subscription request
+      args.transactions.migration.accountInclude = subscribedWallets;
   
-      const uniqueNewWallets = new Set(newWallets);
-  
-      if (
-        newWallets.length !== subscribedWallets.length ||
-        newWallets.some((wallet) => !subscribedWallets.includes(wallet))
-      ) {
-        console.log("Updating subscription with new wallets:", [...uniqueNewWallets]);
-  
-       
-        subscribedWallets = [...uniqueNewWallets];
-  
-        stream.end();
-        console.log("Stream closed, restarting with new subscription...");
-  
-        args.transactions.migration.accountInclude = subscribedWallets;
-        
-        handleStream(client, args);
-      }
+      // Send the new request
+      stream.write(args);
     } catch (error) {
-      console.error("Failed to update subscription:", error);
+      console.error("Failed to send new request:", error);
     }
   }
-  
 
-  // Periodically fetch and update wallets every 10 seconds
-  setInterval(updateSubscription, 10000);
+  
+  // Periodically fetch and update wallets every 5 seconds
+  setInterval(updateSubscription, 5000);
 
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => (err ? reject(err) : resolve()));
@@ -139,11 +131,12 @@ const req: SubscribeRequest = {
 async function fetchWallets() {
   try {
     const response = await axios.get("http://localhost:3000/wallets");
-    const data: string[] = response.data; 
-    return data;
+    const data: string[] = response.data;
+
+    const uniqueWallets = Array.from(new Set(data));
+    return uniqueWallets;
   } catch (error) {
-    console.log("Error fetching wallets:", error);
-    return []; // Return an empty array in case of error
+    return []; 
   }
 }
 
