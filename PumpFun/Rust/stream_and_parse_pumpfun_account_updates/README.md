@@ -1,6 +1,6 @@
-# Streaming Pumpfun transaction using gRPC and parsing instructions in Rust
+# Streaming and parsing Pumpfun accounts using gRPC
 
-This project streams Pump.fun transactions from gRPC, parsing both Pump.fun and Token Program instructions in real-time. It efficiently decodes transaction data, extracts meaningful insights, and structures the parsed instructions into a serializable format for easy processing and analysis. The implementation ensures smooth integration with Solana’s ecosystem, leveraging Rust’s strong type safety and performance for handling high-throughput transaction streams.
+This project leverages Solana's gRPC streaming capabilities to efficiently monitor pump fun account data. By utilizing the IDL for parsing, it enables real-time analysis and insights into pump fun activities on the Solana blockchain.
 
 ```
 $ cargo run -- --endpoint <endpoint> --x-token <token>
@@ -11,3 +11,4 @@ $ cargo run -- --endpoint <endpoint> --x-token <token>
 ## Notes
 
 gRPC client example in rust: [https://github.com/rpcpool/yellowstone-grpc/tree/master/examples/rust]
+Shyft gRPC Docs: [https://docs.shyft.to/solana-fast-grpc/grpc-docs]
