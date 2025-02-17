@@ -33,10 +33,29 @@ let subscribedWallets: string[] = [
   "GBpE12CEBFY9C74gRBuZMTPgy2BGEJNCn4cHbEPKpump",
   "oraim8c9d1nkfuQk9EzGYEUGxqL3MHQYndRw1huVo5h",
 ];
+async function updateSubscription(stream: any, args: SubscribeRequest) {
+  try {
+    const request = await fetchWallets();
+
+    if (request.length === 0) {
+      return;
+    }
+    const uniqueWallets = Array.from(new Set(request));
+    subscribedWallets = uniqueWallets;
+
+    // Update the subscription request
+    args.transactions.migration.accountInclude = subscribedWallets;
+
+    // Send the new request to the stream
+    stream.write(args);
+  } catch (error) {
+    console.error("Failed to send new request:", error);
+  }
+}
 
 async function handleStream(client: Client, args: SubscribeRequest) {
   const stream = await client.subscribe();
-  
+
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
       console.log("ERROR", error);
@@ -52,34 +71,13 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       const result = await tOutPut(data);
       if (result.signature == "") return;
       console.log(result);
-      console.log("Subsribed Wallet: " + subscribedWallets)
+      console.log("Subscribed Wallet: " + subscribedWallets);
     } catch (error) {
       console.log(error);
     }
   });
-  async function updateSubscription() {
-    try {
-      const request = await fetchWallets();
-  
-      if (request.length === 0) {
-        return;
-      }
-      const uniqueWallets = Array.from(new Set(request));
-      subscribedWallets = uniqueWallets;
-      // Update the subscription request
-      args.transactions.migration.accountInclude = subscribedWallets;
-  
-      // Send the new request
-      stream.write(args);
-    } catch (error) {
-      console.error("Failed to send new request:", error);
-    }
-  }
-
-  
-  // Periodically fetch and update wallets every 5 seconds
-  setInterval(updateSubscription, 5000);
-
+   updateSubscription(stream,args);
+   setInterval(updateSubscription, 5000);
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => (err ? reject(err) : resolve()));
   }).catch((reason) => {
@@ -89,10 +87,15 @@ async function handleStream(client: Client, args: SubscribeRequest) {
 
   await streamClosed;
 }
+
 async function subscribeCommand(client: Client, args: SubscribeRequest) {
+  const stream = await client.subscribe();  // Make sure stream is available here for updateSubscription
+
+  // Periodically update the subscription, now outside handleStream
+
   while (true) {
     try {
-      await handleStream(client, args);
+      await handleStream(client, args); // Start streaming
     } catch (error) {
       console.error("Stream error, restarting in 1 second...", error);
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -104,8 +107,7 @@ const client = new Client(
   "gRPC-URL",
   "gRPC-TOKEN",
   undefined
-);
-
+)
 const req: SubscribeRequest = {
   accounts: {},
   slots: {},
@@ -127,6 +129,8 @@ const req: SubscribeRequest = {
   ping: undefined,
   commitment: CommitmentLevel.PROCESSED, 
 };
+
+subscribeCommand(client, req);
 
 async function fetchWallets() {
   try {
