@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Client, {
   CommitmentLevel,
   SubscribeRequestAccountsDataSlice,
@@ -31,6 +32,7 @@ interface SubscribeRequest {
   async function handleStream(client: Client, args: SubscribeRequest) {
   // Subscribe for events
   const stream = await client.subscribe();
+  console.log("Starting Stream....")
 
   // Create `error` / `end` handler
   const streamClosed = new Promise<void>((resolve, reject) => {
@@ -96,8 +98,8 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
   }
 }
 const client = new Client(
-  'gRPC REGION URL',
-  'gRPC TOKEN',
+  process.env.GRPC_URL,
+  process.env.X_TOKEN,
   undefined,
 );
 
