@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Client, {
   CommitmentLevel,
   SubscribeRequestAccountsDataSlice,
@@ -17,7 +18,6 @@ import pumpFunIdl from "./idls/pump_0.1.0.json";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import { transactionOutput } from "./utils/transactionOutput";
-import { getBondingCurveAddress } from "./utils/getBonding";
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -67,27 +67,24 @@ async function handleStream(client: Client, args: SubscribeRequest) {
   });
 
   // Handle updates
-  stream.on("data", async (data) => {
+  stream.on("data", (data) => {
     if (data?.transaction) {
       const txn = TXN_FORMATTER.formTransactionFromJson(
         data.transaction,
         Date.now(),
       );
       const parsedTxn = decodePumpFunTxn(txn);
+
       if (!parsedTxn) return;
       const tOutput = transactionOutput(parsedTxn)
-      const balance = await getBondingCurveAddress(tOutput.bondingCurve)
-      const progress = ((Number(balance)/84 )* 100);
+
       console.log(
         `
         TYPE : ${tOutput.type}
         MINT : ${tOutput.mint}
         SIGNER : ${tOutput.user}
-        BONDING CURVE : ${tOutput.bondingCurve}
         TOKEN AMOUNT : ${tOutput.tokenAmount}
         SOL AMOUNT : ${tOutput.solAmount} SOL
-        POOL DETAILS : ${balance} SOL
-                      ${Number(progress).toFixed(2)}% to completion
         SIGNATURE : ${txn.transaction.signatures[0]}
         `
       )
@@ -123,10 +120,11 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 }
 
 const client = new Client(
-  'gRPC REGION URL',
-  'gRPC TOKEN',
+  process.env.GRPC_URL,
+  process.env.X_TOKEN,
   undefined,
 );
+
 const req: SubscribeRequest = {
   accounts: {},
   slots: {},
@@ -135,7 +133,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58()],//["Hb9uyfUg8RbLsfSdud3LSW3yXx5PodM3XZmMS2ajpump",'DT1WapMVRafeBbJ2RcA7Rf2dF3g6pEa7vz7rxYLXpump]
+      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },

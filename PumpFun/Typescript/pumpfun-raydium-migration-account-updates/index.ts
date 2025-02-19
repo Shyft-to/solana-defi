@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Client, {
   CommitmentLevel,
   SubscribeRequestAccountsDataSlice,
@@ -107,8 +108,8 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
   }
 }  
 const client = new Client(
-  'gRPC REGION URL',
-  'gRPC TOKEN',
+  process.env.GRPC_URL,
+  process.env.X_TOKEN,
   undefined,
 );
 const req: SubscribeRequest = {

@@ -1,5 +1,5 @@
 var myHeaders = new Headers();
-export const api = "api"
+export const api = process.env.API;
 myHeaders.append("x-api-key", api);
 
 var requestOptions:any = {
