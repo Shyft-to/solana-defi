@@ -69,8 +69,7 @@ const stream = await client.subscribe();
       POOL DETAILS : Base Vault ${poolInfo?.baseVault}
                      Quote Vault ${poolInfo?.quoteVault}
                      Public Key ${poolInfo?.pubKey}
-                     LP Mint ${poolInfo?.lp}
-      BONDING CURVE STATUS : COMPLETED                    
+                     LP Mint ${poolInfo?.lp}                  
       `
    )
 }catch(error){
@@ -121,7 +120,7 @@ const req: SubscribeRequest = {
       {
         "memcmp": {
           "offset": structure.offsetOf('complete').toString(), // Hack to filter for swapped. There is probably a better way to do this
-          "bytes" : Uint8Array.from([1])
+          "bytes" : Uint8Array.from([0])
         }
       }
     ],
