@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Client, {
     CommitmentLevel,
     SubscribeRequestAccountsDataSlice,
@@ -17,7 +18,7 @@ import { getTokenBalance } from "./utils/token";
 import { LIQUIDITY_STATE_LAYOUT_V4 } from "@raydium-io/raydium-sdk";
 const pumpfun = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 
- const api = 'api'
+ const api = process.env.API
 const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confirmed');
   interface SubscribeRequest {
     accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -111,10 +112,9 @@ const connection = new Connection(`https://rpc.shyft.to?api_key=${api}`, 'confir
       }
     }
   }
-  
   const client = new Client(
-    'gRPC REGION URL',
-    'gRPC TOKEN',
+    process.env.GRPC_URL,
+    process.env.X_TOKEN,
     undefined,
   );
 const req = {
