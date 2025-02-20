@@ -2545,48 +2545,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pump_fun_grpc_txn_stream_n_parse"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "backoff",
- "bs58",
- "clap",
- "env_logger",
- "futures",
- "log",
- "pump_interface",
- "raydium_amm_interface",
- "serde",
- "serde_json",
- "serde_with",
- "solana-account-decoder-client-types",
- "solana-program",
- "solana-sdk",
- "solana-transaction-status",
- "spl-token 7.0.0",
- "tokio",
- "tonic",
- "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
-]
-
-[[package]]
-name = "pump_interface"
-version = "0.1.0"
-dependencies = [
- "Inflector",
- "borsh 0.10.4",
- "num-derive 0.3.3",
- "num-traits",
- "serde",
- "solana-program",
- "strum",
- "strum_macros",
- "thiserror",
-]
-
-[[package]]
 name = "qstring"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2688,6 +2646,32 @@ dependencies = [
  "strum",
  "strum_macros",
  "thiserror",
+]
+
+[[package]]
+name = "raydium_grpc_txn_stream_n_parse"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "backoff",
+ "bs58",
+ "clap",
+ "env_logger",
+ "futures",
+ "log",
+ "raydium_amm_interface",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "solana-account-decoder-client-types",
+ "solana-program",
+ "solana-sdk",
+ "solana-transaction-status",
+ "spl-token 7.0.0",
+ "tokio",
+ "tonic",
+ "yellowstone-grpc-client",
+ "yellowstone-grpc-proto",
 ]
 
 [[package]]

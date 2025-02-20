@@ -22,8 +22,7 @@ use {
       TransactionStatusMeta, TransactionTokenBalance, TransactionWithStatusMeta, VersionedTransactionWithStatusMeta
     }, std::{
         collections::HashMap, env, fs, str::FromStr, sync::Arc, time::{Duration, SystemTime, UNIX_EPOCH}
-    }, tokio::sync::Mutex, tonic::transport::channel::ClientTlsConfig, 
-    pump_interface::instructions::PumpProgramIx,
+    }, tokio::sync::Mutex, tonic::transport::channel::ClientTlsConfig,
      raydium_amm_interface::instructions::RaydiumAmmProgramIx,
     yellowstone_grpc_client::{GeyserGrpcClient, Interceptor}, yellowstone_grpc_proto::{
         geyser::SubscribeRequestFilterTransactions,
@@ -43,7 +42,7 @@ use crate::token_serializable::convert_to_serializable;
 
 type TxnFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
 
-const PUMP_PROGRAM_ID: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
+
 const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const RAYDIUM_AMM_PROGRAM_ID: &str = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
 
@@ -223,7 +222,7 @@ async fn geyser_subscribe(
                         if raw_signature.len() != 64 {
                             panic!("Signature must be exactly 64 bytes");
                         }
-                        println!("Here 1");
+                        
                         let raw_signature_array: [u8; 64] = raw_signature.try_into().expect("Failed to convert to [u8; 64]");
                         let signature = Signature::from(raw_signature_array);
                         let recent_blockhash=  Hash::new_from_array(raw_message
@@ -425,7 +424,7 @@ async fn geyser_subscribe(
                             block_time: Some(block_time),
                         };
 
-                        println!("Here 2");
+                    
 
                         let decoded_txn: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
@@ -438,8 +437,6 @@ async fn geyser_subscribe(
 
                         let mut decoded_actions: Vec<DecodedInstruction> = Vec::new();
 
-                        let idl_json = fs::read_to_string("idls/pump_0.1.0.json")
-                        .expect("Unable to read IDL JSON file");
 
                         let token_idl_json = fs::read_to_string("idls/token_program_idl.json")
                         .expect("Unable to read Token IDL JSON file");
@@ -531,7 +528,7 @@ async fn geyser_subscribe(
                             
                                             match serde_json::to_string_pretty(&decoded_instruction) {
                                                 Ok(json_string) => {
-                                                    // info!("Decoded Token Instruction:\n{}", json_string);
+                                                    info!("Decoded Token Instruction:\n{}", json_string);
                                                     decoded_actions.push(decoded_instruction);
                                                 },
                                                 Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
@@ -548,6 +545,8 @@ async fn geyser_subscribe(
                         }  
                         
                     });
+
+                    // Use decoded_actions if you only want the parsed instructions or use decoded_transaction_with_actions for full transaction
                     // println!("Decoded Actions: \n{:?}", decoded_actions);  
                     let decoded_transaction_with_actions = TransactionWithActions {
                         slot,

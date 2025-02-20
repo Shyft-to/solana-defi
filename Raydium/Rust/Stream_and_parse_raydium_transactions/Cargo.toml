@@ -1,5 +1,5 @@
 [package]
-name = "pump_fun_grpc_txn_stream_n_parse"
+name = "raydium_grpc_txn_stream_n_parse"
 version = "0.1.0"
 edition = "2021"
 
@@ -22,6 +22,5 @@ solana-account-decoder-client-types = "2.1.7"
 serde = {version = "1.0.217", features = ["derive"]}
 serde_with = "3.0"
 serde_json = "1.0.135"
-pump_interface = { path = "./parsers/pump_interface", features = ["serde"] }
 raydium_amm_interface = { path = "./parsers/raydium_amm_interface", features = ["serde"]}
 spl-token = "7.0.0"
