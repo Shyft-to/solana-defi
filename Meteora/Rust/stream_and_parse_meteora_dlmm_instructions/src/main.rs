@@ -16,7 +16,8 @@ use {
              Message, MessageAddressTableLookup},
               MessageHeader, VersionedMessage}, 
               pubkey::Pubkey, signature::Signature,
-               transaction::VersionedTransaction, transaction_context::TransactionReturnData
+               transaction::{VersionedTransaction,TransactionVersion, Legacy}, transaction_context::TransactionReturnData,
+              
     }, solana_transaction_status::{
      ConfirmedTransactionWithStatusMeta, InnerInstruction, InnerInstructions, Reward, RewardType,
       TransactionStatusMeta, TransactionTokenBalance, TransactionWithStatusMeta, VersionedTransactionWithStatusMeta
@@ -123,6 +124,8 @@ pub struct TransactionWithActions {
     pub tx_with_meta: TransactionWithStatusMeta,
     pub block_time: i64,
     pub actions: Vec<DecodedInstruction>,
+    pub transactions: Vec<TransactionInstructionWithParent>,
+    pub version: Option<TransactionVersion>
 }
 
 #[tokio::main]
@@ -423,7 +426,6 @@ async fn geyser_subscribe(
                             block_time: Some(block_time),
                         };
 
-                        // println!("Here 2");
 
                         let decoded_txn: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
@@ -433,6 +435,12 @@ async fn geyser_subscribe(
                                 vec![]
                             }
                         };
+
+                        let version = Some(if raw_message.versioned {
+                            TransactionVersion::Number(0)
+                        } else {
+                            TransactionVersion::Legacy(Legacy::Legacy)
+                        });
 
                         let mut decoded_actions: Vec<DecodedInstruction> = Vec::new();
 
@@ -549,6 +557,8 @@ async fn geyser_subscribe(
                         tx_with_meta: confirmed_txn_with_meta.tx_with_meta,
                         block_time,
                         actions: decoded_actions,
+                        version,
+                        transactions: decoded_txn
                     };
 
                     // println!("Decoded Transaction: \n{:?}", decoded_transaction_with_actions);  
