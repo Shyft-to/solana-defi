@@ -8,7 +8,6 @@ $ cargo run -- --endpoint <endpoint> --x-token <token>
 
 ![screenshot](assets/usage-screenshot.png?raw=true "Screenshot")
 
-## Notes
-
-gRPC client example in rust: [https://github.com/rpcpool/yellowstone-grpc/tree/master/examples/rust]
+## Docs
+Shyft Website: [https://shyft.to/#solana-grpc-streaming-service]  
 Shyft gRPC Docs: [https://docs.shyft.to/solana-fast-grpc/grpc-docs]
