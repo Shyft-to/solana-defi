@@ -81,8 +81,8 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now(),
       );
 
-      // console.log("txn from json: ");
-      // console.dir(txn, { depth: null });
+      console.log("txn from json: ");
+      console.dir(JSON.stringify(txn), { depth: null });
 
       console.log("signature: ", txn.transaction.signatures);
 
@@ -177,27 +177,29 @@ subscribeCommand(client, req);
 function decodePumpFunTxn(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
 
-  // const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
-  //   tx.transaction.message,
-  //   tx.meta.loadedAddresses,
-  // );
+  const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
+    tx.transaction.message,
+    tx.meta.loadedAddresses,
+  );
 
-  const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionWithInnerInstructions(
+  const parsedInnerIxs = PUMP_FUN_IX_PARSER.parseTransactionWithInnerInstructions(
     tx
   );
-  
-
 
   // console.log("txn from json: ");
   // console.dir(JSON.stringify(paredIxs), { depth: null });
 
-  const pumpFunAndTokenIxs = paredIxs.filter((ix) =>
+  const compiledIxs = paredIxs.filter((ix) =>
     ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
   );
 
-  if (pumpFunAndTokenIxs.length === 0) return;
+  const parsedFilteredInnerIxs = parsedInnerIxs.filter((ix) =>
+    ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
+  );
+
+  //if (pumpFunAndTokenIxs.length === 0) return;
   
-  const result = { instructions: pumpFunAndTokenIxs };
+  const result = { compiledInstructions: compiledIxs, innerInstructions: parsedFilteredInnerIxs };
   bnLayoutFormatter(result);
   return result;
 }
