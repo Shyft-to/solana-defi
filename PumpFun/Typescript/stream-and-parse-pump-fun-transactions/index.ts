@@ -18,7 +18,6 @@ import { TransactionFormatter } from "./utils/transaction-formatter";
 import pumpFunIdl from "./idls/pump_0.1.0.json";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import { transactionOutput } from "./utils/transactionOutput";
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -81,39 +80,49 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now(),
       );
 
-      console.log("txn from json: ");
-      console.dir(JSON.stringify(txn), { depth: null });
-
-      console.log("signature: ", txn.transaction.signatures);
+      console.log("Txn Received: ", txn.transaction.signatures[0]);
 
       const parsedTxn = decodePumpFunTxn(txn);
 
-      const rpcTxnWithParsed = {
-        ...txn,
-        meta: {
-          ...txn.meta,
-          parsed: parsedTxn,
-        },
+      if (!parsedTxn) return;
+
+      let rpcTxnWithParsed = {};
+
+      if(txn.version === 0){
+        rpcTxnWithParsed = {
+          ...txn,
+          meta: {
+            ...txn.meta,
+            innerInstructions: parsedTxn.innerInstructions,
+          },
+          transaction: {
+            ...txn.transaction,
+            message: {
+              ...txn.transaction.message,
+              compiledInstructions: parsedTxn.compiledInstructions,
+            },
+          }
+        }
+      }
+      else {
+        rpcTxnWithParsed = {
+          ...txn,
+          meta: {
+            ...txn.meta,
+            innerInstructions: parsedTxn.innerInstructions,
+          },
+          transaction: {
+            ...txn.transaction,
+            message: {
+              ...txn.transaction.message,
+              instructions: parsedTxn.compiledInstructions,
+            },
+          }
+        }
       }
 
-      // console.log("parsed Transaction: ");
-      
-      // // // console.dir(JSON.stringify(rpcTxnWithParsed), { depth: null });
+      console.log("parsed Transaction: ");
       console.log(JSON.stringify(rpcTxnWithParsed));
-
-      // if (!parsedTxn) return;
-      // const tOutput = transactionOutput(parsedTxn)
-
-      // console.log(
-      //   `
-      //   TYPE : ${tOutput.type}
-      //   MINT : ${tOutput.mint}
-      //   SIGNER : ${tOutput.user}
-      //   TOKEN AMOUNT : ${tOutput.tokenAmount}
-      //   SOL AMOUNT : ${tOutput.solAmount} SOL
-      //   SIGNATURE : ${txn.transaction.signatures[0]}
-      //   `
-      // )
     }
   });
 
@@ -186,9 +195,6 @@ function decodePumpFunTxn(tx: VersionedTransactionResponse) {
     tx
   );
 
-  // console.log("txn from json: ");
-  // console.dir(JSON.stringify(paredIxs), { depth: null });
-
   const compiledIxs = paredIxs.filter((ix) =>
     ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
   );
@@ -197,8 +203,6 @@ function decodePumpFunTxn(tx: VersionedTransactionResponse) {
     ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
   );
 
-  //if (pumpFunAndTokenIxs.length === 0) return;
-  
   const result = { compiledInstructions: compiledIxs, innerInstructions: parsedFilteredInnerIxs };
   bnLayoutFormatter(result);
   return result;
