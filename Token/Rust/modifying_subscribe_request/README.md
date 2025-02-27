@@ -9,15 +9,17 @@ Typically, when modifying subscription parameters in many streaming systems, use
 
 ## Getting Started
 
+
 1. **Clone the repository:**
- bash
+   ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
    cd Token/Rust/modifying_subscribe_request
 
+
 2. **Install Dependencies/Run the script:**
-bash
+    ```bashbash
     # For example,
-   cargo run -- --endpoint<gRpc endpoint> --x-token <gRpc Token>
+    cargo run -- --endpoint<gRpc endpoint> --x-token <gRpc Token>
 
 
 ## Related Links
