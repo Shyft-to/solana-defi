@@ -16,14 +16,14 @@ Typically, when modifying subscription parameters in many streaming systems, use
 
 2. **Install Dependencies:**
     # For example,
-   ```bash 
+    ```bash 
     npm i or npm install
 
 3. **Run the script:**
-  ```bash
-    # To run the script
-    npm run start
-
+   
+   ```bash
+   # To run the script
+   npm run start
 
  *Note: Please in `.env`, input your env details before running the script.*
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
