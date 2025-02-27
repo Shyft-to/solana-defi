@@ -10,21 +10,17 @@ import Client, {
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-import { Connection, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { tOutPut } from "./utils/transactionOutput";
-import { publicKey } from "@solana/buffer-layout-utils";
-import { getTokenBalance } from "./utils/token";
-
-import { Boolean } from "@solana/buffer-layout";
-import { structure } from "./utils/decodeTransaction";
-import { getTokenInfo } from "./utils/defiApi";
 
 import * as fs from 'fs';
+import { BorshAccountsCoder } from "@project-serum/anchor";
+import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
+import bs58 from 'bs58';
 
-const pumpfun = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
+const PUMP_PROGRAM_ID = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 
+const program_idl = JSON.parse(fs.readFileSync('./Idl/pump_0.1.0.json', 'utf8'));
 
-
+const accountCoder = new BorshAccountsCoder(program_idl);
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -61,22 +57,28 @@ const stream = await client.subscribe();
   // Handle updates
   stream.on("data", async (data) => {
     try{
-    const result = await tOutPut(data);
-    if(!result) return;
-    const tokenInfo = await getTokenBalance(result.pubKey);
-    const poolInfo = await getTokenInfo(tokenInfo?.ca);
-    if(poolInfo.lp === undefined) return;
-    console.log(
-      `
-      PUMPFUN -- RAYDIUM
-      CA : ${tokenInfo?.ca}
-      Name : ${tokenInfo?.name} (${tokenInfo?.symbol})
-      POOL DETAILS : Base Vault ${poolInfo?.baseVault}
-                     Quote Vault ${poolInfo?.quoteVault}
-                     Public Key ${poolInfo?.pubKey}
-                     LP Mint ${poolInfo?.lp}                  
-      `
-   )
+      if(data?.account){
+        
+        const decodedData = accountCoder.decodeAny(data.account.account.data);
+        if(!decodedData)
+          return;
+
+        bnLayoutFormatter(decodedData);
+
+        const accountInfo = {
+          pubkey: bs58.encode(data.account.account.pubkey),
+          data: decodedData,
+          owner: bs58.encode(data.account.account.owner),
+          lamports: data.account.account.lamports,
+          executable: data.account.account.executable,
+          rentEpoch: data.account.account.rentEpoch,
+          //slot: data.account.account.slot
+        };
+        
+        console.log("Decoded Account Info for ", bs58.encode(data.account.account.pubkey));
+        console.dir(accountInfo, {depth: null});
+      }
+
 }catch(error){
   if(error){
     console.log(error)
@@ -121,22 +123,13 @@ const req: SubscribeRequest = {
 "accounts": {
   "pumpfun": {
     "account": [],
-    "filters": [
-      {
-        "memcmp": {
-          "offset": structure.offsetOf('complete').toString(), // Hack to filter for swapped. There is probably a better way to do this
-          "bytes" : Uint8Array.from([0])
-        }
-      }
-    ],
-    "owner": [pumpfun] // raydium program id to subscribe to
+    "filters": [],
+    "owner": [PUMP_PROGRAM_ID] // pumpfun program id to subscribe to
   }
 },
 "transactions": {},
 "blocks": {},
-"blocksMeta": {
-  "block": []
-},
+"blocksMeta": {},
 "accountsDataSlice": [],
 "commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
 entry: {},
