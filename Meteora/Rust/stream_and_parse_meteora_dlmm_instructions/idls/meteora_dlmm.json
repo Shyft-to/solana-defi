@@ -3980,6 +3980,175 @@
                 ]
             }
         },
+       {
+        "name": "pool",
+        "docs": [
+          "State of pool account"
+        ],
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "lpMint",
+              "docs": [
+                "LP token mint of the pool"
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "tokenAMint",
+              "docs": [
+                "Token A mint of the pool. Eg: USDT"
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "tokenBMint",
+              "docs": [
+                "Token B mint of the pool. Eg: USDC"
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "aVault",
+              "docs": [
+                "Vault account for token A. Token A of the pool will be deposit / withdraw from this vault account."
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "bVault",
+              "docs": [
+                "Vault account for token B. Token B of the pool will be deposit / withdraw from this vault account."
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "aVaultLp",
+              "docs": [
+                "LP token account of vault A. Used to receive/burn the vault LP upon deposit/withdraw from the vault."
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "bVaultLp",
+              "docs": [
+                "LP token account of vault B. Used to receive/burn the vault LP upon deposit/withdraw from the vault."
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "aVaultLpBump",
+              "docs": [
+                "\"A\" vault lp bump. Used to create signer seeds."
+              ],
+              "type": "u8"
+            },
+            {
+              "name": "enabled",
+              "docs": [
+                "Flag to determine whether the pool is enabled, or disabled."
+              ],
+              "type": "bool"
+            },
+            {
+              "name": "protocolTokenAFee",
+              "docs": [
+                "Protocol fee token account for token A. Used to receive trading fee."
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "protocolTokenBFee",
+              "docs": [
+                "Protocol fee token account for token B. Used to receive trading fee."
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "feeLastUpdatedAt",
+              "docs": [
+                "Fee last updated timestamp"
+              ],
+              "type": "u64"
+            },
+            {
+              "name": "padding0",
+              "type": {
+                "array": [
+                  "u8",
+                  24
+                ]
+              }
+            },
+            {
+              "name": "fees",
+              "docs": [
+                "Store the fee charges setting."
+              ],
+              "type": {
+                "defined": "PoolFees"
+              }
+            },
+            {
+              "name": "poolType",
+              "docs": [
+                "Pool type"
+              ],
+              "type": {
+                "defined": "PoolType"
+              }
+            },
+            {
+              "name": "stake",
+              "docs": [
+                "Stake pubkey of SPL stake pool"
+              ],
+              "type": "publicKey"
+            },
+            {
+              "name": "totalLockedLp",
+              "docs": [
+                "Total locked lp token"
+              ],
+              "type": "u64"
+            },
+            {
+              "name": "bootstrapping",
+              "docs": [
+                "bootstrapping config"
+              ],
+              "type": {
+                "defined": "Bootstrapping"
+              }
+            },
+            {
+              "name": "partnerInfo",
+              "type": {
+                "defined": "PartnerInfo"
+              }
+            },
+            {
+              "name": "padding",
+              "docs": [
+                "Padding for future pool field"
+              ],
+              "type": {
+                "defined": "Padding"
+              }
+            },
+            {
+              "name": "curveType",
+              "docs": [
+                "The type of the swap curve supported by the pool."
+              ],
+              "type": {
+                "defined": "CurveType"
+              }
+            }
+          ]
+        }
+      },
         {
             "name": "RewardInfo",
             "docs": [
