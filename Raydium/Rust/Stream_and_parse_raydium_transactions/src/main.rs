@@ -32,12 +32,11 @@ use {
     }
 };
 use spl_token::instruction::TokenInstruction;
-use solana_program::{
-    program_option::COption,
-};
-use spl_token::instruction::AuthorityType;
 use crate::token_serializable::convert_to_serializable;
 // use solana_account_decoder::parse_token::UiTokenAmount;
+
+use solana_transaction_status::Rewards;
+use::solana_sdk::transaction::Result as TransactionResult;
 
 
 type TxnFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
@@ -107,7 +106,7 @@ struct TransactionInstructionWithParent {
     parent_program_id: Option<Pubkey>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize,PartialEq)]
 pub struct DecodedInstruction {
     pub name: String,
     pub accounts: Vec<AccountMetadata>,
@@ -124,6 +123,52 @@ pub struct TransactionWithActions {
     pub tx_with_meta: TransactionWithStatusMeta,
     pub block_time: i64,
     pub actions: Vec<DecodedInstruction>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedTransaction {
+    pub signatures: Vec<Signature>,
+    pub message: ParsedMessage,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedMessage {
+    pub header: MessageHeader,
+    pub account_keys: Vec<Pubkey>,
+    pub recent_blockhash: Hash,
+    pub instructions: Vec<DecodedInstruction>, // Replacing CompiledInstruction
+    pub address_table_lookups: Vec<MessageAddressTableLookup>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedTransactionStatusMeta {
+    pub status: TransactionResult<()>,
+    pub fee: u64,
+    pub pre_balances: Vec<u64>,
+    pub post_balances: Vec<u64>,
+    pub inner_instructions: Vec<DecodedInstruction>, // Replacing inner_instructions
+    pub log_messages: Option<Vec<String>>,
+    pub pre_token_balances: Option<Vec<TransactionTokenBalance>>,
+    pub post_token_balances: Option<Vec<TransactionTokenBalance>>,
+    pub rewards: Option<Rewards>,
+    pub loaded_addresses: LoadedAddresses,
+    pub return_data: Option<TransactionReturnData>,
+    pub compute_units_consumed: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedConfirmedTransaction {
+    pub slot: u64,
+    pub transaction: ParsedTransaction,
+    pub meta: ParsedTransactionStatusMeta,
+    pub block_time: Option<i64>,
+}
+#[derive(Debug)]
+pub struct ParsedConfirmedTransactionWithStatusMeta {
+    pub slot: u64,
+    pub transaction: ParsedTransaction,
+    pub meta: ParsedTransactionStatusMeta,
+    pub block_time: Option<i64>,
 }
 
 #[tokio::main]
@@ -426,136 +471,281 @@ async fn geyser_subscribe(
 
                     
 
-                        let decoded_txn: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
+                        let compiled_instructions: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
-                                flatten_transaction_response(versioned_tx_with_meta)
+                                flatten_compiled_instructions(versioned_tx_with_meta)
                             }
                             TransactionWithStatusMeta::MissingMetadata(_) => {
                                 vec![]
                             }
                         };
 
-                        let mut decoded_actions: Vec<DecodedInstruction> = Vec::new();
+                        let parsed_inner_instructions: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
+                            TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
+                                flatten_inner_instructions(versioned_tx_with_meta)
+                            }
+                            TransactionWithStatusMeta::MissingMetadata(_) => {
+                                vec![]
+                            }
+                        };
 
-
+                        
                         let token_idl_json = fs::read_to_string("idls/token_program_idl.json")
                         .expect("Unable to read Token IDL JSON file");
 
                         let raydium_idl_json = fs::read_to_string("idls/raydium_amm.json")
                         .expect("Unable to read IDL JSON file");
 
-                        decoded_txn.iter().for_each(|instruction| {
+                        let mut decoded_compiled_instructions: Vec<DecodedInstruction> = Vec::new();
+                        let mut decoded_inner_instructions: Vec<DecodedInstruction> = Vec::new();
 
+                        compiled_instructions.iter().for_each(|instruction| {
+                            
                             if instruction.instruction.program_id
-                            == Pubkey::from_str(RAYDIUM_AMM_PROGRAM_ID)
-                                .expect("Failed to parse public key")
-                        {
-                            match RaydiumAmmProgramIx::deserialize(&instruction.instruction.data) {
-                                Ok(decoded_ix) => {
-                                    //println!("Decoded Raydium Instruction: {:?}", decoded_ix);
-
-                                    let idl: Idl =
-                                        serde_json::from_str(&raydium_idl_json).expect("Failed to deserialize IDL");
-                            
-
-                                    match idl
-                                        .map_accounts(&instruction.instruction.accounts, &decoded_ix.name())
-                                    {
-                                        Ok(mapped_accounts) => {
-                                            let decoded_instruction = DecodedInstruction {
-                                                name: decoded_ix.name(),
-                                                accounts: mapped_accounts,
-                                                data: match serde_json::to_value(decoded_ix) {
-                                                    Ok(data) => data,
-                                                    Err(e) => {
-                                                        error!("Failed to serialize ix data: {:?}", e);
-                                                        return;
-                                                    }
-                                                },
-                                                program_id: instruction.instruction.program_id,
-                                                parent_program_id: instruction.parent_program_id,
-                                            };
-                            
-                                            match serde_json::to_string_pretty(&decoded_instruction) {
-                                                Ok(json_string) => {
-                                                    info!("Decoded Raydium Instruction:\n{}", json_string);
-                                                    decoded_actions.push(decoded_instruction);
-                                                },
-                                                Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
-                                            }
-                                        }
-                                        Err(err) => error!("Error mapping accounts: {:?}", err),
-                                    }
-                                }
-                                Err(e) => {
-                                    error!("Failed to decode instruction: {:?}\n", e);
-                                }
-                            }
-                        }
-                        else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
+                                == Pubkey::from_str(RAYDIUM_AMM_PROGRAM_ID)
+                                    .expect("Failed to parse public key")
+                            {
+                                match RaydiumAmmProgramIx::deserialize(&instruction.instruction.data) {
+                                    Ok(decoded_ix) => {
+                                        let idl: Idl =
+                                            serde_json::from_str(&raydium_idl_json).expect("Failed to deserialize IDL");
                                 
-                            match TokenInstruction::unpack(&instruction.instruction.data) {
-                                Ok(decoded_ix) => {
-                                    //println!("Decoded Token Instruction:\n{:?}\n", decoded_ix);
-                                    
-                                    let ix_name = get_instruction_name_with_typename(&decoded_ix);
-                                    //println!("Instruction name: {}", ix_name);
-
-                                    let serializable_ix = convert_to_serializable(decoded_ix);
-                                    
-                                    let token_idl: Idl =
-                                        serde_json::from_str(&token_idl_json).expect("Failed to deserialize IDL");
-                            
-
-                                    match token_idl
-                                        .map_accounts(&instruction.instruction.accounts, &ix_name)
-                                    {
-                                        Ok(mapped_accounts) => {
-                                            
-                                            let decoded_instruction = DecodedInstruction {
-                                                name: ix_name,
-                                                accounts: mapped_accounts,
-                                                data: match serde_json::to_value(serializable_ix) {
-                                                    Ok(data) => data,
-                                                    Err(e) => {
-                                                        error!("Failed to serialize token ix data: {:?}", e);
-                                                        return;
-                                                    }
-                                                },
-                                                program_id: instruction.instruction.program_id,
-                                                parent_program_id: instruction.parent_program_id,
-                                            };
-                            
-                                            match serde_json::to_string_pretty(&decoded_instruction) {
-                                                Ok(json_string) => {
-                                                    info!("Decoded Token Instruction:\n{}", json_string);
-                                                    decoded_actions.push(decoded_instruction);
-                                                },
-                                                Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
+    
+                                        match idl
+                                            .map_accounts(&instruction.instruction.accounts, &decoded_ix.name())
+                                        {
+                                            Ok(mapped_accounts) => {
+                                                let decoded_instruction = DecodedInstruction {
+                                                    name: decoded_ix.name(),
+                                                    accounts: mapped_accounts,
+                                                    data: match serde_json::to_value(decoded_ix) {
+                                                        Ok(data) => data,
+                                                        Err(e) => {
+                                                            error!("Failed to serialize ix data: {:?}", e);
+                                                            return;
+                                                        }
+                                                    },
+                                                    program_id: instruction.instruction.program_id,
+                                                    parent_program_id: instruction.parent_program_id,
+                                                };
+                                
+                                                match serde_json::to_string_pretty(&decoded_instruction) {
+                                                    Ok(json_string) => {
+                                                        //info!("Decoded Instruction:\n{}", json_string);
+                                                        decoded_compiled_instructions.push(decoded_instruction);
+                                                    },
+                                                    Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
+                                                }
                                             }
-
+                                            Err(err) => error!("Error mapping accounts: {:?}", err),
                                         }
-                                        Err(err) => error!("Error mapping accounts: {:?}", err),
                                     }
+                                    Err(e) => {
+                                        error!("Failed to decode instruction: {:?}\n", e);
+                                    }
+                                }}
+                                else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
                                     
-                                },
-                                Err(_) => println!("Failed to decode token instruction"),
-                            }
-                            
-                        }  
+                                    match TokenInstruction::unpack(&instruction.instruction.data) {
+                                        Ok(decoded_ix) => {
+                                            //println!("Decoded Token Instruction:\n{:?}\n", decoded_ix);
+                                            
+                                            let ix_name = get_instruction_name_with_typename(&decoded_ix);
+                                            //println!("Instruction name: {}", ix_name);
+    
+                                            let serializable_ix = convert_to_serializable(decoded_ix);
+                                            
+                                            let token_idl: Idl =
+                                                serde_json::from_str(&token_idl_json).expect("Failed to deserialize IDL");
+                                    
+        
+                                            match token_idl
+                                                .map_accounts(&instruction.instruction.accounts, &ix_name)
+                                            {
+                                                Ok(mapped_accounts) => {
+                                                    let decoded_instruction = DecodedInstruction {
+                                                        name: ix_name,
+                                                        accounts: mapped_accounts,
+                                                        data: match serde_json::to_value(serializable_ix) {
+                                                            Ok(data) => data,
+                                                            Err(e) => {
+                                                                error!("Failed to serialize token ix data: {:?}", e);
+                                                                return;
+                                                            }
+                                                        },
+                                                        program_id: instruction.instruction.program_id,
+                                                        parent_program_id: instruction.parent_program_id,
+                                                    };
+                                    
+                                                    match serde_json::to_string_pretty(&decoded_instruction) {
+                                                        Ok(json_string) => {
+                                                            //info!("Decoded Token Instruction:\n{}", json_string);
+                                                            decoded_compiled_instructions.push(decoded_instruction);
+                                                        },
+                                                        Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
+                                                    }
+                                                }
+                                                Err(err) => error!("Error mapping accounts: {:?}", err),
+                                            }
+                                            
+                                        },
+                                        Err(_) => println!("Failed to decode token instruction"),
+                                    }
+                                }
+                        });
+                        
+                        parsed_inner_instructions.iter().for_each(|instruction| {
+                                
+                            if instruction.instruction.program_id
+                                == Pubkey::from_str(RAYDIUM_AMM_PROGRAM_ID)
+                                    .expect("Failed to parse public key")
+                            {
+                                match RaydiumAmmProgramIx::deserialize(&instruction.instruction.data) {
+                                    Ok(decoded_ix) => {
+                                        let idl: Idl =
+                                            serde_json::from_str(&raydium_idl_json).expect("Failed to deserialize IDL");
+                                
+    
+                                        match idl
+                                            .map_accounts(&instruction.instruction.accounts, &decoded_ix.name())
+                                        {
+                                            Ok(mapped_accounts) => {
+                                                let decoded_instruction = DecodedInstruction {
+                                                    name: decoded_ix.name(),
+                                                    accounts: mapped_accounts,
+                                                    data: match serde_json::to_value(decoded_ix) {
+                                                        Ok(data) => data,
+                                                        Err(e) => {
+                                                            error!("Failed to serialize ix data: {:?}", e);
+                                                            return;
+                                                        }
+                                                    },
+                                                    program_id: instruction.instruction.program_id,
+                                                    parent_program_id: instruction.parent_program_id,
+                                                };
+                                
+                                                match serde_json::to_string_pretty(&decoded_instruction) {
+                                                    Ok(json_string) => {
+                                                        //info!("Decoded Instruction:\n{}", json_string);
+                                                        decoded_inner_instructions.push(decoded_instruction);
+                                                    },
+                                                    Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
+                                                }
+                                            }
+                                            Err(err) => error!("Error mapping accounts: {:?}", err),
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to decode instruction: {:?}\n", e);
+                                    }
+                                }}
+                                else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
+                                    
+                                    match TokenInstruction::unpack(&instruction.instruction.data) {
+                                        Ok(decoded_ix) => {
+                                            //println!("Decoded Token Instruction:\n{:?}\n", decoded_ix);
+                                            
+                                            let ix_name = get_instruction_name_with_typename(&decoded_ix);
+                                            //println!("Instruction name: {}", ix_name);
+    
+                                            let serializable_ix = convert_to_serializable(decoded_ix);
+                                            
+                                            let token_idl: Idl =
+                                                serde_json::from_str(&token_idl_json).expect("Failed to deserialize IDL");
+                                    
+        
+                                            match token_idl
+                                                .map_accounts(&instruction.instruction.accounts, &ix_name)
+                                            {
+                                                Ok(mapped_accounts) => {
+                                                    let decoded_instruction = DecodedInstruction {
+                                                        name: ix_name,
+                                                        accounts: mapped_accounts,
+                                                        data: match serde_json::to_value(serializable_ix) {
+                                                            Ok(data) => data,
+                                                            Err(e) => {
+                                                                error!("Failed to serialize token ix data: {:?}", e);
+                                                                return;
+                                                            }
+                                                        },
+                                                        program_id: instruction.instruction.program_id,
+                                                        parent_program_id: instruction.parent_program_id,
+                                                    };
+                                    
+                                                    match serde_json::to_string_pretty(&decoded_instruction) {
+                                                        Ok(json_string) => {
+                                                            //info!("Decoded Token Instruction:\n{}", json_string);
+                                                            decoded_inner_instructions.push(decoded_instruction);
+                                                        },
+                                                        Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
+                                                    }
+                                                }
+                                                Err(err) => error!("Error mapping accounts: {:?}", err),
+                                            }
+                                            
+                                        },
+                                        Err(_) => println!("Failed to decode token instruction"),
+                                    }
+                                }  
                         
                     });
 
-                    // Use decoded_actions if you only want the parsed instructions or use decoded_transaction_with_actions for full transaction
-                    // println!("Decoded Actions: \n{:?}", decoded_actions);  
-                    let decoded_transaction_with_actions = TransactionWithActions {
+                    /*
+                        Incase you just want to print the decoded instructions, you can uncomment the following line:
+                        println!("Decoded Instructions:\n{:?}\n", decoded_inner_instructions) in the previous loop
+                        
+                        if you want to interate through the decoded instructions,please use the following variables: 
+                        decoded_inner_instructions, decoded_compiled_instructions
+                    */
+
+                    // println!("Decoded Inner Instructions:\n{:?}\n", decoded_inner_instructions);
+                    // println!("Decoded Compiled Instructions:\n{:?}\n", decoded_compiled_instructions);
+                    let parsed_confirmed_txn_with_meta = ParsedConfirmedTransactionWithStatusMeta {
                         slot,
-                        tx_with_meta: confirmed_txn_with_meta.tx_with_meta,
-                        block_time,
-                        actions: decoded_actions,
+                        transaction: match &confirmed_txn_with_meta.tx_with_meta {
+                            TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => ParsedTransaction {
+                                signatures: versioned_tx_with_meta.transaction.signatures.clone(),
+                                message: match &versioned_tx_with_meta.transaction.message {
+                                    VersionedMessage::V0(msg) => ParsedMessage {
+                                        header: msg.header.clone(), // Now correctly extracting the header
+                                        account_keys: msg.account_keys.clone(),
+                                        recent_blockhash: msg.recent_blockhash.clone(),
+                                        instructions: decoded_compiled_instructions.clone(), // Replacing instructions
+                                        address_table_lookups: msg.address_table_lookups.clone(),
+                                    },
+                                    VersionedMessage::Legacy(msg) => ParsedMessage {
+                                        header: msg.header.clone(),
+                                        account_keys: msg.account_keys.clone(),
+                                        recent_blockhash: msg.recent_blockhash.clone(),
+                                        instructions: decoded_compiled_instructions.clone(), // Replacing instructions
+                                        address_table_lookups: vec![], // Legacy messages don't have address table lookups
+                                    },
+                                },
+                            },
+                            _ => panic!("Expected Complete variant"), // Ensure we only handle Complete
+                        },
+                        meta: match &confirmed_txn_with_meta.tx_with_meta {
+                            TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => ParsedTransactionStatusMeta {
+                                status: versioned_tx_with_meta.meta.status.clone(),
+                                fee: versioned_tx_with_meta.meta.fee,
+                                pre_balances: versioned_tx_with_meta.meta.pre_balances.clone(),
+                                post_balances: versioned_tx_with_meta.meta.post_balances.clone(),
+                                inner_instructions: decoded_inner_instructions.clone(), // Replacing inner_instructions
+                                log_messages: versioned_tx_with_meta.meta.log_messages.clone(),
+                                pre_token_balances: versioned_tx_with_meta.meta.pre_token_balances.clone(),
+                                post_token_balances: versioned_tx_with_meta.meta.post_token_balances.clone(),
+                                rewards: versioned_tx_with_meta.meta.rewards.clone(),
+                                loaded_addresses: versioned_tx_with_meta.meta.loaded_addresses.clone(),
+                                return_data: versioned_tx_with_meta.meta.return_data.clone(),
+                                compute_units_consumed: versioned_tx_with_meta.meta.compute_units_consumed,
+                            },
+                            _ => panic!("Expected Complete variant"), // Ensure we only handle Complete
+                        },
+                        block_time: confirmed_txn_with_meta.block_time,
                     };
 
-                    // println!("Decoded Transaction: \n{:?}", decoded_transaction_with_actions);  
+                    println!("Decoded Transaction:\n{:#?}", parsed_confirmed_txn_with_meta);
+ 
                     }
                 }
                 Some(UpdateOneof::Ping(_)) => {
@@ -664,6 +854,63 @@ fn flatten_transaction_response(
     }
 
     result
+}
+
+fn flatten_compiled_instructions(
+    transaction_with_meta: &VersionedTransactionWithStatusMeta,
+) -> Vec<TransactionInstructionWithParent> {
+    let mut compiled_result = Vec::new();
+    let transaction = &transaction_with_meta.transaction;
+    let ci_ixs = transaction.message.instructions();
+    let parsed_accounts = parse_transaction_accounts(
+        &transaction.message,
+        transaction_with_meta.meta.loaded_addresses.clone(),
+    );
+
+    for ci_ix in ci_ixs {
+        compiled_result.push(TransactionInstructionWithParent {
+            instruction: compiled_instruction_to_instruction(&ci_ix, parsed_accounts.clone()),
+            parent_program_id: None,
+        });
+    }
+
+    compiled_result
+}
+
+fn flatten_inner_instructions(
+    transaction_with_meta: &VersionedTransactionWithStatusMeta,
+) -> Vec<TransactionInstructionWithParent> {
+    let mut inner_result = Vec::new();
+    let transaction = &transaction_with_meta.transaction;
+    let ci_ixs = transaction.message.instructions();
+    let parsed_accounts = parse_transaction_accounts(
+        &transaction.message,
+        transaction_with_meta.meta.loaded_addresses.clone(),
+    );
+
+    if let Some(inner_ixs) = &transaction_with_meta.meta.inner_instructions {
+        let mut ordered_cii = inner_ixs.clone();
+        ordered_cii.sort_by(|a, b| a.index.cmp(&b.index));
+
+        for cii in ordered_cii {
+            let parent_program_id =
+                parsed_accounts[ci_ixs[cii.index as usize].program_id_index as usize].pubkey;
+
+            for cii_entry in cii.instructions {
+                let ix = CompiledInstruction {
+                    program_id_index: cii_entry.instruction.program_id_index,
+                    accounts: cii_entry.instruction.accounts.clone(),
+                    data: cii_entry.instruction.data.clone(),
+                };
+                inner_result.push(TransactionInstructionWithParent {
+                    instruction: compiled_instruction_to_instruction(&ix, parsed_accounts.clone()),
+                    parent_program_id: Some(parent_program_id),
+                });
+            }
+        }
+    }
+
+    inner_result
 }
 
 fn compiled_instruction_to_instruction(
