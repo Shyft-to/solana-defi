@@ -193,7 +193,7 @@ use {
         match message {
             Ok(msg) => {
                 match msg.update_oneof {
-                    Some(UpdateOneof::Block(msg)) => {
+                    Some(UpdateOneof::Transaction(msg)) => {
                     let slot : &u64 = &msg.slot;
                     let slot_cloned = slot.clone();
                     let block_hash : &str = &msg.blockhash;

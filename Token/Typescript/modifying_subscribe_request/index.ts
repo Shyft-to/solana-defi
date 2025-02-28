@@ -25,34 +25,66 @@ interface SubscribeRequest {
   accountsDataSlice: SubscribeRequestAccountsDataSlice[];
   ping?: SubscribeRequestPing | undefined;
 }
-
-let subscribedWallets: string[] = [
+let subscribedWalletsA: string[] = [
   "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
   "5n2WeFEQbfV65niEP63sZc3VA7EgC4gxcTzsGGuXpump",
   "4oJh9x5Cr14bfaBtUsXN1YUZbxRhuae9nrkSyWGSpump",
   "GBpE12CEBFY9C74gRBuZMTPgy2BGEJNCn4cHbEPKpump",
   "oraim8c9d1nkfuQk9EzGYEUGxqL3MHQYndRw1huVo5h",
 ];
+let subscribedWalletsB: string[] = [
+    "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+]
+// Predefined subscription requests
+const subscribeRequest1: SubscribeRequest = {
+  accounts: {},
+  slots: {},
+  transactions: {
+    modifying_A: {
+      vote: false,
+      failed: false,
+      signature: undefined,
+      accountInclude: subscribedWalletsA,
+      accountExclude: [],
+      accountRequired: [],
+    },
+  },
+  transactionsStatus: {},
+  entry: {},
+  blocks: {},
+  blocksMeta: {},
+  accountsDataSlice: [],
+  ping: undefined,
+  commitment: CommitmentLevel.PROCESSED,
+};
+const subscribeRequest2: SubscribeRequest = {
+  "slots": {},
+  "accounts": {
+    "modifying_B": {
+      "account": [],
+      "filters": [],
+      "owner": subscribedWalletsB // raydium program id to subscribe to
+    }
+  },
+  "transactions": {},
+  "blocks": {},
+  "blocksMeta": {
+    "block": []
+  },
+  "accountsDataSlice": [],
+  "commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
+  entry: {},
+  transactionsStatus: {}
+}
+
 async function updateSubscription(stream: any, args: SubscribeRequest) {
   try {
-    const request = await fetchWallets();
-
-    if (request.length === 0) {
-      return;
-    }
-    const uniqueWallets = Array.from(new Set(request));
-    subscribedWallets = uniqueWallets;
-
-    // Update the subscription request
-    args.transactions.migration.accountInclude = subscribedWallets;
-
-    // Send the new request to the stream
+    // Send the updated request to the stream
     stream.write(args);
   } catch (error) {
     console.error("Failed to send new request:", error);
   }
 }
-
 async function handleStream(client: Client, args: SubscribeRequest) {
   const stream = await client.subscribe();
 
@@ -65,26 +97,28 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     stream.on("end", resolve);
     stream.on("close", resolve);
   });
+   // Switch to the second request after 2 seconds without closing the stream
+
+  setTimeout(async () => {
+    console.log("Switched to second subscription request");
+    await updateSubscription(stream, subscribeRequest2);  // Update the subscription with the second request
+    }, 10000);  // Change request after 2 seconds
+
+
 
   stream.on("data", async (data) => {
     try {
-      const result = await tOutPut(data);
-      if (result.signature == "") return;
-      console.log(result);
-      console.log("Subscribed Wallet: " + subscribedWallets);
+      console.log(data);
     } catch (error) {
       console.log(error);
     }
   });
-   updateSubscription(stream,args);
-   setInterval(updateSubscription, 5000);
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => (err ? reject(err) : resolve()));
   }).catch((reason) => {
     console.error(reason);
     throw reason;
   });
-
   await streamClosed;
 }
 
@@ -104,44 +138,10 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 }
 
 const client = new Client(
-  "gRPC-URL",
-  "gRPC-TOKEN",
-  undefined
-)
-const req: SubscribeRequest = {
-  accounts: {},
-  slots: {},
-  transactions: {
-    migration: {
-      vote: false,
-      failed: false,
-      signature: undefined,
-      accountInclude: subscribedWallets, 
-      accountExclude: [],
-      accountRequired: [],
-    },
-  },
-  transactionsStatus: {},
-  entry: {},
-  blocks: {},
-  blocksMeta: {},
-  accountsDataSlice: [],
-  ping: undefined,
-  commitment: CommitmentLevel.PROCESSED, 
-};
+  process.env.GRPC_URL,
+  process.env.X_TOKEN,
+  undefined,
+);
 
-subscribeCommand(client, req);
 
-async function fetchWallets() {
-  try {
-    const response = await axios.get("http://localhost:3000/wallets");
-    const data: string[] = response.data;
-
-    const uniqueWallets = Array.from(new Set(data));
-    return uniqueWallets;
-  } catch (error) {
-    return []; 
-  }
-}
-
-subscribeCommand(client, req);
+subscribeCommand(client, subscribeRequest1);

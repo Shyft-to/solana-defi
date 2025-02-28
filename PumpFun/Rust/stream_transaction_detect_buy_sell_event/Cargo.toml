@@ -34,4 +34,3 @@ indicatif = "0.17.9"
 solana-account-decoder-client-types = "2.1.7"
 solana-client = "2.1.7"
 spl-token = "7.0.0"
-pump_interface = { path = "./parsers/pump_interface", features = ["serde"] }

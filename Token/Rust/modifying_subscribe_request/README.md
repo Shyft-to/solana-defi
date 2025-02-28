@@ -1,19 +1,28 @@
-# Subscribe to Real-Time Updates for Newly Created Pools on Raydium Using gRPC
+<a id="readme-top"></a>
+# Modify your Subscribe Request and Stream without reconnection. 
 
-Stay ahead in the decentralized finance (DeFi) space by subscribing to real-time updates for newly created liquidity pools on Raydium. Using gRPC, you can stream these updates directly into your application, ensuring you’re among the first to know when new pools are added to the platform.
+Modify your subscribe request without closing or reconnecting your stream. 
+This approach offers significant improvements in efficiency, providing a smoother and more continuous data flow.
+Typically, when modifying subscription parameters in many streaming systems, users have to disconnect and reconnect, causing delays and interruptions. However, our method allows real-time adjustments to subscription parameters without disrupting the stream, ensuring that your connection remains active and reliable. This seamless modification of requests enhances the overall experience by reducing latency and minimizing downtime.
 
-This powerful integration is ideal for traders, developers, and DeFi enthusiasts who want to monitor the latest opportunities in liquidity provision, trading, and yield farming. By leveraging gRPC, you can achieve low-latency, high-performance data streaming, enabling you to react quickly to market changes and capitalize on emerging opportunities.
+![screenshot](assets/usage_screenshot.png?raw=true "Screenshot")
 
-Whether you're building automated trading bots, conducting market analysis, or simply staying informed about the latest developments in the Raydium ecosystem, this solution provides a reliable and scalable way to track newly created pools and make data-driven decisions in real time.
+## Getting Started
 
-```
- cargo run -- --endpoint https://grpc.ny.shyft.to --x-token<token> --address 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8
 
---PS: this code only works for the program ID <address>
--- DON'T attempt to use the code for any other program
-## Notes
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Shyft-to/solana-defi.git
+   cd Token/Rust/modifying_subscribe_request
 
-gRPC client examples :https://github.com/Shyft-to/solana-defi
-Blogs : blogs.shyft.to
-Learn about shyft: https://shyft.to/
-Discord: https://discord.gg/6bSmYuDa
+
+2. **Install Dependencies/Run the script:**
+    ```bashbash
+    # For example,
+    cargo run -- --endpoint<gRpc endpoint> --x-token <gRpc Token>
+
+
+## Related Links
+
+_For more examples, please refer to the [Documentation](https://docs.shyft.to/solana-fast-grpc/grpc-docs)_, _or feel free to visit our [Website](https://shyft.to/)_, _to get a free API Key_.
+<p align="right">(<a href="#readme-top">back to top</a>)</p>   

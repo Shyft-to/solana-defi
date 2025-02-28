@@ -5,22 +5,46 @@ use {
     futures::{future::TryFutureExt, sink::SinkExt, stream::StreamExt},
     log::{error, info},
     serde_json::json,
+    serde::{Serialize, Deserialize},
     serde_json::Value,
-    solana_sdk::{signature::Signature},
-    solana_transaction_status::UiTransactionEncoding,
-    std::{collections::HashMap, env, sync::Arc, time::Duration},
+    tokio::time::{sleep,Duration},
+    std::{
+      collections::HashMap, env, fs, str::FromStr, sync::Arc, time::{ SystemTime, UNIX_EPOCH}
+    },
+    tokio::io::{AsyncReadExt, AsyncWriteExt}, // These traits are needed for async I/O
+    //std::net::{TcpListener, TcpStream},
+    std::io::{Read, Write},
+    std::env::var,
+        tokio::task,
+    solana_transaction_status::{UiTransactionEncoding,
+      ConfirmedTransactionWithStatusMeta, InnerInstruction, InnerInstructions, Reward, RewardType, TransactionStatusMeta, TransactionTokenBalance, TransactionWithStatusMeta, VersionedTransactionWithStatusMeta
+    },
+    solana_account_decoder_client_types::token::UiTokenAmount,
+    solana_sdk::{
+      hash::Hash, instruction::{AccountMeta, CompiledInstruction, Instruction}, message::{v0::{LoadedAddresses, Message, MessageAddressTableLookup}, MessageHeader, VersionedMessage}, pubkey::Pubkey, signature::Signature, transaction::VersionedTransaction, transaction_context::TransactionReturnData
+    }, 
     tokio::sync::Mutex,
+    tokio::net::TcpListener,
     tonic::transport::channel::ClientTlsConfig,
     yellowstone_grpc_client::{GeyserGrpcClient, Interceptor},
     yellowstone_grpc_proto::prelude::{
-        subscribe_update::UpdateOneof, CommitmentLevel, SubscribeRequest, SubscribeRequestPing,
-        SubscribeRequestFilterTransactions,SubscribeUpdateTransactionInfo
+        subscribe_update::UpdateOneof, CommitmentLevel, SubscribeRequest, SubscribeRequestPing,UnixTimestamp,
+        SubscribeRequestFilterTransactions,SubscribeUpdateTransactionInfo,SubscribeRequestFilterAccounts
     },
     yellowstone_grpc_proto::convert_from
-};
-type TransactionsFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
+  };
+  use spl_token::instruction::TokenInstruction;
 
-const Subscribed_Wallet: vec! = [];
+#[derive(Debug,Serialize)]
+  #[derive(Clone)]
+  struct TransactionInstructionWithParent {
+      instruction: Instruction,
+      parent_program_id: Option<Pubkey>,
+  }
+type AccountFilterMap = HashMap<String, SubscribeRequestFilterAccounts>;
+  
+type TransactionsFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
+const PUMP_PROGRAM_ID: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 
 #[derive(Debug, Clone, ClapParser)]
 #[clap(author, version, about)]
@@ -46,17 +70,48 @@ impl Args {
             .map_err(Into::into)
     }
 
-    pub fn get_raydium_pool_subscribe_request(&self) -> anyhow::Result<SubscribeRequest> {
-        let mut transactions : TransactionsFilterMap = HashMap::new();
+    
+  pub fn get_account_updates(&self) -> anyhow::Result<SubscribeRequest> {
+        let mut accounts: AccountFilterMap = HashMap::new();
+
+        accounts.insert(
+            "modifying_B".to_owned(),
+            SubscribeRequestFilterAccounts {
+                account: vec![],
+                owner: vec![PUMP_PROGRAM_ID.to_string()],
+                nonempty_txn_signature: None,
+                filters: vec![]
+            },
+        );
+
+
+
+        Ok(SubscribeRequest {
+            accounts,
+            slots: HashMap::default(),
+            transactions: HashMap::default(),
+            transactions_status: HashMap::default(),
+            blocks: HashMap::default(),
+            blocks_meta: HashMap::default(),
+            entry: HashMap::default(),
+            commitment: Some(CommitmentLevel::Processed as i32),
+            accounts_data_slice: Vec::default(),
+            ping: None,
+            from_slot: None,
+        })
+    }
+    pub fn get_txn_updates(&self) -> anyhow::Result<SubscribeRequest> {
+        let mut transactions: TransactionsFilterMap = HashMap::new();
+
         transactions.insert(
-            "client".to_owned(),
+            "Modifying_A".to_owned(),
             SubscribeRequestFilterTransactions {
-                vote: None,
+                vote: Some(false),
                 failed: Some(false),
-                signature: None,
-                account_include: Subscribed_Wallet,
+                account_include: vec![PUMP_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
                 account_required: vec![],
+                signature: None,
             },
         );
 
@@ -74,8 +129,7 @@ impl Args {
             from_slot: None,
         })
     }
-}
-// .ok_or(anyhow::anyhow!("no created_at in the message"))?
+ }
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env::set_var(
@@ -86,10 +140,12 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
     let zero_attempts = Arc::new(Mutex::new(true));
+
+    let client = Arc::new(Mutex::new(args.connect().await?)); 
     retry(ExponentialBackoff::default(), move || {
         let args = args.clone();
-        println!("args: {:?}", args);
         let zero_attempts = Arc::clone(&zero_attempts);
+        let client = Arc::clone(&client); // Share client
 
         async move {
             let mut zero_attempts = zero_attempts.lock().await;
@@ -99,96 +155,80 @@ async fn main() -> anyhow::Result<()> {
                 info!("Retry to connect to the server");
             }
             drop(zero_attempts);
+          
 
-            let client = args.connect().await.map_err(backoff::Error::transient)?;
-            info!("Connected");
+            let account_request = args.get_account_updates().unwrap();
+            let txn_request = args.get_txn_updates().unwrap();
 
-            let request = args
-                .get_raydium_pool_subscribe_request()
-                .map_err(backoff::Error::Permanent)?;
-
-            geyser_subscribe(client, request)
-                .await
-                .map_err(backoff::Error::transient)?;
-
+            let mut client = client.lock().await;
+            info!("Subscribing to transaction updates...");
+            geyser_subscribe(&mut client, account_request, txn_request).await.map_err(backoff::Error::transient)?;
+            
             Ok::<(), backoff::Error<anyhow::Error>>(())
-        }
+        
+    }
         .inspect_err(|error| error!("failed to connect: {error}"))
     })
     .await
     .map_err(Into::into)
 }
-
 async fn geyser_subscribe(
-    mut client: GeyserGrpcClient<impl Interceptor>,
-    request: SubscribeRequest,
+    client: &mut GeyserGrpcClient<impl Interceptor>, // Client to subscribe
+    account_request: SubscribeRequest, // Initial account request
+    txn_request: SubscribeRequest, // Transaction request
 ) -> anyhow::Result<()> {
-    let (mut subscribe_tx, mut stream) = client.subscribe_with_request(Some(request)).await?;
+    let (mut subscribe_tx, mut stream) = client.subscribe_with_request(Some(txn_request)).await?;
+    
+    info!("Started streaming transaction updates...");
 
-    info!("stream opened");
+    // Track the time since the start
+    let start_time = tokio::time::Instant::now();
+    let mut switched_to_account = false;
+
+    // Handle incoming stream messages
     while let Some(message) = stream.next().await {
         match message {
             Ok(msg) => {
+                info!("Received message: {:?}", msg);
+
                 match msg.update_oneof {
                     Some(UpdateOneof::Transaction(msg)) => {
-                         let tx = msg
-                         .transaction
-                         .ok_or(anyhow::anyhow!("no transaction in the message"))?;
-                     let value = create_pretty_transaction(tx)?;
-                     let meta = &value["tx"]["meta"];
-                     let _logMessages: Vec<String> = meta["logMessages"]
-                     .as_array()
-                     .unwrap()
-                     .iter()
-                     .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                     .collect();
-                     let initialize_2 = search_initialize2(&_logMessages);
-                     if initialize_2 {
-                        info!("Newly Migrated : {:?}",value);
-                     }else{
-                        info!("Searching...");
-                     }                      
-                    }                   
+                        info!("Received Transaction update: {:?}", msg);
+                    }
                     Some(UpdateOneof::Ping(_)) => {
-                        // This is necessary to keep load balancers that expect client pings alive.
-                        subscribe_tx
-                            .send(SubscribeRequest {
-                                ping: Some(SubscribeRequestPing { id: 1 }),
-                                ..Default::default()
-                            })
-                            .await?;
+                        // Respond to ping
+                        subscribe_tx.send(SubscribeRequest {
+                            ping: Some(SubscribeRequestPing { id: 1 }),
+                            ..Default::default()
+                        }).await?;
                     }
                     Some(UpdateOneof::Pong(_)) => {
-                        // Handle pong response if needed
+                        // Handle pong response
                     }
                     None => {
-                        error!("update not found in the message");
+                        error!("No update found in the message.");
                         break;
                     }
-                    _ => {}
+                    _ => {
+                        info!("Received other update: {:?}", msg);
+                    }
                 }
             }
-            Err(error) => {
-                error!("error: {error:?}");
+            Err(e) => {
+                error!("Error receiving message: {:?}", e);
                 break;
             }
         }
+
+        // Switch to the account request after a certain time period (e.g., 10 seconds)
+        if !switched_to_account && start_time.elapsed() >= Duration::from_secs(10) {
+            info!("Switching from txn_request to account_request after 10 seconds...");
+            subscribe_tx.send(account_request.clone()).await?; 
+            switched_to_account = true; 
+        }
     }
-    info!("stream closed");
+
+    info!("Stream closed after updates.");
     Ok(())
 }
-fn create_pretty_transaction(tx: SubscribeUpdateTransactionInfo) -> anyhow::Result<Value> {
-    Ok(json!({
-        "signature": Signature::try_from(tx.signature.as_slice()).context("invalid signature")?.to_string(),
-        "isVote": tx.is_vote,
-        "tx": convert_from::create_tx_with_meta(tx)
-            .map_err(|error| anyhow::anyhow!(error))
-            .context("invalid tx with meta")?
-            .encode(UiTransactionEncoding::Base64, Some(u8::MAX), true)
-            .context("failed to encode transaction")?,
-    }))
-}
-fn search_initialize2(logs: &[String]) -> bool {
-    // Iterate through each log in the array of strings
-    logs.iter().any(|log| log.contains("initialize2"))
-}
+
