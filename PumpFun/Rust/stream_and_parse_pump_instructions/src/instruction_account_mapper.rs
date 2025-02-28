@@ -23,7 +23,7 @@ pub struct Idl {
     instructions: Vec<IdlInstruction>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct AccountMetadata {
     #[serde(serialize_with = "serialize_pubkey")]
     pub pubkey: Pubkey,
