@@ -6,12 +6,10 @@ import {  decodePoolData, decodeTransact } from "./decodeTransaction";
  * @returns {Object} - An object containing the deserialized signature, public key, owner, and pool state.
  */
 export function tOutPut(data) {
-    // Ensure data is defined and contains the necessary properties
-    if (!data || !data.account || !data.account.account) {
-        throw new Error("Invalid data format");
-    }
+    try{
+    if (!data || !data.account || !data.account.account)return;
 
-    const dataTx = data.account.account;
+      const dataTx = data.account.account;
 
     // Safely decode each piece of transaction data
     const signature = dataTx.txnSignature ? decodeTransact(dataTx.txnSignature) : null;
@@ -23,7 +21,7 @@ export function tOutPut(data) {
         poolstate = decodePoolData(dataTx.data);
     
     } catch (error) {
-        console.error("Failed to decode pool state:", error);
+       // console.error("Failed to decode pool state:", error);
     }
 
     return {
@@ -32,4 +30,6 @@ export function tOutPut(data) {
         owner,
         poolstate
     };
+   }catch(error){
+   }
 }

@@ -2,40 +2,64 @@ import { publicKey,struct, bool,u8,u32,u16, u64, Layout, option } from "@coral-x
 //import { publicKey as pk } from "@solana/buffer-layout-utils";
 import base58 from "bs58";
 // Define the layout structure for LbPair
-const feeFields = [u64('denominator'), u64('numerator')];
 
-export const StakePoolLayout = struct([
-  u8('accountType'),
-  publicKey('manager'),
-  publicKey('staker'),
-  publicKey('stakeDepositAuthority'),
-  u8('stakeWithdrawBumpSeed'),
-  publicKey('validatorList'),
-  publicKey('reserveStake'),
-  publicKey('poolMint'),
-  publicKey('managerFeeAccount'),
-  publicKey('tokenProgramId'),
-  u64('totalLamports'),
-  u64('poolTokenSupply'),
-  u64('lastUpdateEpoch'),
-  struct([u64('unixTimestamp'), u64('epoch'), publicKey('custodian')], 'lockup'),
-  struct(feeFields, 'epochFee'),
-  option(struct(feeFields), 'nextEpochFee'),
-  option(publicKey(), 'preferredDepositValidatorVoteAddress'),
-  option(publicKey(), 'preferredWithdrawValidatorVoteAddress'),
-  struct(feeFields, 'stakeDepositFee'),
-  struct(feeFields, 'stakeWithdrawalFee'),
-  option(struct(feeFields), 'nextStakeWithdrawalFee'),
-  u8('stakeReferralFee'),
-  option(publicKey(), 'solDepositAuthority'),
-  struct(feeFields, 'solDepositFee'),
-  u8('solReferralFee'),
-  option(publicKey(), 'solWithdrawAuthority'),
-  struct(feeFields, 'solWithdrawalFee'),
-  option(struct(feeFields), 'nextSolWithdrawalFee'),
-  u64('lastEpochPoolTokenSupply'),
-  u64('lastEpochTotalLamports'),
+
+const PoolFees = struct([
+  u64('tradeFeeNumerator'),
+  u64('tradeFeeDenominator'),
+  u64('protocolTradeFeeNumerator'),
+  u64('protocolTradeFeeDenominator'),
 ]);
+
+const PoolType = struct([
+  u8('value'),  // We'll store the enum as a u8 value (0 or 1)
+]);
+
+const Bootstrapping =struct([
+    u64('activationPoint'),
+    publicKey('whitelistedVault'),
+    publicKey('poolCreator'),
+    u8('activationType'),
+  ]);
+
+
+const PartnerInfo = struct([
+  u64("feeNumerator"),
+  publicKey('partnerAddress'),
+  u64('pendingFeeA'),
+  u64('pendingFeeB'),
+]);
+
+const Padding = struct([u8('padding', 24)]);
+
+const CurveType = struct([
+  u8('value'),  // Represent curve types as u8 (0 for CONSTANT_PRODUCT, 1 for STABLE_SWAP)
+]);
+
+const PoolLayout = struct([
+  publicKey('lpMint'),
+  publicKey('tokenAMint'),
+  publicKey('tokenBMint'),
+  publicKey('aVault'),
+  publicKey('bVault'),
+  publicKey('aVaultLp'),
+  publicKey('bVaultLp'),
+  u8('aVaultLpBump'),
+  u8('enabled'),
+  publicKey('protocolTokenAFee'),
+  publicKey('protocolTokenBFee'),
+  u64('feeLastUpdatedAt'),
+  Padding,  // padding0
+  PoolFees,
+  PoolType,
+  publicKey('stake'),
+  u64('totalLockedLp'),
+  Bootstrapping,
+  PartnerInfo,
+  Padding,  // padding
+  CurveType,
+]);
+
 
 
 export function decodeTransact(data){
@@ -45,6 +69,6 @@ export function decodeTransact(data){
 
 
 export function decodePoolData(buffer: Buffer) {
-  let decoded = StakePoolLayout.decode(buffer);
+  let decoded = PoolLayout.decode(buffer);
   return decoded;
 }

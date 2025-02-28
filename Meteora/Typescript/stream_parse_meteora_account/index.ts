@@ -51,6 +51,7 @@ import { tOutPut } from "./utils/transactionOutput";
     stream.on("data", async (data) => {
       try{
         const parsed_transaction = tOutPut(data);
+        if (!parsed_transaction)return;
         console.log(parsed_transaction);
        }catch(error){
        if(error){
@@ -89,10 +90,11 @@ import { tOutPut } from "./utils/transactionOutput";
   }
 
   const client = new Client(
-    'gRpc url',
-    'gRpc Token',
-    undefined,
-  );
+    process.env.GRPC_URL,
+    process.env.X_TOKEN,
+    undefined,
+  );
+  
 const req: SubscribeRequest = {
   "slots": {},
   "accounts": {
