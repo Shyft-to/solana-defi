@@ -1,7 +1,6 @@
 import { publicKey,struct, bool,u8,u32,u16, u64, Layout, option } from "@coral-xyz/borsh";
-//import { publicKey as pk } from "@solana/buffer-layout-utils";
 import base58 from "bs58";
-// Define the layout structure for LbPair
+
 
 
 const PoolFees = struct([
@@ -12,7 +11,7 @@ const PoolFees = struct([
 ]);
 
 const PoolType = struct([
-  u8('value'),  // We'll store the enum as a u8 value (0 or 1)
+  u8('value'),  
 ]);
 
 const Bootstrapping =struct([
@@ -33,7 +32,7 @@ const PartnerInfo = struct([
 const Padding = struct([u8('padding', 24)]);
 
 const CurveType = struct([
-  u8('value'),  // Represent curve types as u8 (0 for CONSTANT_PRODUCT, 1 for STABLE_SWAP)
+  u8('value'),  
 ]);
 
 const PoolLayout = struct([
@@ -49,14 +48,14 @@ const PoolLayout = struct([
   publicKey('protocolTokenAFee'),
   publicKey('protocolTokenBFee'),
   u64('feeLastUpdatedAt'),
-  Padding,  // padding0
+  Padding,  
   PoolFees,
   PoolType,
   publicKey('stake'),
   u64('totalLockedLp'),
   Bootstrapping,
   PartnerInfo,
-  Padding,  // padding
+  Padding, 
   CurveType,
 ]);
 
