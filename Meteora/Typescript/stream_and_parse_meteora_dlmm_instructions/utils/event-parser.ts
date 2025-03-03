@@ -1,4 +1,3 @@
-
 import { ProgramInfoType } from "@shyft-to/solana-transaction-parser";
 import {
   Message,
@@ -31,11 +30,6 @@ export class SolanaEventParser {
         const coder = new BorshCoder(idl);
         this.eventDecoders.set(programId, coder);
       } catch (e) {
-        this.logger.error({
-          message: "SolanaEventParser.addParserFromIdl_error",
-          data: { programId },
-          error: e,
-        });
       }
     }
   }
@@ -83,7 +77,6 @@ export class SolanaEventParser {
             eventParser.parseLogs(txn?.meta?.logMessages as string[]),
           );
           events.push(...eventsArray);
-        //  console.log(eventParser)
         }
         return events;
       } else {
