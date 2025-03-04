@@ -14,7 +14,7 @@ import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { Idl } from "@project-serum/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
-import meteoraPoolIdl from "./idls/meteora_pools.json";
+import meteoraDLMMIdl from "./idls/meteora_dlmm.json";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import { transactionOutput } from "./utils/transactionOutput";
@@ -33,18 +33,18 @@ interface SubscribeRequest {
 }
 
 const TXN_FORMATTER = new TransactionFormatter();
-const METEORA_POOL_PROGRAM_ID = new PublicKey(
-  "Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB",
+const METEORA_DLMM_PROGRAM_ID = new PublicKey(
+  "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
 );
-const METEORA_POOL_IX_PARSER = new SolanaParser([]);
-METEORA_POOL_IX_PARSER.addParserFromIdl(
-  METEORA_POOL_PROGRAM_ID.toBase58(),
-  meteoraPoolIdl as Idl,
+const METEORA_DLMM_IX_PARSER = new SolanaParser([]);
+METEORA_DLMM_IX_PARSER.addParserFromIdl(
+  METEORA_DLMM_PROGRAM_ID.toBase58(),
+  meteoraDLMMIdl as Idl,
 );
-const METEORA_POOL_EVENT_PARSER = new SolanaEventParser([], console);
-METEORA_POOL_EVENT_PARSER.addParserFromIdl(
-  METEORA_POOL_PROGRAM_ID.toBase58(),
-  meteoraPoolIdl as Idl,
+const METEORA_DLMM_EVENT_PARSER = new SolanaEventParser([], console);
+METEORA_DLMM_EVENT_PARSER.addParserFromIdl(
+  METEORA_DLMM_PROGRAM_ID.toBase58(),
+  meteoraDLMMIdl as Idl,
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
@@ -73,12 +73,12 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         data.transaction,
         Date.now(),
       );
-      const parsedTxn = decodeMeteoraPool(txn);
+      const parsedInstruction = decodeMeteoraDLMM(txn);
 
-      if (!parsedTxn) return;
-      const tOutput = transactionOutput(parsedTxn)
-
-      console.log(tOutput);
+      if (!parsedInstruction) return;
+      const tOutput = transactionOutput(parsedInstruction,txn)
+  //     console.log(tOutput)
+       console.dir(tOutput, { depth: null });
     }
   });
 
@@ -119,11 +119,11 @@ const req: SubscribeRequest = {
   accounts: {},
   slots: {},
   transactions: {
-    Meteora_Pool: {
+    Meteora_DLMM: {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [METEORA_POOL_PROGRAM_ID.toBase58()],
+      accountInclude: [METEORA_DLMM_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },
@@ -139,21 +139,21 @@ const req: SubscribeRequest = {
 
 subscribeCommand(client, req);
 
-function decodeMeteoraPool(tx: VersionedTransactionResponse) {
+function decodeMeteoraDLMM(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
 
-  const paredIxs = METEORA_POOL_IX_PARSER.parseTransactionData(
+  const paredIxs = METEORA_DLMM_IX_PARSER.parseTransactionData(
     tx.transaction.message,
     tx.meta.loadedAddresses,
   );
 
-  const meteora_pool_Ixs = paredIxs.filter((ix) =>
-    ix.programId.equals(METEORA_POOL_PROGRAM_ID),
+  const meteora_DLMM_Ixs = paredIxs.filter((ix) =>
+    ix.programId.equals(METEORA_DLMM_PROGRAM_ID),
   );
 
-  if (meteora_pool_Ixs.length === 0) return;
-  const events = METEORA_POOL_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: meteora_pool_Ixs, events };
+  if (meteora_DLMM_Ixs.length === 0) return;
+  const events = METEORA_DLMM_EVENT_PARSER.parseEvent(tx);
+  const result = { instructions: meteora_DLMM_Ixs, events };
   bnLayoutFormatter(result);
   return result;
 }

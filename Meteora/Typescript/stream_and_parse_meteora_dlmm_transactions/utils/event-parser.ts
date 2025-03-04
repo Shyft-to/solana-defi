@@ -30,11 +30,6 @@ export class SolanaEventParser {
         const coder = new BorshCoder(idl);
         this.eventDecoders.set(programId, coder);
       } catch (e) {
-        this.logger.error({
-          message: "SolanaEventParser.addParserFromIdl_error",
-          data: { programId },
-          error: e,
-        });
       }
     }
   }
