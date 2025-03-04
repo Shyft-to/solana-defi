@@ -16,7 +16,8 @@
     "@shyft-to/solana-transaction-parser": "^1.1.17",
     "@solana/buffer-layout": "^4.0.1",
     "@solana/buffer-layout-utils": "^0.2.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",
