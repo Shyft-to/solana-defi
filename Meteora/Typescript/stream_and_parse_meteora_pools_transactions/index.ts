@@ -73,12 +73,11 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         data.transaction,
         Date.now(),
       );
-      const parsedInstruction = decodeMeteoraPool(txn);
+      const parsedInstructions = decodeMeteoraPool(txn);
 
-      if (!parsedInstruction) return;
-      const tOutput = transactionOutput(parsedInstruction,txn)
-
-      console.log(tOutput);
+      if (!parsedInstructions) return;
+      const tOutput = transactionOutput(parsedInstructions,txn)
+      console.log(JSON.stringify(tOutput));
     }
   });
 
@@ -148,12 +147,19 @@ function decodeMeteoraPool(tx: VersionedTransactionResponse) {
   );
 
   const meteora_pool_Ixs = paredIxs.filter((ix) =>
-    ix.programId.equals(METEORA_POOL_PROGRAM_ID),
+    ix.programId.equals(METEORA_POOL_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
   );
+
+  const parsedInnerIxs = METEORA_POOL_IX_PARSER.parseTransactionWithInnerInstructions(tx);
+
+  const meteora_pool_inner_ixs = parsedInnerIxs.filter((ix) =>
+    ix.programId.equals(METEORA_POOL_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+  );
+
 
   if (meteora_pool_Ixs.length === 0) return;
   const events = METEORA_POOL_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: meteora_pool_Ixs, events };
+  const result = { instructions: meteora_pool_Ixs, inner_ixs: meteora_pool_inner_ixs, events };
   bnLayoutFormatter(result);
   return result;
 }
