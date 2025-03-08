@@ -1,4 +1,3 @@
-
 import { ProgramInfoType } from "@shyft-to/solana-transaction-parser";
 import {
   Message,
@@ -83,7 +82,6 @@ export class SolanaEventParser {
             eventParser.parseLogs(txn?.meta?.logMessages as string[]),
           );
           events.push(...eventsArray);
-        //  console.log(eventParser)
         }
         return events;
       } else {
