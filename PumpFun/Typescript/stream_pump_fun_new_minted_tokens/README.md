@@ -1,6 +1,6 @@
-# Stream Pumpfun transactions and events, and detect buy and sell events
+# Real-Time Streaming of Newly Minted Tokens on Pump.fun
 
-This project streams and parses PumpFun transactions on the Solana blockchain. By tracking buy and sell events in real-time, it provides valuable insights into market activity, enabling users to understand market trends and user behavior within the PumpFun ecosystem.
+ This code streams all newly minted tokens on Pump.fun, ensuring you receive instant notifications as soon as a token is created. Stay ahead of the market by tracking new token launches in real time, giving you a competitive edge in early discovery and analysis.
 
 ![screenshot](assets/screenshot-grpc.jpg?raw=true "Screenshot")
 
