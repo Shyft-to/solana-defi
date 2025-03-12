@@ -1,0 +1,404 @@
+{
+  slot: '325840689',
+  version: 0,
+  blockTime: 1741613776806,
+  meta: {
+    err: null,
+    fee: '9000',
+    preBalances: [
+      '18121071602',    '0',
+      '17501589422204', '1519978452',
+      '2039280',        '731913600',
+      '1461600',        '1',
+      '934087680',      '1141440',
+      '286914360',      '1009200',
+      '137104014',      '1'
+    ],
+    postBalances: [
+      '18002534277',    '2039280',
+      '17501590575561', '1635314140',
+      '2039280',        '731913600',
+      '1461600',        '1',
+      '934087680',      '1141440',
+      '286914360',      '1009200',
+      '137104014',      '1'
+    ],
+    preTokenBalances: [
+      {
+        accountIndex: 4,
+        mint: '6671RdBd2EwDBdf6SqUWVWiLXb31V5G7yXzB9f1Xpump',
+        uiTokenAmount: {
+          uiAmount: 948296959.544773,
+          decimals: 6,
+          amount: '948296959544773',
+          uiAmountString: '948296959.544773'
+        },
+        owner: '6YfEqkVrcoN9wdCwMMALAWcTvFRYWUJJKM7qfVFqngbV',
+        programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+      }
+    ],
+    postTokenBalances: [
+      {
+        accountIndex: 1,
+        mint: '6671RdBd2EwDBdf6SqUWVWiLXb31V5G7yXzB9f1Xpump',
+        uiTokenAmount: {
+          uiAmount: 3723578.438849,
+          decimals: 6,
+          amount: '3723578438849',
+          uiAmountString: '3723578.438849'
+        },
+        owner: 'VTHSpkfF4HYc56vAN11k7nyGQ2AUUzEebSJ9WtzttU8',
+        programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+      },
+      {
+        accountIndex: 4,
+        mint: '6671RdBd2EwDBdf6SqUWVWiLXb31V5G7yXzB9f1Xpump',
+        uiTokenAmount: {
+          uiAmount: 944573381.105924,
+          decimals: 6,
+          amount: '944573381105924',
+          uiAmountString: '944573381.105924'
+        },
+        owner: '6YfEqkVrcoN9wdCwMMALAWcTvFRYWUJJKM7qfVFqngbV',
+        programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+      }
+    ],
+    logMessages: [
+      'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [1]',
+      'Program log: Create',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]',
+      'Program log: Instruction: GetAccountDataSize',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 1569 of 393133 compute units',
+      'Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success',
+      'Program 11111111111111111111111111111111 invoke [2]',
+      'Program 11111111111111111111111111111111 success',
+      'Program log: Initialize the associated token account',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]',
+      'Program log: Instruction: InitializeImmutableOwner',
+      'Program log: Please upgrade to SPL Token 2022 for immutable owner support',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 1405 of 386546 compute units',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]',
+      'Program log: Instruction: InitializeAccount3',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4188 of 382664 compute units',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success',
+      'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 21807 of 400000 compute units',
+      'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success',
+      'Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke [1]',
+      'Program log: Instruction: Buy',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]',
+      'Program log: Instruction: Transfer',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4645 of 348136 compute units',
+      'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success',
+      'Program 11111111111111111111111111111111 invoke [2]',
+      'Program 11111111111111111111111111111111 success',
+      'Program 11111111111111111111111111111111 invoke [2]',
+      'Program 11111111111111111111111111111111 success',
+      'Program data: vdt/007mYe5LmSGUtGUCn7DSfrk5aWLoxjHTYEQ54zzXfLHUldMYLwji3wYAAAAAwfSR9mIDAAABB0n7RpVNbP59gfd3KRxnF1mdowLwYIgQx2ow+NeBNfnN6s5nAAAAAKzJiV0HAAAABOnpQ3qdAwCsHWZhAAAAAARR1/fongIA',
+      'Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke [2]',
+      'Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P consumed 2003 of 335800 compute units',
+      'Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P success',
+      'Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P consumed 45242 of 378193 compute units',
+      'Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P success',
+      'Program ComputeBudget111111111111111111111111111111 invoke [1]',
+      'Program ComputeBudget111111111111111111111111111111 success'
+    ],
+    loadedAddresses: { writable: [], readonly: [] },
+    innerInstructions: [
+      {
+        index: 0,
+        instructions: [
+          { programIdIndex: 8, accounts: [ 6 ], data: '84eT' },
+          {
+            programIdIndex: 7,
+            accounts: [ 0, 1 ],
+            data: '11119os1e9qSs2u7TsThXqkBSRVFxhmYaFKFZ1waB2X7armDmvK3p5GmLdUxYdg3h7QSrL'
+          },
+          { programIdIndex: 8, accounts: [ 1 ], data: 'P' },
+          {
+            programIdIndex: 8,
+            accounts: [ 1, 6 ],
+            data: '6Md9xP2HTXuZNsZCSFXCME6EMmHbytEFwMWc9e6apC2u6'
+          }
+        ]
+      },
+      {
+        index: 1,
+        instructions: [
+          {
+            programIdIndex: 8,
+            accounts: [ 4, 1, 3 ],
+            data: '3muAyJqQtGFH'
+          },
+          {
+            programIdIndex: 7,
+            accounts: [ 0, 3 ],
+            data: '3Bxs42LsHF9aM3EP'
+          },
+          {
+            programIdIndex: 7,
+            accounts: [ 0, 2 ],
+            data: '3Bxs4DqTUXszvnt7'
+          },
+          {
+            programIdIndex: 9,
+            accounts: [ 12 ],
+            data: '2K7nL28PxCW8ejnyCeuMpbWNP1bDyJjJDnq2JqdMnxwLyPqXawcXEAYCojTzbkQPUPy4jnBvVyF8yf9xu4cgeuuBevrA71E1QXXxnsEEMk2wtJvTnBxZg5v2mUctQB6HQKT25hLr93ypQ7aGD1krgF2Es7GbcEPCJWfPXqVZJ6J7hReUoyNGUPKN6s3m'
+          }
+        ]
+      }
+    ]
+  },
+  transaction: {
+    signatures: [
+      '42b9bqxYRKPumQigR2XcWdVRpNXqcQiHt6i6RAo7egKZehRPX4fAP79pc1aWXaDkVf9RoNCGgbpegBFypxV3qpcW'
+    ],
+    message: MessageV0 {
+      header: {
+        numRequiredSignatures: 1,
+        numReadonlySignedAccounts: 0,
+        numReadonlyUnsignedAccounts: 9
+      },
+      staticAccountKeys: [
+        PublicKey [PublicKey(VTHSpkfF4HYc56vAN11k7nyGQ2AUUzEebSJ9WtzttU8)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              58799609, 42745397,
+               8457334,   770434,
+              56204707, 38214085,
+               2062194, 28572150,
+              54957389,   119422,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(GWKWszubUTFfwzT8Ret1BWEgK58FyS3vc2f6ZLu1Cpr6)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              31157427,  8793785,
+              51212082, 49128519,
+              14501199, 26483338,
+              23304490, 65748944,
+              18862068,  3774597,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              39629798, 39410154,
+              48566623, 22734649,
+              39121881, 53297546,
+              42582423, 49438604,
+              13688156,  1224894,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(6YfEqkVrcoN9wdCwMMALAWcTvFRYWUJJKM7qfVFqngbV)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              38370580, 41839025,
+              12529590, 60062447,
+              42844489, 56570478,
+              26837358, 25493204,
+              18873853,  1350059,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(8ynHQcUxFEn1SRc2abUdpMHVHhcQdk2644wW4Av5yyBX)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+               2805282, 58670268,
+              45733802,  2684421,
+              45512705, 40415803,
+               5308920, 51746993,
+              17435305,  1942370,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              65665113, 60749366,
+              17317960, 40332284,
+              51075603, 19104608,
+              64029329, 36161260,
+              26168868,  2303433,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(6671RdBd2EwDBdf6SqUWVWiLXb31V5G7yXzB9f1Xpump)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              30611503, 53245221,
+              36949367, 25235687,
+              12988883, 39475386,
+              19393427,   687811,
+              26522725,  1238600,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(11111111111111111111111111111111)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0,
+              0
+            ],
+            length: 1,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              50266281, 54354271,
+              58266536, 62225772,
+               1881221, 62578283,
+              12457068, 42356583,
+              48355173,   112509,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              23926960, 55242175,
+              66303573, 39835467,
+              38898123, 63297258,
+              28399243, 23805203,
+              16159590,    21944,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              20738726, 29947486,
+              55091123, 18286505,
+              51959181, 33109771,
+              63923765, 22151978,
+              40496655,   958871,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(SysvarRent111111111111111111111111111111111)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+                     0, 49701504,
+              64245309,  2256519,
+              56154862, 55753823,
+              13407427, 24200326,
+              18290988,   109045,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+              30628964, 47511574,
+               6200003, 28013919,
+              26884086, 23138989,
+              64109707,  7420448,
+              48955900,  2833485,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        },
+        PublicKey [PublicKey(ComputeBudget111111111111111111111111111111)] {
+          _bn: BN {
+            negative: 0,
+            words: [
+                     0, 15126160,
+              19313348, 49223644,
+              62688485, 11593465,
+              46848935,  6081535,
+              40887585,    49553,
+                     0
+            ],
+            length: 10,
+            red: null
+          }
+        }
+      ],
+      recentBlockhash: 'DyfYuyhwQFGRhkGzJeVMpnPvvRv3wbxNK7H5hB9wZeLZ',
+      compiledInstructions: [
+        {
+          programIdIndex: 5,
+          accountKeyIndexes: [ 0, 1, 0, 6, 7, 8 ],
+          data: Uint8Array(0) []
+        },
+        {
+          programIdIndex: 9,
+          accountKeyIndexes: [
+            10, 2, 6, 3,  4,
+             1, 0, 7, 8, 11,
+            12, 9
+          ],
+          data: Uint8Array(24) [
+            102,   6,  61,  18,  1, 218, 235, 234,
+            193, 244, 145, 246, 98,   3,   0,   0,
+            133, 139, 196,   7,  0,   0,   0,   0
+          ]
+        },
+        {
+          programIdIndex: 13,
+          accountKeyIndexes: [],
+          data: Uint8Array(9) [
+            3, 16, 39, 0, 0,
+            0,  0,  0, 0
+          ]
+        }
+      ],
+      addressTableLookups: []
+    }
+  }
+}
