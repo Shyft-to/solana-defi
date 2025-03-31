@@ -8,7 +8,7 @@ This powerful code streams real-time data, instantly notifying you when a token 
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
    
-   cd PumpFun/Typescript/pumpfun-raydium-migration-transactions
+   cd PumpFun/Typescript/stream_pumpfun_to_pumpfunAmm_migration-transactions
    ```
 
 2. **Install Dependencies:**
