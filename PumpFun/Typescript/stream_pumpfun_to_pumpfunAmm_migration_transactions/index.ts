@@ -31,6 +31,7 @@ import { searchForInitialize2 } from "./utils/logTXN";
 
     async function handleStream(client: Client, args: SubscribeRequest) {
     // Subscribe for events
+    console.log("Streaming Started...")
     const stream = await client.subscribe();
   
     // Create `error` / `end` handler
@@ -59,8 +60,8 @@ import { searchForInitialize2 } from "./utils/logTXN";
     if(error){
       console.log(error)
     }
-  }
-});
+    }
+  });
   
     // Send subscribe request
     await new Promise<void>((resolve, reject) => {
