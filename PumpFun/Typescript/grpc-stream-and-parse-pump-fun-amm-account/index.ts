@@ -10,12 +10,8 @@ import Client, {
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-import { Connection, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { tOutPut } from "./utils/transactionOutput";
-import { publicKey } from "@solana/buffer-layout-utils";
-
-import { Boolean } from "@solana/buffer-layout";
-
+import {  PublicKey } from "@solana/web3.js";
+import { parsedAccountData } from "./utils/accountStateParser";
 
 const PUMP_FUN_AMM_PROGRAM_ID = new PublicKey(
   "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
@@ -35,11 +31,9 @@ interface SubscribeRequest {
 }
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
   console.log("Stream Starting...")
   const stream = await client.subscribe();
 
-  // Create `error` / `end` handler
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
       console.log("ERROR", error);
@@ -54,11 +48,10 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     });
   });
 
-  // Handle updates
   stream.on("data", async (data) => {
     if(data.account) {
       try {
-        const result = await tOutPut(data);
+        const result = await parsedAccountData(data);
         console.log(result);
       } catch (error) {
         if (error) {
@@ -69,7 +62,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     
   });
 
-  // Send subscribe request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
       if (err === null || err === undefined) {
@@ -117,7 +109,7 @@ const req: SubscribeRequest = {
     "block": []
   },
   "accountsDataSlice": [],
-  "commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
+  "commitment": CommitmentLevel.PROCESSED,
   entry: {},
   transactionsStatus: {}
 }
