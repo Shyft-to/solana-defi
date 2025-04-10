@@ -1,10 +1,8 @@
-# Stream and parse Pump.fun Transactions in Real-time
+# Adding a Reconnection mechanism to your gRPC connection
 
-This project streams PumpFun transactions from the Solana blockchain via gRPC and parses them according to the program IDL. This real-time streaming provides valuable insights into market activity, enabling users to track various DeFi events such as swaps, buy and sell and understand market trends and user behavior within the PumpFun ecosystem.
 
-```
-Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
-```
+In the context of Solana, a "reconnection mechanism" within gRPC refers to the strategies and code implementations that automatically re-establish a communication link between a client application and a Solana node when the connection is unexpectedly lost. In this example, we illustrate how we can
+reconnect a gRPC connection, once it has stopped streaming due to some problem.
 
 ![screenshot](assets/stream_parsed_raydium_txns.jpg?raw=true "How to run project")
 
@@ -16,7 +14,7 @@ Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
 2. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_and_parse_pump_fun_transactions
+   cd general-grpc-examples/Typescript/add_a_reconnect_mechanism
    ```
 
 3. **Install Dependencies:**
@@ -35,7 +33,7 @@ Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
     # or you can also use
     npx ts-node index.ts
     ```
-This will stream all the transactions from Pump.fun and parse the Pump.fun and Token Instructions.
+This will stream reconnect the gRPC automatically, in case of any disconnections.
 
 *Note: Please rename the `.env.sample` file to `.env` and input your env details before running the script.*
 
