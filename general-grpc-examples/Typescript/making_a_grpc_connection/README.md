@@ -1,12 +1,17 @@
-# Stream and parse Pump.fun Transactions in Real-time
+# Making a gRPC connection on Solana
 
-This project streams PumpFun transactions from the Solana blockchain via gRPC and parses them according to the program IDL. This real-time streaming provides valuable insights into market activity, enabling users to track various DeFi events such as swaps, buy and sell and understand market trends and user behavior within the PumpFun ecosystem.
+When establishing a gRPC connection with the Solana network using the Yellowstone client, you're essentially creating a direct, high-performance communication channel. This client facilitates a structured, bi-directional exchange of data, enabling real-time interaction with Solana nodes.
+
+
+```typescript
+const client = new Client(
+  process.env.GRPC_URL,
+  process.env.X_TOKEN,
+  undefined,
+);
+const stream = await client.subscribe();
 
 ```
-Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
-```
-
-![screenshot](assets/stream_parsed_raydium_txns.jpg?raw=true "How to run project")
 
 ## Getting Started
 
@@ -16,7 +21,7 @@ Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
 2. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_and_parse_pump_fun_transactions
+   cd PumpFun/Typescript/making_a_grpc_connection
    ```
 
 3. **Install Dependencies:**
@@ -35,7 +40,6 @@ Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
     # or you can also use
     npx ts-node index.ts
     ```
-This will stream all the transactions from Pump.fun and parse the Pump.fun and Token Instructions.
 
 *Note: Please rename the `.env.sample` file to `.env` and input your env details before running the script.*
 
