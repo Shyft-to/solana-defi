@@ -15,7 +15,7 @@ export function transactionEventParser(txn,parsedTxn){
  const poolCoinTokenAccount = parsedTxn.instructions
      .flatMap((i)=> i.accounts)
      .find((a) => a.name === 'poolCoinTokenAccount')?.pubkey;
-const determineMarket = (amountIn: number) => {
+const determineMarketIn = (amountIn: number) => {
     const transferInstruction = parsedTxn.instructions.find(
       (instruction) =>
         instruction.name === 'transfer' &&
@@ -32,14 +32,30 @@ const determineMarket = (amountIn: number) => {
 
     return false;
   };
+  const determineMarketOut = (amountIn: number) => {
+    const transferInstruction = parsedTxn.instructions.find(
+      (instruction) =>
+        instruction.name === 'transfer' &&
+        instruction.args?.amount === amountIn
+    );
 
- console.log("userSourceOwner :", userSourceOwner);
+    if (transferInstruction) {
+      const destinationAccount = transferInstruction.accounts.find(
+        (account) => account.name === 'destination'
+      )?.pubkey;
+
+      return destinationAccount !== poolCoinTokenAccount && (mints !== sol);
+    }
+
+    return false;
+  };
+
  if(eventName == "swapBaseIn"){
-   const signer = userSourceOwner;
+   const signer = userSourceOwner ==="" || userSourceOwner === undefined?"CANT PARSE":userSourceOwner;
     const mint = mints;
     const amount_in = data.amountIn;
     const amount_out = data.outAmount;
-    const type = determineMarket(amount_in) ? "Sell" : "Buy";
+    const type = determineMarketIn(amount_in) ? "Sell" : "Buy";
     return {
        "Event Name: ": eventName,
         "User: " : signer,
@@ -53,7 +69,7 @@ const determineMarket = (amountIn: number) => {
      const mint = mints;
      const amount_in = data.directIn;
      const amount_out = data.amountOut;
-     const type = determineMarket(amount_in) ? "Sell" : "Buy";
+     const type = determineMarketOut(amount_in) ? "Sell" : "Buy";
      return {
         "Event Name: ": eventName,
         "User: ": signer,
