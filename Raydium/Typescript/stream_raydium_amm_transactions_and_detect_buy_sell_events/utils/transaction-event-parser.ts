@@ -6,16 +6,22 @@ export function transactionEventParser(txn,parsedTxn){
  const mints = pTB.find(
   (token) => token.mint !== sol && token.mint !== usdc
  )?.mint;
- const userSourceOwner = parsedTxn.instructions
+ let userSourceOwner = parsedTxn.instructions
     .flatMap((i) => i.accounts)
     .find((a) => a.name === 'userSourceOwner' && a.isSigner)?.pubkey;
+
+  if (!userSourceOwner) {
+    userSourceOwner = parsedTxn.instructions
+      .flatMap((i) => i.accounts)
+      .find((a) => a.isSigner)?.pubkey;
+  }
 
  const eventName = parsedTxn.events[0].name;
  const data = parsedTxn.events[0].data;
  const poolCoinTokenAccount = parsedTxn.instructions
      .flatMap((i)=> i.accounts)
      .find((a) => a.name === 'poolCoinTokenAccount')?.pubkey;
-const determineMarketIn = (amountIn: number) => {
+const determineMarket = (amountIn: number) => {
     const transferInstruction = parsedTxn.instructions.find(
       (instruction) =>
         instruction.name === 'transfer' &&
@@ -32,30 +38,14 @@ const determineMarketIn = (amountIn: number) => {
 
     return false;
   };
-  const determineMarketOut = (amountIn: number) => {
-    const transferInstruction = parsedTxn.instructions.find(
-      (instruction) =>
-        instruction.name === 'transfer' &&
-        instruction.args?.amount === amountIn
-    );
 
-    if (transferInstruction) {
-      const destinationAccount = transferInstruction.accounts.find(
-        (account) => account.name === 'destination'
-      )?.pubkey;
-
-      return destinationAccount !== poolCoinTokenAccount && (mints !== sol);
-    }
-
-    return false;
-  };
-
+ console.log("userSourceOwner :", userSourceOwner);
  if(eventName == "swapBaseIn"){
-   const signer = userSourceOwner ==="" || userSourceOwner === undefined?"CANT PARSE":userSourceOwner;
+   const signer = userSourceOwner;
     const mint = mints;
     const amount_in = data.amountIn;
     const amount_out = data.outAmount;
-    const type = determineMarketIn(amount_in) ? "Sell" : "Buy";
+    const type = determineMarket(amount_in) ? "Sell" : "Buy";
     return {
        "Event Name: ": eventName,
         "User: " : signer,
@@ -69,7 +59,7 @@ const determineMarketIn = (amountIn: number) => {
      const mint = mints;
      const amount_in = data.directIn;
      const amount_out = data.amountOut;
-     const type = determineMarketOut(amount_in) ? "Sell" : "Buy";
+     const type = determineMarket(amount_in) ? "Sell" : "Buy";
      return {
         "Event Name: ": eventName,
         "User: ": signer,
