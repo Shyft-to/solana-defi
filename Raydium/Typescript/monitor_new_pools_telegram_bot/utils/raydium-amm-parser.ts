@@ -8,6 +8,7 @@ type RaydiumInitializeArgs = {
   openTime: bigint;
 };
 const RaydiumInitializeArgsLayout = struct<RaydiumInitializeArgs>([
+  u8("discriminator"),
   u8("nonce"),
   u64("openTime"),
 ]);
@@ -17,6 +18,7 @@ type RaydiumInitialize2Args = RaydiumInitializeArgs & {
   initCoinAmount: bigint;
 };
 const RaydiumInitialize2ArgsLayout = struct<RaydiumInitialize2Args>([
+  u8("discriminator"),
   u8("nonce"),
   u64("openTime"),
   u64("initPcAmount"),
