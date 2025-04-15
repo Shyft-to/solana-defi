@@ -4,7 +4,7 @@
 Using gRPC, this project streams Raydium CPMM transactions on Solana. These transactions are then parsed based on the program IDL, and this decoded information can be used in various DeFi applications such as Trading Bots, Dex Aggregators etc. This is a new Standard AMM program called CP-Swap, which supports Token-2022 assets and doesn't require an OpenBook market ID, allowing anyone to create liquidity pools
 
 ```
-CPMM Program Id: whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc
+CPMM Program Id: CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C
 ```
 
 ![screenshot](assets/stream_parsed_raydium_txns.jpg?raw=true "How to stream data")
