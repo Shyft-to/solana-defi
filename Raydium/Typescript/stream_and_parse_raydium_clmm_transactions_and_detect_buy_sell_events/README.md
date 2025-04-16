@@ -15,14 +15,14 @@ This enables users to better understand market trends and user behavior within t
 Raydium CLMM Program Id: CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK
 ```
 
-![screenshot](assets/RaydiumCLMM_Screenshot.png?raw=true "Screenshot")
+![screenshot](assets/buy-sell-events.png?raw=true "Screenshot")
 
 ## Getting Started
 
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd Raydium/Typescript/stream_and_parse_clmm_transactions
+   cd Raydium/Typescript/stream_and_parse_raydium_clmm_transactions_and_detect_buy_sell_events
    ```
 
 2. **Install Dependencies:**
