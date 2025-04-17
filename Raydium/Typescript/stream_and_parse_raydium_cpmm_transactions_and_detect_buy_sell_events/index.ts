@@ -72,12 +72,17 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now(),
       );
 
-      console.log("Txn Received: ", txn.transaction.signatures[0]);
 
       const parsedTxn = decodeCpmmTxn(txn);
       if (!parsedTxn) return; 
       const formattedTxn = parsedTransactionOutput(parsedTxn,txn);
-      console.log(JSON.stringify(formattedTxn));
+       console.log(
+         new Date(),
+         ":",
+         `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+         JSON.stringify(formattedTxn.rpcTxnWithParsed, null, 2) + "\n",
+        formattedTxn.transactionEvent,
+      );
     }
   });
 
