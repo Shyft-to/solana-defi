@@ -11,7 +11,7 @@ export function parsedTransactionOutput(parsedInstruction, transaction) {
   const signerPubkey = swapInstruction.accounts.find((account) => account.name === 'payer')?.pubkey;
 
   const swapAmount = swapInstruction.args?.amount;
-  const sqrtPriceLimit = swapInstruction.args?.sqrtPriceLimitX64;
+  const sqrtPriceLimit = formatSqrtPrice(swapInstruction.args?.sqrtPriceLimitX64);
 
   const determineBuySellEvent = () => {
     const inputMintPubkey = swapInstruction.accounts.find((account) => account.name === 'inputVaultMint')?.pubkey;
@@ -50,10 +50,18 @@ export function parsedTransactionOutput(parsedInstruction, transaction) {
         ...transaction.transaction.message,
         compiledInstructions: parsedInstruction.instructions,
       },
-    },
-    events: transactionEvent, 
-  };
+    }
+  }
   
 
-  return output;
+  return {output, transactionEvent};
+}
+function formatSqrtPrice(sqrtPrice: number | bigint): string {
+  if (typeof sqrtPrice === "bigint") {
+    return Number(sqrtPrice).toExponential(2); 
+  } else if (typeof sqrtPrice === "number") {
+    return sqrtPrice.toExponential(2);
+  } else {
+    throw new Error("Invalid type for sqrtPrice. Expected number or bigint.");
+  }
 }
