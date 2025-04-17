@@ -76,7 +76,9 @@ async function handleStream(client: Client, args: SubscribeRequest) {
 
       if (!parsedInstructions) return;
       const formattedTxn = parsedTransactionOutput(parsedInstructions,txn)
-      console.log(JSON.stringify(formattedTxn));
+      console.log(`New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+         JSON.stringify(formattedTxn.output, null, 2) + "\n",
+        formattedTxn.transactionEvent);
     }
   });
 
