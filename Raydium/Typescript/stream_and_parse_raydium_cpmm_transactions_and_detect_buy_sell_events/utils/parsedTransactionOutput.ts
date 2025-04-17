@@ -58,11 +58,10 @@ export function parsedTransactionOutput(parsedTxn, txn) {
           ...txn.transaction.message,
           compiledInstructions: parsedTxn.compiledInstructions,
         },
-      },
-      events: transactionEvent,
-    };
+      }
+    }
 
   }
 
-  return rpcTxnWithParsed;
+  return {rpcTxnWithParsed,transactionEvent};
 }
