@@ -1,5 +1,5 @@
 {
-  "name": "stream-and-parse-pump-fun-amm-transaction-instructions-via-grpc",
+  "name": "stream_and_parse_raydium_launchpad_transactions",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -8,12 +8,12 @@
     "start": "npx ts-node index.ts",
     "build": "npx tsc"
   },
-  "author": "impin2rex",
+  "author": "shyft",
   "keywords": [
     "solana",
     "grpc",
-    "pump.fun",
-    "amm",
+    "raydium",
+    "launchpad",
     "transaction",
     "parser",
     "typescript",
