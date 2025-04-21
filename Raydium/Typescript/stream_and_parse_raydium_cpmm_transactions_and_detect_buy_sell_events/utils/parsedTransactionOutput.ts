@@ -1,10 +1,12 @@
 export function parsedTransactionOutput(parsedTxn, txn) {
   const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-  const swapInstruction = parsedTxn.innerInstructions?.find((instruction) => instruction.name === 'swapBaseInput');
+const swapInstruction = parsedTxn.innerInstructions?.find(
+    (instruction) => instruction.name === 'swapBaseInput' || instruction.name === 'swapBaseOutput'
+  );
 
   if (!swapInstruction) {
-    console.error("swapBaseInput instruction not found in innerInstructions");
+    console.error("swapBaseInput or swapBaseOutput instruction not found in innerInstructions");
     return txn; 
   }
 
@@ -14,9 +16,13 @@ export function parsedTransactionOutput(parsedTxn, txn) {
     console.error("Payer account not found in swapInstruction accounts");
     return txn;
   }
+    const swapAmount = swapInstruction.name === 'swapBaseInput' 
+    ? swapInstruction.args?.amountIn 
+    : swapInstruction.args?.maxAmountIn;
 
-  const swapAmount = swapInstruction.args?.amountIn;
-  const minimumAmount = swapInstruction.args?.minimumAmountOut;
+  const minimumAmount = swapInstruction.name === 'swapBaseInput' 
+    ? swapInstruction.args?.minimumAmountOut 
+    : swapInstruction.args?.amountOut;
 
   const determineBuySellEvent = () => {
     const inputMintPubkey = swapInstruction.accounts?.find((account) => account.name === 'inputTokenMint')?.pubkey;
@@ -36,6 +42,7 @@ export function parsedTransactionOutput(parsedTxn, txn) {
   const buySellEvent = determineBuySellEvent();
 
   const transactionEvent = {
+    name : swapInstruction.name,
     type: buySellEvent.type,
     user: signerPubkey,
     mint: buySellEvent.mint,
