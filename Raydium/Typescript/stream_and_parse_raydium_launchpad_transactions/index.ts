@@ -17,6 +17,7 @@ import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import raydiumLaunchpadIdl from "./idls/raydium_launchpad.json";
+import {rl_formatter} from "./utils/rl-transaction-formatter"
 import { writeFileSync } from "fs";
 
 interface SubscribeRequest {
@@ -77,12 +78,13 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       const parsedTxn = decodeRaydiumLaunchpad(txn);
 
       if (!parsedTxn) return;
+      const formatterRLTxn = rl_formatter(parsedTxn,txn);
 
       console.log(
         new Date(),
         ":",
         `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
-        JSON.stringify(parsedTxn, null, 2) + "\n"
+        JSON.stringify(formatterRLTxn, null, 2) + "\n"
       );
       console.log(
         "--------------------------------------------------------------------------------------------------"
@@ -157,12 +159,18 @@ function decodeRaydiumLaunchpad(tx: VersionedTransactionResponse) {
   );
 
   const raydiumLaunchpadIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(RAYDIUM_LAUNCHPAD_PROGRAM_ID)
+    ix.programId.equals(RAYDIUM_LAUNCHPAD_PROGRAM_ID)|| ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+  );
+
+ const parsedInnerIxs = RAYDIUM_LAUNCHPAD_IX_PARSER.parseTransactionWithInnerInstructions(tx);
+  const raydium_launchpad_inner_ixs = parsedInnerIxs.filter((ix) =>
+    ix.programId.equals(RAYDIUM_LAUNCHPAD_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
   );
 
   if (raydiumLaunchpadIxs.length === 0) return;
   const events = RAYDIUM_LAUNCHPAD_EVENT_PARSER.parseEvent(tx);
-  const result = events.length > 0?{ instructions: raydiumLaunchpadIxs, events }:{instructions : raydiumLaunchpadIxs};
+  const result = events.length > 0?{ instructions: raydiumLaunchpadIxs, inner_ixs: raydium_launchpad_inner_ixs, events }:
+  {instructions : raydiumLaunchpadIxs, inner_ixs: raydium_launchpad_inner_ixs};
   bnLayoutFormatter(result);
   return result;
 }
