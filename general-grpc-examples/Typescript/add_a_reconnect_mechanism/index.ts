@@ -10,9 +10,8 @@ import Client, {
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-import { TransactionFormatter } from "./utils/transaction-formatter";
 
-
+// Interface for the subscription request structure
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
   slots: { [key: string]: SubscribeRequestFilterSlots };
@@ -21,95 +20,74 @@ interface SubscribeRequest {
   blocks: { [key: string]: SubscribeRequestFilterBlocks };
   blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
   entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
+  commitment?: CommitmentLevel;
   accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
+  ping?: SubscribeRequestPing;
 }
 
 const ADDRESS_TO_STREAM_FROM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
-const TXN_FORMATTER = new TransactionFormatter();
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
   const stream = await client.subscribe();
 
-  // Create `error` / `end` handler
+  // Promise that resolves when the stream ends or errors out
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
-      console.log("ERROR", error);
+      console.error("Stream error:", error);
       reject(error);
       stream.end();
     });
-    stream.on("end", () => {
-      resolve();
-    });
-    stream.on("close", () => {
-      resolve();
-    });
+
+    stream.on("end", resolve);
+    stream.on("close", resolve);
   });
 
-  // Handle updates
+  // Handle incoming transaction data
   stream.on("data", (data) => {
     if (data?.transaction) {
-      //when subscribing to transactions, raw transactions are streamed from gRPC. 
-      // The following function formats the received transaction in a format which is commonly used and returned via any Solana RPC.
-      const txn = TXN_FORMATTER.formTransactionFromJson(
-        data.transaction,
-        Date.now(),
-      );
-
-      console.log("The Received Transaction: ")
-      console.dir(txn, { depth: null });
-
+      console.log("Received Transaction:");
+      console.log(data?.transaction);
     }
   });
 
-  // Send subscribe request
+  // Send the subscription request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
-      if (err === null || err === undefined) {
-        resolve();
-      } else {
-        reject(err);
-      }
+      err ? reject(err) : resolve();
     });
-  }).catch((reason) => {
-    console.error(reason);
-    throw reason;
+  }).catch((err) => {
+    console.error("Failed to send subscription request:", err);
+    throw err;
   });
 
+  // Wait for the stream to close
   await streamClosed;
 }
 
+/**
+ * The reconnection mechanism is implemented on the handle stream function
+ * If any error occurs, the stream will wait for 1000ms and call 
+ * the handleStream function, which in-turn will restart the stream
+ */
 async function subscribeCommand(client: Client, args: SubscribeRequest) {
-
-  /* 
-    On Solana, gRPC is the most powerful and reliant way to stream data from the blockchain, perfect for production level applications.
-    However in certain rare cases is may get disconnected, and it may lead to lost of data when streaming. That is why it is always logical to implement a 
-    retry logic when making the connection on the gRPC.
-  */
   while (true) {
     try {
       await handleStream(client, args);
     } catch (error) {
-      console.error("Stream error, restarting in 1 second...", error);
+      console.error("Stream error, retrying in 1 second...", error);
       await new Promise((resolve) => setTimeout(resolve, 1000));
+      // the timeout can be changed here
     }
   }
 }
 
+// Instantiate Yellowstone gRPC client with env credentials
 const client = new Client(
-  process.env.GRPC_URL,
-  process.env.X_TOKEN,
+  process.env.GRPC_URL, //Your Region specific gRPC URL
+  process.env.X_TOKEN, // your Access Token
   undefined,
 );
 
-/*
-  The SubscribeRequest interface is defined in the `@triton-one/yellowstone-grpc` package. It has several fields such as `accounts`, `slots`, `transactions`, `transactionsStatus`, `blocks`, `blocksMeta`, `entry`, `commitment`, `accountsDataSlice`, and `ping`. 
-  The accounts field is used for streaming account updates, while the slots field is used for streaming slot updates. Further specifications related to the stream is defined in the subfields. 
-  The transactions field is used for streaming full transaction along with its metadata, while the transactionsStatus field is used for streaming status of a transactions(signature only). The blocks field can stream transactions specified entirely in a block.
-
-*/
 const req: SubscribeRequest = {
   accounts: {},
   slots: {},
@@ -122,15 +100,14 @@ const req: SubscribeRequest = {
       accountExclude: [],
       accountRequired: [],
     },
-  }, //for this example we have demonstrated streaming transactions, so we have added the address in the accountInclude param of the transaction field in the subscribe request.
+  },
   transactionsStatus: {},
-  entry: {},
   blocks: {},
   blocksMeta: {},
+  entry: {},
   accountsDataSlice: [],
   ping: undefined,
   commitment: CommitmentLevel.CONFIRMED,
 };
 
 subscribeCommand(client, req);
-

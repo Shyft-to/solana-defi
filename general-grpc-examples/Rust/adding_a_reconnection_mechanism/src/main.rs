@@ -2,10 +2,12 @@ mod instruction_account_mapper;
 mod serialization;
 
 use {
+    backoff::{future::retry, ExponentialBackoff},
     clap::Parser as ClapParser,
-    futures::{sink::SinkExt, stream::StreamExt},
+    futures::{future::TryFutureExt, sink::SinkExt, stream::StreamExt},
     log::{error, info},
-    std::{collections::HashMap, env, time::Duration},
+    std::{collections::HashMap, env, sync::Arc, time::Duration},
+    tokio::sync::Mutex,
     tonic::transport::channel::ClientTlsConfig,
     yellowstone_grpc_client::{GeyserGrpcClient, Interceptor},
     yellowstone_grpc_proto::{
@@ -83,16 +85,40 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let args = Args::parse();
+    let zero_attempts = Arc::new(Mutex::new(true));
 
-    let client = args.connect().await?;
-    info!("Connected");
+    // The default exponential backoff strategy intervals:
+    // [500ms, 750ms, 1.125s, 1.6875s, 2.53125s, 3.796875s, 5.6953125s,
+    // 8.5s, 12.8s, 19.2s, 28.8s, 43.2s, 64.8s, 97s, ... ]
+    retry(ExponentialBackoff::default(), move || {
+        let args = args.clone();
+        let zero_attempts = Arc::clone(&zero_attempts);
 
-    let request = args.get_txn_updates()?;
-    geyser_subscribe(client, request).await?;
+        async move {
+            let mut zero_attempts = zero_attempts.lock().await;
+            if *zero_attempts {
+                *zero_attempts = false;
+            } else {
+                info!("Retry to connect to the server");
+            }
+            drop(zero_attempts);
 
-    Ok(())
+            let client = args.connect().await.map_err(backoff::Error::transient)?;
+            info!("Connected");
+
+            let request = args.get_txn_updates().map_err(backoff::Error::Permanent)?;
+
+            geyser_subscribe(client, request)
+                .await
+                .map_err(backoff::Error::transient)?;
+
+            Ok::<(), backoff::Error<anyhow::Error>>(())
+        }
+        .inspect_err(|error| error!("failed to connect: {error}"))
+    })
+    .await
+    .map_err(Into::into)
 }
-
 
 async fn geyser_subscribe(
     mut client: GeyserGrpcClient<impl Interceptor>,
