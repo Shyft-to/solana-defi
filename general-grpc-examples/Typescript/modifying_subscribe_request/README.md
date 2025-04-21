@@ -12,7 +12,7 @@ Typically, when modifying subscription parameters in many streaming systems, use
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd Token/Typescript/modifying_subscribe_request
+   cd general_grpc_examples/Typescript/modifying_subscribe_request
 
 2. **Install Dependencies:**
     # For example,

@@ -1,9 +1,9 @@
-# Stream and parse Pump.fun Transactions in Real-time
+# Making a new gRPC connection
 
-This project streams PumpFun transactions from the Solana blockchain via gRPC and parses them according to the program IDL. This real-time streaming provides valuable insights into market activity, enabling users to track various DeFi events such as swaps, buy and sell and understand market trends and user behavior within the PumpFun ecosystem.
+This project aims at providing a building block for you solana gRPC streaming project, which is making a new gRPC connection on Solana using the Solana yellowstone client. 
 
 ```
-Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+Program Id which we are streaming in this: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
 ```
 
 ![screenshot](assets/stream_parsed_raydium_txns.jpg?raw=true "How to run project")
@@ -16,7 +16,7 @@ Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
 2. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_and_parse_pump_fun_transactions
+   cd general-grpc-examples/Typescript/making_a_grpc_connection
    ```
 
 3. **Install Dependencies:**

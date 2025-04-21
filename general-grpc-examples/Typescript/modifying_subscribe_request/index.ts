@@ -1,3 +1,4 @@
+require('dotenv').config()
 import Client, {
   CommitmentLevel,
   SubscribeRequestAccountsDataSlice,
@@ -9,9 +10,6 @@ import Client, {
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-import { VersionedTransactionResponse } from "@solana/web3.js";
-import { tOutPut } from "./utils/transactionOutput";
-import axios from "axios";
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -21,21 +19,23 @@ interface SubscribeRequest {
   blocks: { [key: string]: SubscribeRequestFilterBlocks };
   blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
   entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
+  commitment?: CommitmentLevel;
   accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
+  ping?: SubscribeRequestPing;
 }
-let subscribedWalletsA: string[] = [
+
+const subscribedWalletsA: string[] = [
   "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
   "5n2WeFEQbfV65niEP63sZc3VA7EgC4gxcTzsGGuXpump",
   "4oJh9x5Cr14bfaBtUsXN1YUZbxRhuae9nrkSyWGSpump",
   "GBpE12CEBFY9C74gRBuZMTPgy2BGEJNCn4cHbEPKpump",
   "oraim8c9d1nkfuQk9EzGYEUGxqL3MHQYndRw1huVo5h",
 ];
-let subscribedWalletsB: string[] = [
-    "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
-]
-// Predefined subscription requests
+
+const subscribedWalletsB: string[] = [
+  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+];
+
 const subscribeRequest1: SubscribeRequest = {
   accounts: {},
   slots: {},
@@ -57,91 +57,100 @@ const subscribeRequest1: SubscribeRequest = {
   ping: undefined,
   commitment: CommitmentLevel.PROCESSED,
 };
-const subscribeRequest2: SubscribeRequest = {
-  "slots": {},
-  "accounts": {
-    "modifying_B": {
-      "account": [],
-      "filters": [],
-      "owner": subscribedWalletsB // raydium program id to subscribe to
-    }
-  },
-  "transactions": {},
-  "blocks": {},
-  "blocksMeta": {
-    "block": []
-  },
-  "accountsDataSlice": [],
-  "commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
-  entry: {},
-  transactionsStatus: {}
-}
 
+// Subscribes to account changes for program-owned accounts of subscribedWalletsB
+const subscribeRequest2: SubscribeRequest = {
+  accounts: {
+    modifying_B: {
+      account: [],
+      filters: [],
+      owner: subscribedWalletsB,
+    },
+  },
+  slots: {},
+  transactions: {},
+  transactionsStatus: {},
+  blocks: {},
+  blocksMeta: {
+    block: [],
+  },
+  entry: {},
+  accountsDataSlice: [],
+  ping: undefined,
+  commitment: CommitmentLevel.PROCESSED,
+};
+
+/**
+ * Dynamically updates the current stream subscription with new request parameters.
+ */
 async function updateSubscription(stream: any, args: SubscribeRequest) {
   try {
-    // Send the updated request to the stream
     stream.write(args);
   } catch (error) {
-    console.error("Failed to send new request:", error);
+    console.error("Failed to send updated subscription request:", error);
   }
 }
+
+/**
+ * Handles a single streaming session.
+ * Automatically switches to a second subscription request after a timeout.
+ */
 async function handleStream(client: Client, args: SubscribeRequest) {
   const stream = await client.subscribe();
 
+  // Waits for the stream to close or error out
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
-      console.log("ERROR", error);
+      console.error("Stream Error:", error);
       reject(error);
       stream.end();
     });
     stream.on("end", resolve);
     stream.on("close", resolve);
   });
-   // Switch to the second request after 2 seconds without closing the stream
 
+  // Automatically switch subscription after 10 seconds
   setTimeout(async () => {
-    console.log("Switched to second subscription request");
-    await updateSubscription(stream, subscribeRequest2);  // Update the subscription with the second request
-    }, 10000);  // Change request after 2 seconds
+    console.log("🔁 Switching to second subscription request...");
+    await updateSubscription(stream, subscribeRequest2);
+  }, 10000);
 
-
-
+  // Handle incoming data
   stream.on("data", async (data) => {
     try {
-      console.log(data);
+      console.log("📦 Streamed Data:", data);
+      // You can add more processing logic here
     } catch (error) {
-      console.log(error);
+      console.error("Error processing stream data:", error);
     }
   });
+
+  // Send initial subscription request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => (err ? reject(err) : resolve()));
   }).catch((reason) => {
-    console.error(reason);
+    console.error("Initial stream write failed:", reason);
     throw reason;
   });
+
   await streamClosed;
 }
 
+/**
+ * Starts the stream and continuously attempts to reconnect on errors.
+ */
 async function subscribeCommand(client: Client, args: SubscribeRequest) {
-  const stream = await client.subscribe();  // Make sure stream is available here for updateSubscription
-
-  // Periodically update the subscription, now outside handleStream
-
   while (true) {
     try {
-      await handleStream(client, args); // Start streaming
+      await handleStream(client, args);
     } catch (error) {
-      console.error("Stream error, restarting in 1 second...", error);
+      console.error("Stream error. Retrying in 1 second...", error);
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 }
 
-const client = new Client(
-  process.env.GRPC_URL,
-  process.env.X_TOKEN,
-  undefined,
-);
+const client = new Client(process.env.GRPC_URL, process.env.X_TOKEN, undefined);
 
-
+// Start streaming with the first subscription
 subscribeCommand(client, subscribeRequest1);
