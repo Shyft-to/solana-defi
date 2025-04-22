@@ -150,27 +150,78 @@ const req: SubscribeRequest = {
 
 subscribeCommand(client, req);
 
+
 function decodeRaydiumLaunchpad(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
 
-  const paredIxs = RAYDIUM_LAUNCHPAD_IX_PARSER.parseTransactionData(
-    tx.transaction.message,
-    tx.meta.loadedAddresses
-  );
+  try {
+    const paredIxs = RAYDIUM_LAUNCHPAD_IX_PARSER.parseTransactionData(
+      tx.transaction.message,
+      tx.meta.loadedAddresses
+    );
 
-  const raydiumLaunchpadIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(RAYDIUM_LAUNCHPAD_PROGRAM_ID)|| ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
-  );
+    const raydiumLaunchpadIxs = paredIxs.filter((ix) =>
+      ix.programId.equals(RAYDIUM_LAUNCHPAD_PROGRAM_ID) ||
+      ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+    );
 
- const parsedInnerIxs = RAYDIUM_LAUNCHPAD_IX_PARSER.parseTransactionWithInnerInstructions(tx);
-  const raydium_launchpad_inner_ixs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(RAYDIUM_LAUNCHPAD_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
-  );
+    const parsedInnerIxs = RAYDIUM_LAUNCHPAD_IX_PARSER.parseTransactionWithInnerInstructions(tx);
+    const raydium_launchpad_inner_ixs = parsedInnerIxs.filter((ix) =>
+      ix.programId.equals(RAYDIUM_LAUNCHPAD_PROGRAM_ID) ||
+      ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+    );
 
-  if (raydiumLaunchpadIxs.length === 0) return;
-  const events = RAYDIUM_LAUNCHPAD_EVENT_PARSER.parseEvent(tx);
-  const result = events.length > 0?{ instructions: raydiumLaunchpadIxs, inner_ixs: raydium_launchpad_inner_ixs, events }:
-  {instructions : raydiumLaunchpadIxs, inner_ixs: raydium_launchpad_inner_ixs};
-  bnLayoutFormatter(result);
-  return result;
+    const allInstructions = [...raydiumLaunchpadIxs, ...raydium_launchpad_inner_ixs];
+
+    if (allInstructions.length === 0) return;
+
+    const decodeAndCleanUnknownFields = (instructions: any[]) => {
+      return instructions
+        .filter((ix: any) => ix.name !== "unknown") 
+        .map((ix: any) => {
+          if (ix.args?.unknown) {
+            const buffer = Buffer.from(ix.args.unknown, 'base64');
+            const schema = raydiumLaunchpadIdl.instructions.find(
+              (instruction: any) => instruction.name === ix.name
+            );
+
+            if (!schema) {
+              console.warn(`No schema found for instruction: ${ix.name}`);
+            } else {
+              console.log(`Schema for instruction ${ix.name}:`, schema);
+
+              try {
+                const someValue = buffer.readUInt32LE(0); 
+                console.log(`Manually decoded value: ${someValue}`);
+                ix.args.decodedUnknown = { someValue }; 
+              } catch (err) {
+                console.error(`Failed to manually decode unknown field:`, err);
+              }
+            }
+
+            delete ix.args.unknown;
+          }
+
+          if (ix.innerInstructions) {
+            ix.innerInstructions = decodeAndCleanUnknownFields(ix.innerInstructions);
+          }
+
+          return ix;
+        });
+    };
+
+    const cleanedInstructions = decodeAndCleanUnknownFields(raydiumLaunchpadIxs);
+    const cleanedInnerInstructions = decodeAndCleanUnknownFields(raydium_launchpad_inner_ixs);
+
+    const events = RAYDIUM_LAUNCHPAD_EVENT_PARSER.parseEvent(tx);
+
+    const result = events.length > 0
+      ? { instructions: cleanedInstructions, inner_ixs: cleanedInnerInstructions, events }
+      : { instructions: cleanedInstructions, inner_ixs: cleanedInnerInstructions };
+
+    bnLayoutFormatter(result);
+
+    return result;
+  } catch (err) {
+  }
 }
