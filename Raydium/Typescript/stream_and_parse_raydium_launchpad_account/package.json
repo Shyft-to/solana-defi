@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@solana/buffer-layout": "^4.0.1",
+    "@coral-xyz/anchor": "^0.31.0",
     "@solana/web3.js": "^1.90.0",
     "@triton-one/yellowstone-grpc": "^0.4.0",
     "bs58": "^5.0.0",

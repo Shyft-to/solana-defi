@@ -1,45 +1,36 @@
-import { base64ToBase58, GLOBAL_CONFIG_DISC, PLATFORM_CONFIG_DISC, VESTING_RECORD_DISC } from "./raydium-launchpad-pool-utils";
-import {
-  POOLSTATE_DISC,
-  decodeGlobalConfig,
-  decodePlatformConfig,
-  decodePoolState,
-  decodeVestingRecord,
-} from "./raydium-launchpad-pool-utils";
+import base58 from "bs58";
+import { BorshAccountsCoder } from "@coral-xyz/anchor";
+import * as fs from 'fs';
+import { bnLayoutFormatter } from "./bn-layout-formatter";
+
+const program_idl = JSON.parse(fs.readFileSync('./idls/raydium_launchpad.json', "utf8"));
+
+const coder = new BorshAccountsCoder(program_idl);
 
 export async function decodeRaydiumLaunchpadTxnData(data) {
-  try {
-    if (!data || !data.account || !data.account.account) return;
+  if (!data || !data.account || !data.account.account) return;
 
-    const dataTx = data.account.account;
+const dataTx = data.account.account;
 
-    const signature = dataTx.txnSignature ? base64ToBase58(dataTx.txnSignature) : null;
-    const pubKey = dataTx.pubkey ? base64ToBase58(dataTx.pubkey) : null;
-    const owner = dataTx.owner ? base64ToBase58(dataTx.owner) : null;
+const signature = dataTx.txnSignature ? base64ToBase58(dataTx.txnSignature) : null;
+const pubKey = dataTx.pubkey ? base64ToBase58(dataTx.pubkey) : null;
+const owner = dataTx.owner ? base64ToBase58(dataTx.owner) : null;
 
-    let poolstate = null;
-    const discriminator = Buffer.from(dataTx.data.slice(0, 8)); // Extract the first 8 bytes
-    
-    if (discriminator.equals(GLOBAL_CONFIG_DISC)) {
-      poolstate = decodeGlobalConfig(dataTx.data);
-    } else if (discriminator.equals(PLATFORM_CONFIG_DISC)) {
-      poolstate = decodePlatformConfig(dataTx.data);
-    } else if (discriminator.equals(POOLSTATE_DISC)) {
-      poolstate = decodePoolState(dataTx.data);
-    } else if (discriminator.equals(VESTING_RECORD_DISC)) {
-      poolstate = decodeVestingRecord(dataTx.data);
-    } else {
-      console.warn("Unknown discriminator:", discriminator);
-    }
+let parsedAccount;
+try {
+    parsedAccount = coder.decodeAny(dataTx?.data);
+    bnLayoutFormatter(parsedAccount)
+} catch (error) {
+    console.error("Failed to decode pool state:", error);
+}
 
-    return {
-      signature,
-      pubKey,
-      owner,
-      poolstate,
-    };
-  } catch (error) {
-    console.error("Error decoding transaction data:", error);
-    throw error;
-  }
+return {
+    signature,
+    pubKey,
+    owner,
+    parsedAccount
+};
+}
+ function base64ToBase58(data: string) {
+  return base58.encode(Buffer.from(data, 'base64'));
 }
