@@ -61,7 +61,9 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 
       if (result.msgCount >= 1) retryCount = 0;
     } catch (err: any) {
-      console.error("Stream error, retrying in 1 second...");
+      console.error(
+        `Stream error, retrying in ${RETRY_DELAY_MS / 1000} second...`
+      );
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
 
       lastSlot = err.lastSlot;
