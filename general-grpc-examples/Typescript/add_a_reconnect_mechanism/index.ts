@@ -9,7 +9,7 @@ const ADDRESS_TO_STREAM_FROM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 
 type StreamResult = {
   lastSlot?: string;
-  msgCount: number;
+  hasRcvdMSg: boolean;
 };
 
 async function handleStream(
@@ -18,7 +18,7 @@ async function handleStream(
   lastSlot?: string
 ): Promise<StreamResult> {
   const stream = await client.subscribe();
-  let msgCount = 0;
+  let hasRcvdMSg = false;
 
   return new Promise((resolve, reject) => {
     stream.on("data", (data) => {
@@ -27,21 +27,21 @@ async function handleStream(
         const sig = bs58.encode(tx.signatures[0]);
         console.log("Got tx:", sig);
         lastSlot = data.transaction.slot;
-        msgCount++;
+        hasRcvdMSg = true;
       }
     });
 
     stream.on("error", (err) => {
       stream.end();
-      reject({ error: err, lastSlot, msgCount });
+      reject({ error: err, lastSlot, hasRcvdMSg });
     });
 
-    const finalize = () => resolve({ lastSlot, msgCount });
+    const finalize = () => resolve({ lastSlot, hasRcvdMSg });
     stream.on("end", finalize);
     stream.on("close", finalize);
 
     stream.write(args, (err: any) => {
-      if (err) reject({ error: err, lastSlot, msgCount });
+      if (err) reject({ error: err, lastSlot, hasRcvdMSg });
     });
   });
 }
@@ -58,8 +58,7 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 
       const result = await handleStream(client, args, lastSlot);
       lastSlot = result.lastSlot;
-
-      if (result.msgCount >= 1) retryCount = 0;
+      if (result.hasRcvdMSg) retryCount = 0;
     } catch (err: any) {
       console.error(
         `Stream error, retrying in ${RETRY_DELAY_MS / 1000} second...`
@@ -67,7 +66,7 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
 
       lastSlot = err.lastSlot;
-      if (err.msgCount >= 1) retryCount = 0;
+      if (err.hasRcvdMSg) retryCount = 0;
 
       if (lastSlot && retryCount < MAX_RETRY_WITH_LAST_SLOT) {
         console.log(
@@ -81,6 +80,7 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
         console.log("Retrying from latest slot (no last slot available)");
         delete args.fromSlot;
         retryCount = 0;
+        lastSlot = undefined;
       }
     }
   }
