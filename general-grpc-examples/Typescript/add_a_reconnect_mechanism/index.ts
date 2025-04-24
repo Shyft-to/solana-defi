@@ -1,92 +1,97 @@
-require('dotenv').config()
-import Client, {
-  CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
-} from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
+require("dotenv").config();
+import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
+import { SubscribeRequest } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
+import * as bs58 from "bs58";
 
-// Interface for the subscription request structure
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing;
-}
-
+const MAX_RETRY_WITH_LAST_SLOT = 30;
+const RETRY_DELAY_MS = 1000;
 const ADDRESS_TO_STREAM_FROM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 
-async function handleStream(client: Client, args: SubscribeRequest) {
+type StreamResult = {
+  lastSlot?: string;
+  hasRcvdMSg: boolean;
+};
+
+async function handleStream(
+  client: Client,
+  args: SubscribeRequest,
+  lastSlot?: string
+): Promise<StreamResult> {
   const stream = await client.subscribe();
+  let hasRcvdMSg = false;
 
-  // Promise that resolves when the stream ends or errors out
-  const streamClosed = new Promise<void>((resolve, reject) => {
-    stream.on("error", (error) => {
-      console.error("Stream error:", error);
-      reject(error);
+  return new Promise((resolve, reject) => {
+    stream.on("data", (data) => {
+      const tx = data.transaction?.transaction?.transaction;
+      if (tx?.signatures?.[0]) {
+        const sig = bs58.encode(tx.signatures[0]);
+        console.log("Got tx:", sig);
+        lastSlot = data.transaction.slot;
+        hasRcvdMSg = true;
+      }
+    });
+
+    stream.on("error", (err) => {
       stream.end();
+      reject({ error: err, lastSlot, hasRcvdMSg });
     });
 
-    stream.on("end", resolve);
-    stream.on("close", resolve);
-  });
+    const finalize = () => resolve({ lastSlot, hasRcvdMSg });
+    stream.on("end", finalize);
+    stream.on("close", finalize);
 
-  // Handle incoming transaction data
-  stream.on("data", (data) => {
-    if (data?.transaction) {
-      console.log("Received Transaction:");
-      console.log(data?.transaction);
-    }
-  });
-
-  // Send the subscription request
-  await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
-      err ? reject(err) : resolve();
+      if (err) reject({ error: err, lastSlot, hasRcvdMSg });
     });
-  }).catch((err) => {
-    console.error("Failed to send subscription request:", err);
-    throw err;
   });
-
-  // Wait for the stream to close
-  await streamClosed;
 }
 
-/**
- * The reconnection mechanism is implemented on the handle stream function
- * If any error occurs, the stream will wait for 1000ms and call 
- * the handleStream function, which in-turn will restart the stream
- */
 async function subscribeCommand(client: Client, args: SubscribeRequest) {
+  let lastSlot: string | undefined;
+  let retryCount = 0;
+
   while (true) {
     try {
-      await handleStream(client, args);
-    } catch (error) {
-      console.error("Stream error, retrying in 1 second...", error);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // the timeout can be changed here
+      if (args.fromSlot) {
+        console.log("Starting stream from slot", args.fromSlot);
+      }
+
+      const result = await handleStream(client, args, lastSlot);
+      lastSlot = result.lastSlot;
+      if (result.hasRcvdMSg) retryCount = 0;
+    } catch (err: any) {
+      console.error(
+        `Stream error, retrying in ${RETRY_DELAY_MS / 1000} second...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+
+      lastSlot = err.lastSlot;
+      if (err.hasRcvdMSg) retryCount = 0;
+
+      if (lastSlot && retryCount < MAX_RETRY_WITH_LAST_SLOT) {
+        console.log(
+          `#${retryCount} retrying with last slot ${lastSlot}, remaining retries ${
+            MAX_RETRY_WITH_LAST_SLOT - retryCount
+          }`
+        );
+        args.fromSlot = lastSlot;
+        retryCount++;
+      } else {
+        console.log("Retrying from latest slot (no last slot available)");
+        delete args.fromSlot;
+        retryCount = 0;
+        lastSlot = undefined;
+      }
     }
   }
 }
 
-// Instantiate Yellowstone gRPC client with env credentials
-const client = new Client(
-  process.env.GRPC_URL, //Your Region specific gRPC URL
-  process.env.X_TOKEN, // your Access Token
-  undefined,
-);
+const client = new Client(process.env.GRPC_URL!, process.env.X_TOKEN!, {
+  "grpc.keepalive_permit_without_calls": 1,
+  "grpc.keepalive_time_ms": 10000,
+  "grpc.keepalive_timeout_ms": 1000,
+  "grpc.default_compression_algorithm": 2,
+});
 
 const req: SubscribeRequest = {
   accounts: {},
@@ -95,7 +100,6 @@ const req: SubscribeRequest = {
     pumpFun: {
       vote: false,
       failed: false,
-      signature: undefined,
       accountInclude: [ADDRESS_TO_STREAM_FROM],
       accountExclude: [],
       accountRequired: [],
@@ -106,7 +110,6 @@ const req: SubscribeRequest = {
   blocksMeta: {},
   entry: {},
   accountsDataSlice: [],
-  ping: undefined,
   commitment: CommitmentLevel.CONFIRMED,
 };
 
