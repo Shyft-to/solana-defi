@@ -100,7 +100,7 @@ const req: SubscribeRequest = {
     "METEORA": {
       "account": [],
       "filters": [],
-      "owner": [METEORA] // orca program id to subscribe to
+      "owner": [METEORA] 
     }
   },
   "transactions": {},
