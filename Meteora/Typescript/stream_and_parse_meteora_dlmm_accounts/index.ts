@@ -10,9 +10,7 @@ import Client, {
     SubscribeRequestFilterTransactions,
   } from "@triton-one/yellowstone-grpc";
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-  //import { VersionedTransactionResponse } from "@solana/web3.js";
-import { tOutPut } from "./utils/transactionOutput";
-//import { sqrtPriceX64ToPrice } from "@orca-so/whirlpool-sdk";
+import { meteoraDlmmParsedAccount } from "./utils/meteora-dlmm-parsed-account";
  
   interface SubscribeRequest {
     accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -51,7 +49,7 @@ import { tOutPut } from "./utils/transactionOutput";
     // Handle updates
     stream.on("data", async (data) => {
       try{
-        const parsed_transaction = tOutPut(data);
+        const parsed_transaction = meteoraDlmmParsedAccount(data);
         if (!parsed_transaction)return;
         console.log(parsed_transaction);
        }catch(error){
@@ -102,7 +100,7 @@ const req: SubscribeRequest = {
     "METEORA": {
       "account": [],
       "filters": [],
-      "owner": [METEORA] // orca program id to subscribe to
+      "owner": [METEORA] 
     }
   },
   "transactions": {},
