@@ -11,7 +11,7 @@ import Client, {
   } from "@triton-one/yellowstone-grpc";
   import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
   //import { VersionedTransactionResponse } from "@solana/web3.js";
-import { tOutPut } from "./utils/transactionOutput";
+import { meteoraDlmmParsedAccount } from "./utils/meteora-dlmm-parsed-account";
 //import { sqrtPriceX64ToPrice } from "@orca-so/whirlpool-sdk";
  
   interface SubscribeRequest {
@@ -51,7 +51,7 @@ import { tOutPut } from "./utils/transactionOutput";
     // Handle updates
     stream.on("data", async (data) => {
       try{
-        const parsed_transaction = tOutPut(data);
+        const parsed_transaction = meteoraDlmmParsedAccount(data);
         if (!parsed_transaction)return;
         console.log(parsed_transaction);
        }catch(error){

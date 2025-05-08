@@ -11,7 +11,7 @@ const coder = new BorshAccountsCoder(program_idl);
  * @param {Object} data - The data object containing blockchain account information.
  * @returns {Object} - An object containing the deserialized signature, public key, owner, and pool state.
  */
-export function tOutPut(data) {
+export function meteoraDlmmParsedAccount(data) {
     try{
 
     if (!data || !data.account || !data.account.account)return;
