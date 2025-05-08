@@ -80,7 +80,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
 
       if (!parsedTxn) return;
      const formattedSwapTxn = parseSwapTransactionOutput(parsedTxn,txn);
-
+     if(!formattedSwapTxn) return;
       console.log(
         new Date(),
         ":",
@@ -154,19 +154,28 @@ subscribeCommand(client, req);
 
 function decodePumpFunTxn(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
-
+  try{
   const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
     tx.transaction.message,
-    tx.meta.loadedAddresses
+    tx.meta.loadedAddresses,
   );
 
   const pumpFunIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_AMM_PROGRAM_ID)
+    ix.programId.equals(PUMP_FUN_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
   );
+
+  const parsedInnerIxs = PUMP_FUN_IX_PARSER.parseTransactionWithInnerInstructions(tx);
+
+  const pumpfun_amm_inner_ixs = parsedInnerIxs.filter((ix) =>
+    ix.programId.equals(PUMP_FUN_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+  );
+
 
   if (pumpFunIxs.length === 0) return;
   const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: pumpFunIxs, events };
+  const result = { instructions: pumpFunIxs, inner_ixs: pumpfun_amm_inner_ixs, events };
   bnLayoutFormatter(result);
   return result;
+  }catch(err){
+  }
 }
