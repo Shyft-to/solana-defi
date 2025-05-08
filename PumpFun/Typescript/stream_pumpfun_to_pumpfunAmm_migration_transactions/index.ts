@@ -10,15 +10,18 @@ import Client, {
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
 import { Idl } from "@coral-xyz/anchor";
+import { Idl as OldIdl } from "@project-serum/anchor";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 import { VersionedTransactionResponse, PublicKey } from "@solana/web3.js";
 import { tOutPut, transactionOutput } from "./utils/transactionOutput";
 import { searchForInitialize2 } from "./utils/logTXN";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
+import { SolanaParser as SolanaParserV1 } from "@shyft-to/solana-transaction-parser-v1";
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import pumpFunAmmIdl from "./idls/pump_amm_0.1.0.json";
+import pumpfunIdl from "./idls/pump_0.1.0.json";
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -37,6 +40,16 @@ const TXN_FORMATTER = new TransactionFormatter();
 const PUMP_FUN_AMM_PROGRAM_ID = new PublicKey(
   "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
 );
+
+const MIGRATION = "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg";
+
+const PUMP_FUN_PROGRAM_ID = new PublicKey(
+  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+);
+const TOKEN_PROGRAM_ID = new PublicKey(
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+)
+
 const PUMP_FUN_IX_PARSER = new SolanaParser([]);
 PUMP_FUN_IX_PARSER.addParserFromIdl(
   PUMP_FUN_AMM_PROGRAM_ID.toBase58(),
@@ -48,15 +61,12 @@ PUMP_FUN_EVENT_PARSER.addParserFromIdl(
   pumpFunAmmIdl as Idl
 );
 
+const PUMP_FUN_IX_PARSER_1 = new SolanaParserV1([]);
 
-const MIGRATION = "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg";
-
-const PUMP_FUN_PROGRAM_ID = new PublicKey(
-  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+PUMP_FUN_IX_PARSER_1.addParserFromIdl(
+  PUMP_FUN_PROGRAM_ID.toBase58(),
+  pumpfunIdl as OldIdl
 );
-const TOKEN_PROGRAM_ID = new PublicKey(
-  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-)
 
 async function handleStream(client: Client, args: SubscribeRequest) {
   // Subscribe for events
@@ -167,16 +177,35 @@ function decodePumpFunTxn(tx: VersionedTransactionResponse) {
     tx
   );
 
+ 
+
   const compiledIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
+    ix.programId.equals(PUMP_FUN_AMM_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
   );
 
   const parsedFilteredInnerIxs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
+    ix.programId.equals(PUMP_FUN_AMM_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
+  );
+
+  const paredIxsv1 = PUMP_FUN_IX_PARSER.parseTransactionData(
+    tx.transaction.message,
+    tx.meta.loadedAddresses,
+  );
+
+  const parsedInnerIxsv1 = PUMP_FUN_IX_PARSER_1.parseTransactionWithInnerInstructions(
+    tx
+  );
+
+  const compiledIxsv1 = paredIxsv1.filter((ix) =>
+    ix.programId.equals(PUMP_FUN_PROGRAM_ID),
+  );
+
+  const parsedFilteredInnerIxsv1 = parsedInnerIxsv1.filter((ix) =>
+    ix.programId.equals(PUMP_FUN_PROGRAM_ID),
   );
 
   const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: compiledIxs, innerInstructions: parsedFilteredInnerIxs, events };
+  const result = { instructions: [...compiledIxs, ...compiledIxsv1], inner_ixs: [...parsedFilteredInnerIxs, ...parsedFilteredInnerIxsv1], events };
   bnLayoutFormatter(result);
   return result;
 }
