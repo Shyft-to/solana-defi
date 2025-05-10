@@ -10,7 +10,7 @@ This solution is ideal for developers and teams looking to build scalable DeFi t
 $ cargo run -- --endpoint <endpoint> --x-token <token>
 ```
 
-![screenshot](assets/usage__screenshot.PNG?raw=true "Screenshot")
+![screenshot](assets/usage__screenshot.png?raw=true "Screenshot")
 
 ## Notes
 
