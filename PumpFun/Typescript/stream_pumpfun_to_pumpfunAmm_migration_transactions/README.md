@@ -2,6 +2,9 @@
 
 This powerful code streams real-time data, instantly notifying you when a token migrates from Pump.fun to Pumpfun Amm. Once a token completes its bonding cycle on Pump.fun, the code detects the migration and alerts you immediately. Designed for speed and efficiency, it ensures you're always the first to know, giving you a competitive edge in tracking newly migrated tokens.
 
+![screenshot](assets/usage_screenshot.png?raw=true "Screenshot")
+
+
 ## Getting Started
 
 1. **Clone the repository:**
