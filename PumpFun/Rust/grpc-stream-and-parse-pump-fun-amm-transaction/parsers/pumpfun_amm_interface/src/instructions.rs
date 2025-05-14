@@ -16,12 +16,14 @@ use strum_macros::{Display, EnumString};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PumpfunAmmProgramIx {
     Buy(BuyIxArgs),
+    CollectCoinCreatorFee(CollectCoinCreatorFeeIxArgs),
     CreateConfig(CreateConfigIxArgs),
     CreatePool(CreatePoolIxArgs),
     Deposit(DepositIxArgs),
     Disable(DisableIxArgs),
     ExtendAccount(ExtendAccountIxArgs),
     Sell(SellIxArgs),
+    SetCoinCreator(SetCoinCreatorIxArgs),
     UpdateAdmin(UpdateAdminIxArgs),
     UpdateFeeConfig(UpdateFeeConfigIxArgs),
     Withdraw(WithdrawIxArgs),
@@ -30,12 +32,14 @@ impl PumpfunAmmProgramIx {
         pub fn name(&self) -> &str {
         match self {
             Self::Buy(_) => "Buy",
+            Self::CollectCoinCreatorFee(_) => "CollectCoinCreatorFee",
             Self::CreateConfig(_) => "CreateConfig",
             Self::CreatePool(_) => "CreatePool",
             Self::Deposit(_) => "Deposit",
             Self::Disable(_) => "Disable",
             Self::ExtendAccount(_) => "ExtendAccount",
             Self::Sell(_) => "Sell",
+            Self::SetCoinCreator(_) => "SetCoinCreator",
             Self::UpdateAdmin(_) => "UpdateAdmin",
             Self::UpdateFeeConfig(_) => "UpdateFeeConfig",
             Self::Withdraw(_) => "Withdraw",
@@ -51,6 +55,13 @@ impl PumpfunAmmProgramIx {
                 Ok(
                     Self::Buy(
                         BuyIxArgs::deserialize(&mut reader)?,
+                    ),
+                )
+            }
+            COLLECT_COIN_CREATOR_FEE_IX_DISCM => {
+                Ok(
+                    Self::CollectCoinCreatorFee(
+                        CollectCoinCreatorFeeIxArgs::deserialize(&mut reader)?,
                     ),
                 )
             }
@@ -84,6 +95,9 @@ impl PumpfunAmmProgramIx {
             SELL_IX_DISCM => {
                 Ok(Self::Sell(SellIxArgs::deserialize(&mut reader)?))
             }
+            SET_COIN_CREATOR_IX_DISCM => {
+                Ok(Self::SetCoinCreator(SetCoinCreatorIxArgs::deserialize(&mut reader)?))
+            }
             UPDATE_ADMIN_IX_DISCM => {
                 Ok(Self::UpdateAdmin(UpdateAdminIxArgs::deserialize(&mut reader)?))
             }
@@ -109,6 +123,10 @@ impl PumpfunAmmProgramIx {
                 writer.write_all(&BUY_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
+            Self::CollectCoinCreatorFee(args) => {
+                writer.write_all(&COLLECT_COIN_CREATOR_FEE_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
             Self::CreateConfig(args) => {
                 writer.write_all(&CREATE_CONFIG_IX_DISCM)?;
                 args.serialize(&mut writer)
@@ -131,6 +149,10 @@ impl PumpfunAmmProgramIx {
             }
             Self::Sell(args) => {
                 writer.write_all(&SELL_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::SetCoinCreator(args) => {
+                writer.write_all(&SET_COIN_CREATOR_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
             Self::UpdateAdmin(args) => {
@@ -168,7 +190,7 @@ fn invoke_instruction_signed<'info, A: Into<[AccountInfo<'info>; N]>, const N: u
     let account_info: [AccountInfo<'info>; N] = accounts.into();
     invoke_signed(ix, &account_info, seeds)
 }
-pub const BUY_IX_ACCOUNTS_LEN: usize = 17;
+pub const BUY_IX_ACCOUNTS_LEN: usize = 19;
 #[derive(Copy, Clone, Debug)]
 pub struct BuyAccounts<'me, 'info> {
     pub pool: &'me AccountInfo<'info>,
@@ -188,6 +210,8 @@ pub struct BuyAccounts<'me, 'info> {
     pub associated_token_program: &'me AccountInfo<'info>,
     pub event_authority: &'me AccountInfo<'info>,
     pub program: &'me AccountInfo<'info>,
+    pub coin_creator_vault_ata: &'me AccountInfo<'info>,
+    pub coin_creator_vault_authority: &'me AccountInfo<'info>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -209,6 +233,8 @@ pub struct BuyKeys {
     pub associated_token_program: Pubkey,
     pub event_authority: Pubkey,
     pub program: Pubkey,
+    pub coin_creator_vault_ata: Pubkey,
+    pub coin_creator_vault_authority: Pubkey,
 }
 
 impl From<BuyAccounts<'_, '_>> for BuyKeys {
@@ -231,6 +257,8 @@ impl From<BuyAccounts<'_, '_>> for BuyKeys {
             associated_token_program: *accounts.associated_token_program.key,
             event_authority: *accounts.event_authority.key,
             program: *accounts.program.key,
+            coin_creator_vault_ata: *accounts.coin_creator_vault_ata.key,
+            coin_creator_vault_authority: *accounts.coin_creator_vault_authority.key,
         }
     }
 }
@@ -323,6 +351,16 @@ impl From<BuyKeys> for [AccountMeta; BUY_IX_ACCOUNTS_LEN] {
                 is_signer: false,
                 is_writable: false,
             },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_ata,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_authority,
+                is_signer: false,
+                is_writable: false,
+            },
         ]
     }
 }
@@ -347,6 +385,8 @@ impl From<[Pubkey; BUY_IX_ACCOUNTS_LEN]> for BuyKeys {
             associated_token_program: pubkeys[14],
             event_authority: pubkeys[15],
             program: pubkeys[16],
+            coin_creator_vault_ata: pubkeys[17],
+            coin_creator_vault_authority: pubkeys[18],
         }
     }
 }
@@ -371,6 +411,8 @@ impl<'info> From<BuyAccounts<'_, 'info>> for [AccountInfo<'info>; BUY_IX_ACCOUNT
             accounts.associated_token_program.clone(),
             accounts.event_authority.clone(),
             accounts.program.clone(),
+            accounts.coin_creator_vault_ata.clone(),
+            accounts.coin_creator_vault_authority.clone(),
         ]
     }
 }
@@ -395,12 +437,13 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; BUY_IX_ACCOUNTS_LEN]> for BuyAcc
             associated_token_program: &arr[14],
             event_authority: &arr[15],
             program: &arr[16],
+            coin_creator_vault_ata: &arr[17],
+            coin_creator_vault_authority: &arr[18],
         }
     }
 }
 
 pub const BUY_IX_DISCM: [u8; 8] =  [102, 6, 61, 18, 1, 218, 235, 234];
-pub const BUY_IX_DISCM_B : [u8; 8] = [228, 69, 165, 46, 81, 203, 154, 29];
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BuyIxArgs {
@@ -515,6 +558,8 @@ pub fn buy_verify_account_keys(
         (*accounts.associated_token_program.key, keys.associated_token_program),
         (*accounts.event_authority.key, keys.event_authority),
         (*accounts.program.key, keys.program),
+        (*accounts.coin_creator_vault_ata.key, keys.coin_creator_vault_ata),
+        (*accounts.coin_creator_vault_authority.key, keys.coin_creator_vault_authority),
     ] {
         if actual != expected {
             return Err((actual, expected));
@@ -534,6 +579,7 @@ pub fn buy_verify_is_writable_privileges<'me, 'info>(
         accounts.pool_base_token_account,
         accounts.pool_quote_token_account,
         accounts.protocol_fee_recipient_token_account,
+        accounts.coin_creator_vault_ata,
     ] {
         if !should_be_is_writable.is_writable {
             return Err((should_be_is_writable, ProgramError::InvalidAccountData));
@@ -559,6 +605,279 @@ pub fn buy_verify_account_privileges<'me, 'info>(
     buy_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
+
+pub const COLLECT_COIN_CREATOR_FEE_IX_ACCOUNTS_LEN: usize = 8;
+#[derive(Copy, Clone, Debug)]
+pub struct CollectCoinCreatorFeeAccounts<'me, 'info> {
+    pub quote_mint: &'me AccountInfo<'info>,
+    pub quote_token_program: &'me AccountInfo<'info>,
+    pub coin_creator: &'me AccountInfo<'info>,
+    pub coin_creator_vault_authority: &'me AccountInfo<'info>,
+    pub coin_creator_vault_ata: &'me AccountInfo<'info>,
+    pub coin_creator_token_account: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CollectCoinCreatorFeeKeys {
+    pub quote_mint: Pubkey,
+    pub quote_token_program: Pubkey,
+    pub coin_creator: Pubkey,
+    pub coin_creator_vault_authority: Pubkey,
+    pub coin_creator_vault_ata: Pubkey,
+    pub coin_creator_token_account: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey
+}
+impl From<CollectCoinCreatorFeeAccounts<'_, '_>> for CollectCoinCreatorFeeKeys {
+    fn from(accounts: CollectCoinCreatorFeeAccounts) -> Self {
+        Self {
+            quote_mint: *accounts.quote_mint.key,
+            quote_token_program: *accounts.quote_token_program.key,
+            coin_creator: *accounts.coin_creator.key,
+            coin_creator_vault_authority: *accounts.coin_creator_vault_authority.key,
+            coin_creator_vault_ata: *accounts.coin_creator_vault_ata.key,
+            coin_creator_token_account: *accounts.coin_creator_token_account.key,
+            event_authority: *accounts.event_authority.key, 
+            program: *accounts.program.key
+        }
+    }
+}
+impl From<CollectCoinCreatorFeeKeys> for [AccountMeta; COLLECT_COIN_CREATOR_FEE_IX_ACCOUNTS_LEN] {
+    fn from(keys: CollectCoinCreatorFeeKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.quote_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.quote_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_ata,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; COLLECT_COIN_CREATOR_FEE_IX_ACCOUNTS_LEN]> for CollectCoinCreatorFeeKeys {
+    fn from(pubkeys: [Pubkey; COLLECT_COIN_CREATOR_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            quote_mint: pubkeys[0],
+            quote_token_program: pubkeys[1],
+            coin_creator: pubkeys[2],
+            coin_creator_vault_authority: pubkeys[3],
+            coin_creator_vault_ata: pubkeys[4],
+            coin_creator_token_account: pubkeys[5],
+            event_authority: pubkeys[6],
+            program: pubkeys[7]
+        }
+    }
+}
+impl<'info> From<CollectCoinCreatorFeeAccounts<'_, 'info>>
+    for [AccountInfo<'info>; COLLECT_COIN_CREATOR_FEE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: CollectCoinCreatorFeeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.quote_mint.clone(),
+            accounts.quote_token_program.clone(),
+            accounts.coin_creator.clone(),
+            accounts.coin_creator_vault_authority.clone(),
+            accounts.coin_creator_vault_ata.clone(),
+            accounts.coin_creator_token_account.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; COLLECT_COIN_CREATOR_FEE_IX_ACCOUNTS_LEN]>
+    for CollectCoinCreatorFeeAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; COLLECT_COIN_CREATOR_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            quote_mint: &arr[0],
+            quote_token_program: &arr[1],
+            coin_creator: &arr[2],
+            coin_creator_vault_authority: &arr[3],
+            coin_creator_vault_ata: &arr[4],
+            coin_creator_token_account: &arr[5],
+            event_authority: &arr[6],
+            program: &arr[7]
+        }
+    }
+}
+pub const COLLECT_COIN_CREATOR_FEE_IX_DISCM: [u8; 8] =  [160,57,89,42,181,139,43,66];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CollectCoinCreatorFeeIxArgs;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CollectCoinCreatorFeeIxData(pub CollectCoinCreatorFeeIxArgs);
+impl From<CollectCoinCreatorFeeIxArgs> for CollectCoinCreatorFeeIxData {
+    fn from(args: CollectCoinCreatorFeeIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl CollectCoinCreatorFeeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != COLLECT_COIN_CREATOR_FEE_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        COLLECT_COIN_CREATOR_FEE_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(CollectCoinCreatorFeeIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&COLLECT_COIN_CREATOR_FEE_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn collect_coin_creator_fee_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CollectCoinCreatorFeeKeys,
+    args: CollectCoinCreatorFeeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; COLLECT_COIN_CREATOR_FEE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: CollectCoinCreatorFeeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn collect_coin_creator_fee_ix(
+    keys: CollectCoinCreatorFeeKeys,
+    args: CollectCoinCreatorFeeIxArgs,
+) -> std::io::Result<Instruction> {
+    collect_coin_creator_fee_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn collect_coin_creator_fee_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CollectCoinCreatorFeeAccounts<'_, '_>,
+    args: CollectCoinCreatorFeeIxArgs,
+) -> ProgramResult {
+    let keys: CollectCoinCreatorFeeKeys = accounts.into();
+    let ix = collect_coin_creator_fee_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn collect_coin_creator_fee_invoke(
+    accounts: CollectCoinCreatorFeeAccounts<'_, '_>,
+    args: CollectCoinCreatorFeeIxArgs,
+) -> ProgramResult {
+    collect_coin_creator_fee_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn collect_coin_creator_fee_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CollectCoinCreatorFeeAccounts<'_, '_>,
+    args: CollectCoinCreatorFeeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CollectCoinCreatorFeeKeys = accounts.into();
+    let ix = collect_coin_creator_fee_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn collect_coin_creator_fee_invoke_signed(
+    accounts: CollectCoinCreatorFeeAccounts<'_, '_>,
+    args: CollectCoinCreatorFeeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    collect_coin_creator_fee_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn collect_coin_creator_fee_verify_account_keys(
+    accounts: CollectCoinCreatorFeeAccounts<'_, '_>,
+    keys: CollectCoinCreatorFeeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.quote_mint.key, keys.quote_mint),
+        (*accounts.quote_token_program.key, keys.quote_token_program),
+        (*accounts.coin_creator.key, keys.coin_creator),
+        (*accounts.coin_creator_vault_authority.key, keys.coin_creator_vault_authority),
+        (*accounts.coin_creator_vault_ata.key, keys.coin_creator_vault_ata),
+        (*accounts.coin_creator_token_account.key, keys.coin_creator_token_account),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program)
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn collect_coin_creator_fee_verify_is_writable_privileges<'me, 'info>(
+    accounts: CollectCoinCreatorFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_is_writable in [
+        accounts.coin_creator,
+        accounts.coin_creator_vault_ata,
+        accounts.coin_creator_token_account
+    ] {
+        if !should_be_is_writable.is_writable {
+            return Err((should_be_is_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn collect_coin_creator_fee_verify_is_signer_privileges<'me, 'info>(
+    accounts: CollectCoinCreatorFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_is_signer in [accounts.coin_creator] {
+        if !should_be_is_signer.is_signer {
+            return Err((should_be_is_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn collect_coin_creator_fee_verify_account_privileges<'me, 'info>(
+    accounts: CollectCoinCreatorFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    collect_coin_creator_fee_verify_is_writable_privileges(accounts)?;
+    collect_coin_creator_fee_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+
 pub const CREATE_CONFIG_IX_ACCOUNTS_LEN: usize = 5;
 #[derive(Copy, Clone, Debug)]
 pub struct CreateConfigAccounts<'me, 'info> {
@@ -661,7 +980,8 @@ pub const CREATE_CONFIG_IX_DISCM: [u8; 8] =  [201, 207, 243, 114, 75, 111, 47, 1
 pub struct CreateConfigIxArgs {
     pub lp_fee_basis_points: u64,
     pub protocol_fee_basis_points: u64,
-    pub protocol_fee_recipients: [Pubkey; 8]
+    pub protocol_fee_recipients: [Pubkey; 8],
+    pub coin_creator_fee_basis_points: u64
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct CreateConfigIxData(pub CreateConfigIxArgs);
@@ -1042,6 +1362,7 @@ pub struct CreatePoolIxArgs {
     pub index: u16,
     pub base_amount_in: u64,
     pub quote_amount_in: u64,
+    pub coin_creator: Pubkey
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct CreatePoolIxData(pub CreatePoolIxArgs);
@@ -1404,7 +1725,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; DEPOSIT_IX_ACCOUNTS_LEN]>
     }
 }
 
-pub const DEPOSIT_IX_DISCM: [u8; 8] =[242, 35, 198, 137, 82, 225, 242, 182];
+pub const DEPOSIT_IX_DISCM: [u8; 8] =[ 185,173,187,90, 216, 15,238, 233];
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DepositIxArgs {
@@ -2019,7 +2340,7 @@ pub fn extend_account_verify_account_privileges<'me, 'info>(
     extend_account_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
-pub const SELL_IX_ACCOUNTS_LEN: usize = 17;
+pub const SELL_IX_ACCOUNTS_LEN: usize = 19;
 
 #[derive(Copy, Clone, Debug)]
 pub struct SellAccounts<'me, 'info> {
@@ -2040,6 +2361,8 @@ pub struct SellAccounts<'me, 'info> {
     pub associated_token_program: &'me AccountInfo<'info>,
     pub event_authority: &'me AccountInfo<'info>,
     pub program: &'me AccountInfo<'info>,
+    pub coin_creator_vault_ata : &'me AccountInfo<'info>,
+    pub coin_creator_vault_authority : &'me AccountInfo<'info>,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SellKeys {
@@ -2060,6 +2383,8 @@ pub struct SellKeys {
     pub associated_token_program: Pubkey,
     pub event_authority: Pubkey,
     pub program: Pubkey,
+    pub coin_creator_vault_ata : Pubkey,
+    pub coin_creator_vault_authority : Pubkey,
 }
 
 impl From<SellAccounts<'_, '_>> for SellKeys {
@@ -2082,6 +2407,8 @@ impl From<SellAccounts<'_, '_>> for SellKeys {
             associated_token_program: *accounts.associated_token_program.key,
             event_authority: *accounts.event_authority.key,
             program: *accounts.program.key,
+            coin_creator_vault_ata : *accounts.coin_creator_vault_ata.key,
+            coin_creator_vault_authority : *accounts.coin_creator_vault_authority.key,
         }
     }
 }
@@ -2173,6 +2500,16 @@ impl From<SellKeys> for [AccountMeta; SELL_IX_ACCOUNTS_LEN] {
                 is_signer: false,
                 is_writable: false,
             },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_ata,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_authority,
+                is_signer: false,
+                is_writable: false,
+            },
         ]
     }
 }
@@ -2196,6 +2533,8 @@ impl From<[Pubkey; SELL_IX_ACCOUNTS_LEN]> for SellKeys {
             associated_token_program: pubkeys[14],
             event_authority: pubkeys[15],
             program: pubkeys[16],
+            coin_creator_vault_ata : pubkeys[17],
+            coin_creator_vault_authority : pubkeys[18],
         }
     }
 }
@@ -2219,6 +2558,8 @@ impl<'info> From<SellAccounts<'_, 'info>> for [AccountInfo<'info>; SELL_IX_ACCOU
             accounts.associated_token_program.clone(),
             accounts.event_authority.clone(),
             accounts.program.clone(),
+            accounts.coin_creator_vault_ata.clone(),
+            accounts.coin_creator_vault_authority.clone(),
         ]
     }
 }
@@ -2243,6 +2584,8 @@ for SellAccounts<'me, 'info> {
             associated_token_program: &arr[14],
             event_authority: &arr[15],
             program: &arr[16],
+            coin_creator_vault_ata : &arr[17],
+            coin_creator_vault_authority : &arr[18],
         }
     }
 }
@@ -2364,6 +2707,8 @@ pub fn sell_verify_account_keys(
         (*accounts.associated_token_program.key, keys.associated_token_program),
         (*accounts.event_authority.key, keys.event_authority),
         (*accounts.program.key, keys.program),
+        (*accounts.coin_creator_vault_ata.key, keys.coin_creator_vault_ata),
+        (*accounts.coin_creator_vault_authority.key, keys.coin_creator_vault_authority),
     ] {
         if actual != expected {
             return Err((actual, expected));
@@ -2381,6 +2726,7 @@ pub fn sell_verify_is_writable_privileges<'me, 'info>(
         accounts.pool_base_token_account,
         accounts.pool_quote_token_account,
         accounts.protocol_fee_recipient_token_account,
+        accounts.coin_creator_vault_ata,
     ] {
         if !should_be_is_writable.is_writable {
             return Err((should_be_is_writable, ProgramError::InvalidAccountData));
@@ -2405,8 +2751,231 @@ pub fn sell_verify_account_privileges<'me, 'info>(
     sell_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
-pub const UPDATE_ADMIN_IX_ACCOUNTS_LEN: usize = 5;
 
+pub const SET_COIN_CREATOR_ACCOUNTS_LEN: usize = 5;
+#[derive(Copy, Clone, Debug)]
+pub struct SetCoinCreatorAccounts<'me, 'info> {
+    pub pool: &'me AccountInfo<'info>,
+    pub meta_data: &'me AccountInfo<'info>,
+    pub bonding_curve: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SetCoinCreatorKeys {
+    pub pool: Pubkey,
+    pub meta_data: Pubkey,
+    pub bonding_curve: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+impl From<SetCoinCreatorAccounts<'_, '_>> for SetCoinCreatorKeys {
+    fn from(accounts: SetCoinCreatorAccounts) -> Self {
+        Self {
+            pool: *accounts.pool.key,
+            meta_data: *accounts.meta_data.key,
+            bonding_curve: *accounts.bonding_curve.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+impl From <SetCoinCreatorKeys> for [AccountMeta; SET_COIN_CREATOR_ACCOUNTS_LEN] {
+    fn from(keys: SetCoinCreatorKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.meta_data,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.bonding_curve,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; SET_COIN_CREATOR_ACCOUNTS_LEN]> for SetCoinCreatorKeys {
+    fn from(pubkeys: [Pubkey; SET_COIN_CREATOR_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: pubkeys[0],
+            meta_data: pubkeys[1],
+            bonding_curve: pubkeys[2],
+            event_authority: pubkeys[3],
+            program: pubkeys[4],
+        }
+    }
+}
+impl<'info> From<SetCoinCreatorAccounts<'_, 'info>> for [AccountInfo<'info>; SET_COIN_CREATOR_ACCOUNTS_LEN] {
+    fn from(accounts: SetCoinCreatorAccounts<'_, 'info>) -> Self {
+        [
+            accounts.pool.clone(),
+            accounts.meta_data.clone(),
+            accounts.bonding_curve.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_COIN_CREATOR_ACCOUNTS_LEN]>
+for SetCoinCreatorAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; SET_COIN_CREATOR_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: &arr[0],
+            meta_data: &arr[1],
+            bonding_curve: &arr[2],
+            event_authority: &arr[3],
+            program: &arr[4],
+        }
+    }
+}
+pub const SET_COIN_CREATOR_IX_DISCM: [u8; 8] = [210,149,128,45,188, 58,78,175];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetCoinCreatorIxArgs;
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetCoinCreatorIxData(pub SetCoinCreatorIxArgs);
+impl From<SetCoinCreatorIxArgs> for SetCoinCreatorIxData {
+    fn from(args: SetCoinCreatorIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl SetCoinCreatorIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SET_COIN_CREATOR_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        SET_COIN_CREATOR_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(SetCoinCreatorIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SET_COIN_CREATOR_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn set_coin_creator_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetCoinCreatorKeys,
+    args: SetCoinCreatorIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_COIN_CREATOR_ACCOUNTS_LEN] = keys.into();
+    let data: SetCoinCreatorIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn set_coin_creator_ix(
+    keys: SetCoinCreatorKeys,
+    args: SetCoinCreatorIxArgs,
+) -> std::io::Result<Instruction> {
+    set_coin_creator_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn set_coin_creator_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetCoinCreatorAccounts<'_, '_>,
+    args: SetCoinCreatorIxArgs,
+) -> ProgramResult {
+    let keys: SetCoinCreatorKeys = accounts.into();
+    let ix = set_coin_creator_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn set_coin_creator_invoke(
+    accounts: SetCoinCreatorAccounts<'_, '_>,
+    args: SetCoinCreatorIxArgs,
+) -> ProgramResult {
+    set_coin_creator_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn set_coin_creator_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetCoinCreatorAccounts<'_, '_>,
+    args: SetCoinCreatorIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetCoinCreatorKeys = accounts.into();
+    let ix = set_coin_creator_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn set_coin_creator_invoke_signed(
+    accounts: SetCoinCreatorAccounts<'_, '_>,
+    args: SetCoinCreatorIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_coin_creator_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn set_coin_creator_verify_account_keys(
+    accounts: SetCoinCreatorAccounts<'_, '_>,
+    keys: SetCoinCreatorKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pool.key, keys.pool),
+        (*accounts.meta_data.key, keys.meta_data),
+        (*accounts.bonding_curve.key, keys.bonding_curve),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn set_coin_creator_verify_is_writable_privileges<'me, 'info>(
+    accounts: SetCoinCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_is_writable in [accounts.pool, accounts.meta_data, accounts.bonding_curve] {
+        if !should_be_is_writable.is_writable {
+            return Err((should_be_is_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn set_coin_creator_verify_is_signer_privileges<'me, 'info>(
+    accounts: SetCoinCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    Ok(())
+}
+pub fn set_coin_creator_verify_account_privileges<'me, 'info>(
+    accounts: SetCoinCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_coin_creator_verify_is_writable_privileges(accounts)?;
+    set_coin_creator_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const UPDATE_ADMIN_IX_ACCOUNTS_LEN: usize = 5;
 #[derive(Copy, Clone, Debug)]
 pub struct UpdateAdminAccounts<'me, 'info> {
     pub admin: &'me AccountInfo<'info>,
@@ -2719,7 +3288,7 @@ for UpdateFeeConfigAccounts<'me, 'info> {
         }
     }
 }
-pub const UPDATE_FEE_CONFIG_IX_DISCM: [u8; 8] = [143, 190, 90, 218, 196, 30, 51, 222];
+pub const UPDATE_FEE_CONFIG_IX_DISCM: [u8; 8] = [104,184,103,242,88,151,107,20];
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2727,6 +3296,7 @@ pub struct UpdateFeeConfigIxArgs {
     pub lp_fee_basis_points: u64,
     pub protocol_fee_basis_points: u64,
     pub protocol_fee_recipients: [Pubkey; 8], 
+    pub coin_creator_fee_basis_points: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
