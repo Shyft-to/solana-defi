@@ -1,12 +1,12 @@
 # Stream and parse Pump.fun Transactions in Real-time
 
-This project streams PumpFun transactions from the Solana blockchain via gRPC and parses them according to the program IDL. This real-time streaming provides valuable insights into market activity, enabling users to track various DeFi events such as swaps, buy and sell and understand market trends and user behavior within the PumpFun ecosystem.
+This project streams PumpFun transactions from the Solana blockchain via gRPC and parses them according to the updated program IDL. This real-time streaming provides valuable insights into market activity, enabling users to track various DeFi events such as swaps, buy and sell and understand market trends and user behavior within the PumpFun ecosystem.
 
 ```
 Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
 ```
 
-![screenshot](assets/stream_parsed_raydium_txns.jpg?raw=true "How to run project")
+![screenshot](assets/usage_screenshot.png?raw=true "How to run project")
 
 ## Getting Started
 

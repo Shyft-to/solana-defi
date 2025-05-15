@@ -1,4 +1,4 @@
-require('dotenv').config()
+import "dotenv/config";
 import Client, {
   CommitmentLevel,
   SubscribeRequestAccountsDataSlice,
@@ -9,15 +9,15 @@ import Client, {
   SubscribeRequestFilterSlots,
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { Idl } from "@project-serum/anchor";
+import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
-
+import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
-import pumpFunIdl from "./idls/pump_0.1.0.json";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
+import pumpFunAmmIdl from "./idls/pump_0.1.0.json";
+import { pumpFunParsedTransaction } from "./utils/pump-fun-parsed-transaction";
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -33,28 +33,25 @@ interface SubscribeRequest {
 }
 
 const TXN_FORMATTER = new TransactionFormatter();
-const PUMP_FUN_PROGRAM_ID = new PublicKey(
-  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+const PUMP_FUN_PROGRAM_ID  = new PublicKey(
+  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 );
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 )
 const PUMP_FUN_IX_PARSER = new SolanaParser([]);
 PUMP_FUN_IX_PARSER.addParserFromIdl(
-  PUMP_FUN_PROGRAM_ID.toBase58(),
-  pumpFunIdl as Idl,
+  PUMP_FUN_PROGRAM_ID .toBase58(),
+  pumpFunAmmIdl as Idl
 );
-
-const GEN_IX_PARSER = new SolanaParser([]);
-
 const PUMP_FUN_EVENT_PARSER = new SolanaEventParser([], console);
 PUMP_FUN_EVENT_PARSER.addParserFromIdl(
-  PUMP_FUN_PROGRAM_ID.toBase58(),
-  pumpFunIdl as Idl,
+  PUMP_FUN_PROGRAM_ID .toBase58(),
+  pumpFunAmmIdl as Idl
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
+  console.log("Subscribing to transactions...");
   const stream = await client.subscribe();
 
   // Create `error` / `end` handler
@@ -77,52 +74,24 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     if (data?.transaction) {
       const txn = TXN_FORMATTER.formTransactionFromJson(
         data.transaction,
-        Date.now(),
+        Date.now()
       );
 
-      console.log("Txn Received: ", txn.transaction.signatures[0]);
-
       const parsedTxn = decodePumpFunTxn(txn);
-
       if (!parsedTxn) return;
 
-      let rpcTxnWithParsed = {};
+      const pumpfunParsedTxn = pumpFunParsedTransaction(parsedTxn, txn);
+      if (!pumpfunParsedTxn) return;
 
-      if(txn.version === 0){
-        rpcTxnWithParsed = {
-          ...txn,
-          meta: {
-            ...txn.meta,
-            innerInstructions: parsedTxn.innerInstructions,
-          },
-          transaction: {
-            ...txn.transaction,
-            message: {
-              ...txn.transaction.message,
-              compiledInstructions: parsedTxn.compiledInstructions,
-            },
-          }
-        }
-      }
-      else {
-        rpcTxnWithParsed = {
-          ...txn,
-          meta: {
-            ...txn.meta,
-            innerInstructions: parsedTxn.innerInstructions,
-          },
-          transaction: {
-            ...txn.transaction,
-            message: {
-              ...txn.transaction.message,
-              instructions: parsedTxn.compiledInstructions,
-            },
-          }
-        }
-      }
-
-      console.log("parsed Transaction: ");
-      console.log(JSON.stringify(rpcTxnWithParsed));
+      console.log(
+        new Date(),
+        ":",
+        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+        JSON.stringify(pumpfunParsedTxn, null, 2) + "\n"
+      );
+      console.log(
+        "--------------------------------------------------------------------------------------------------"
+      );
     }
   });
 
@@ -155,10 +124,11 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 }
 
 const client = new Client(
-  process.env.GRPC_URL,
+  process.env.GRPC_URL!,
   process.env.X_TOKEN,
-  undefined,
+  undefined
 );
+
 const req: SubscribeRequest = {
   accounts: {},
   slots: {},
@@ -185,25 +155,28 @@ subscribeCommand(client, req);
 
 function decodePumpFunTxn(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
-
+  try{
   const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
     tx.transaction.message,
     tx.meta.loadedAddresses,
   );
 
-  const parsedInnerIxs = PUMP_FUN_IX_PARSER.parseTransactionWithInnerInstructions(
-    tx
+  const pumpFunIxs = paredIxs.filter((ix) =>
+    ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
   );
 
-  const compiledIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
+  const parsedInnerIxs = PUMP_FUN_IX_PARSER.parseTransactionWithInnerInstructions(tx);
+
+  const pumpfun_amm_inner_ixs = parsedInnerIxs.filter((ix) =>
+    ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
   );
 
-  const parsedFilteredInnerIxs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
-  );
 
-  const result = { compiledInstructions: compiledIxs, innerInstructions: parsedFilteredInnerIxs };
+  if (pumpFunIxs.length === 0) return;
+  const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
+  const result = { instructions: pumpFunIxs, inner_ixs: pumpfun_amm_inner_ixs, events };
   bnLayoutFormatter(result);
   return result;
+  }catch(err){
+  }
 }
