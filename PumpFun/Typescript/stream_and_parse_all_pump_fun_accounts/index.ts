@@ -12,7 +12,8 @@ import Client, {
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 
 import * as fs from 'fs';
-import { BorshAccountsCoder } from "@project-serum/anchor";
+import { BorshAccountsCoder } from "@coral-xyz/anchor";
+
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import bs58 from 'bs58';
 
@@ -36,7 +37,7 @@ interface SubscribeRequest {
 }
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
+ console.log("Subscribing to account updates...");
 const stream = await client.subscribe();
 
   // Create `error` / `end` handler
