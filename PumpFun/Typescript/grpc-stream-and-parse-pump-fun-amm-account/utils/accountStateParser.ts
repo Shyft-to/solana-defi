@@ -1,7 +1,7 @@
 
 import { BorshAccountsCoder } from "@coral-xyz/anchor";
 import * as fs from 'fs';
-import { convertBase64ToBase58 } from "./base-encoding";
+import { bnLayoutFormatter, convertBase64ToBase58 } from "./base-encoding";
 
 const program_idl = JSON.parse(fs.readFileSync('./idls/pump_amm_0.1.0.json', "utf8"));
 
@@ -21,6 +21,7 @@ export function parsedAccountData(data) {
     let parsedAccount;
     try {
         parsedAccount = coder.decodeAny(dataTx?.data);
+        bnLayoutFormatter(parsedAccount);
     
     } catch (error) {
         console.error("Failed to decode pool state:", error);
