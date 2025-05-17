@@ -173,7 +173,7 @@ function decodePumpFunTxn(tx: VersionedTransactionResponse) {
 
   if (pumpFunIxs.length === 0) return;
   const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: pumpFunIxs, inner_ixs: pumpfun_amm_inner_ixs, events };
+  const result = { instructions: {pumpFunIxs,events}, inner_ixs:  pumpfun_amm_inner_ixs };
   bnLayoutFormatter(result);
   return result;
   }catch(err){
