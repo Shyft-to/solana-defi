@@ -181,7 +181,7 @@ async fn geyser_subscribe(
                             "decoded_data": decoded_account
                         });
                 
-                        println!("\nAccount Info: {}", account_info);
+                     //   println!("\nAccount Info: {}", account_info);
                     } else {
                         println!("Account data is None for slot: {}", slot);
                     }
