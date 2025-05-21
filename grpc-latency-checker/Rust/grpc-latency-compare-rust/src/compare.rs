@@ -34,7 +34,7 @@ struct StreamConfig {
 
 #[derive(Debug, Clone)]
 struct Args {
-    yellowstone_stream_configs: Vec<StreamConfig>,
+    yellowstone_stream_configs: Option<Vec<StreamConfig>>,
     shred_stream_configs: Option<Vec<StreamConfig>>,
     timeout_dur: u64,
 }
@@ -58,7 +58,7 @@ impl Args {
             .unwrap_or(60);
 
         Args {
-            yellowstone_stream_configs: yellowstone_stream_configs,
+            yellowstone_stream_configs: Some(yellowstone_stream_configs),
             shred_stream_configs: Some(shred_stream_configs),
             timeout_dur,
         }
@@ -195,19 +195,24 @@ async fn main() {
     let mut shutdown_sig = Vec::new();
     let (m_tx, m_rx) = mpsc::channel(100_000);
 
-    for yellowstone_stream_config in args.yellowstone_stream_configs {
-        let token = yellowstone_stream_config.x_token.clone();
-        let (tx, rx) = oneshot::channel();
-        shutdown_sig.push(tx);
-        let m_tx = m_tx.clone();
+    match args.yellowstone_stream_configs {
+        Some(yellowstone_stream_configs) => {
+            for yellowstone_stream_config in yellowstone_stream_configs {
+                let token = yellowstone_stream_config.x_token.clone();
+                let (tx, rx) = oneshot::channel();
+                shutdown_sig.push(tx);
+                let m_tx = m_tx.clone();
 
-        info!(
-            "starting yellowstone grpc stream{}",
-            yellowstone_stream_config.uri
-        );
-        tokio::spawn(async move {
-            grpc_message_handler(rx, yellowstone_stream_config.uri, token, m_tx).await;
-        });
+                info!(
+                    "starting yellowstone grpc stream{}",
+                    yellowstone_stream_config.uri
+                );
+                tokio::spawn(async move {
+                    grpc_message_handler(rx, yellowstone_stream_config.uri, token, m_tx).await;
+                });
+            }
+        }
+        None => {}
     }
 
     match args.shred_stream_configs {
