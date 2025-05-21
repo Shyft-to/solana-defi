@@ -1,0 +1,48 @@
+[workspace]
+members = [
+    "jito_protos",
+    "."
+]
+
+[workspace.package]
+edition = "2021"
+authors = ["Pintu Das <impin2rex@gmail.com>"]
+homepage = "https://impin2rex.github.io"
+version = "0.1.0"
+
+[workspace.dependencies]
+tonic = { version = "0.10" }
+
+[package]
+name = "yellowstone-grpc-n-shred-latency-comparer"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "compare"
+path = "src/compare.rs"
+
+[dependencies]
+anyhow = "1.0.62"
+backoff = { version = "0.4.0", features = ["tokio"] }
+bincode = "1.3.3"
+bs58 = "0.5.1"
+chrono = "0.4.26"
+clap = { version = "4.3.0", features = ["derive"] }
+env_logger = "0.11.3"
+futures = "0.3.24"
+hex = "0.4.3"
+indicatif = "0.17.9"
+log = "0.4.17"
+maplit = "1.0.2"
+serde = { version = "1.0.86", features = ["derive"] }
+serde_json = "1.0.86"
+solana-sdk = "~2.1.1"
+solana-transaction-status = "~2.1.1"
+tokio = { version = "1.21.2", features = ["full"] }
+tonic = { workspace = true, features = ["tls", "tls-roots", "tls-webpki-roots"] }
+yellowstone-grpc-client = { version = "4.1.0" }
+yellowstone-grpc-proto = { version = "4.1.1", default-features = false, features = ["plugin"] }
+jito-protos = { path = "./jito_protos" }
+solana-entry = "~2.1.1"
+dotenv = "0.15.0"
