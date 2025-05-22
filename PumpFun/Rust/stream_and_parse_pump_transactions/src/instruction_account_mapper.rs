@@ -3,22 +3,22 @@ use serde::{Deserialize, Serialize};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use solana_sdk::instruction::AccountMeta;
 
-#[derive(Deserialize)]
+
+#[derive(Debug,Deserialize)]
 struct IdlInstruction {
     name: String,
     accounts: Vec<IdlAccount>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug,Deserialize)]
 struct IdlAccount {
     name: String,
-    #[serde(rename = "isMut")]
-    is_mut: bool,
-    #[serde(rename = "isSigner")]
-    is_signer: bool,
+    #[serde(default, rename = "is_writable")]
+    is_writable: Option<bool>, 
+    #[serde(default, rename = "is_signer")]
+    is_signer: Option<bool>, 
 }
-
-#[derive(Deserialize)]
+#[derive(Debug,Deserialize)]
 pub struct Idl {
     instructions: Vec<IdlInstruction>,
 }
@@ -49,7 +49,7 @@ impl<'info> InstructionAccountMapper<'info> for Idl {
         let instruction = self
             .instructions
             .iter()
-            .find(|ix| ix.name == instruction_name)
+            .find(|ix| ix.name.to_lowercase() == instruction_name.to_lowercase())
             .ok_or(ProgramError::InvalidArgument)?;
 
         let mut account_metadata: Vec<AccountMetadata> = accounts
@@ -60,8 +60,8 @@ impl<'info> InstructionAccountMapper<'info> for Idl {
                 let account_info = &instruction.accounts[i];
                 AccountMetadata {
                     pubkey: account.pubkey,
-                    is_writable: account_info.is_mut,
-                    is_signer: account_info.is_signer,
+                    is_writable: account_info.is_writable.unwrap_or(false),
+                    is_signer: account_info.is_signer.unwrap_or(false),
                     name: account_info.name.clone(),
                 }
             })
