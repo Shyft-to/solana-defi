@@ -12,6 +12,12 @@ pub struct Global {
     pub initial_real_token_reserves: u64,
     pub token_total_supply: u64,
     pub fee_basis_points: u64,
+    pub withdraw_authority : Pubkey,
+    pub enable_migrate: bool,
+    pub pool_migration_fee: u64,
+    pub creator_fee_basis_points: u64,
+    pub fee_recipients : [Pubkey; 7],
+    pub set_creator_authority: Pubkey,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlobalAccount(pub Global);
@@ -54,6 +60,7 @@ pub struct BondingCurve {
     pub real_sol_reserves: u64,
     pub token_total_supply: u64,
     pub complete: bool,
+    pub creator: Pubkey,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct BondingCurveAccount(pub BondingCurve);
