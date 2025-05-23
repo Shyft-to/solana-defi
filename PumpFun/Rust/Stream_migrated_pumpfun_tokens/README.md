@@ -1,19 +1,19 @@
-# Subscribe to Real-Time Updates for Migrated PumpFun Tokens Using gRPC
+# Streaming Pumpfun Amm transaction using gRPC and parsing instructions in Rust
 
-Gain a competitive edge by subscribing to real-time updates for tokens that complete their bonding curve and migrate from PumpFun to Raydium. Using gRPC, you can stream these critical updates directly into your application, ensuring you’re the first to know when a token transitions from its initial launch phase to a fully migrated state on Raydium.
+This project enables real-time gRPC streaming of Pumpfun AMM transactions on Solana, specifically targeting the program at pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA.
+It efficiently parses instructions from both the Pumpfun AMM and the Token Program, extracting essential transaction details for analysis.
 
-This integration is particularly valuable for traders, developers, and analysts who need to stay informed about token migrations as they happen. By leveraging Rust for this implementation, you benefit from a high-performance, memory-safe, and efficient system capable of handling real-time data streams with ease.
+Built with Rust, the implementation emphasizes high-performance decoding, leveraging the language’s strong type safety and concurrency features to handle high-throughput transaction streams.
+Parsed instructions are structured into a serializable format to ensure seamless integration with downstream systems.
 
-Whether you're building automated trading strategies, monitoring market trends, or conducting in-depth analysis, this gRPC-based solution provides a reliable and scalable way to track token migrations and capitalize on emerging opportunities in the decentralized finance (DeFi) ecosystem.
+This architecture ensures scalable and efficient processing, making it well-suited for applications that require deep insight into Solana-based DeFi activity.
 
 ```
- cargo run -- --endpoint https://grpc.ny.shyft.to --x-token<token>
+$ cargo run -- --endpoint <endpoint> --x-token <token>
+```
 
---PS: this code only works for the program ID <address>
--- DON'T attempt to use the code for any other program
+![screenshot](assets/pump-amm.png?raw=true "Screenshot")
+
 ## Notes
 
-gRPC client examples :https://github.com/Shyft-to/solana-defi
-Blogs : blogs.shyft.to
-Learn about shyft: https://shyft.to/
-Discord: https://discord.gg/6bSmYuDa
+gRPC client example in rust: [https://github.com/rpcpool/yellowstone-grpc/tree/master/examples/rust]
