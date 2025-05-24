@@ -78,7 +78,32 @@ impl Args {
         })
     }
 }
+#[allow(dead_code)]
+#[derive(Debug,Clone, Serialize)]
+pub enum DecodedAccount {
+    Pool(Pool),
+    GlobalConfig(GlobalConfig),
+}
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+struct ParsedData  {
+    parsed: DecodedAccount,
+}
+#[allow(dead_code)]
+#[derive(Debug,Clone)]
+struct Data  {
+   parsed : ParsedData,
+   executable: bool,
+   lamports : u64,
+   owner : String,
+   rent_epoch : u64,
+}
 
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+struct AccountValue {
+    data: Data,
+}
 
 pub trait AccountData: std::fmt::Debug {}
 
@@ -87,11 +112,7 @@ pub struct EmptyAccount;
 
 impl AccountData for EmptyAccount {}
 
-#[derive(Debug, Serialize)]
-pub enum DecodedAccount {
-    Pool(Pool),
-    GlobalConfig(GlobalConfig),
-}
+
 
 #[derive(Debug)]
 pub struct AccountDecodeError {
@@ -163,6 +184,8 @@ async fn geyser_subscribe(
                         let owner = bs58::encode(&account_data.owner).into_string();
                         let lamports = account_data.lamports;
                         let executable = account_data.executable;
+                        let rent = account_data.rent_epoch;
+
                 
                         let decoded_account = match decode_account_data(&account_data.data) {
                             Ok(data) => data,
@@ -171,17 +194,19 @@ async fn geyser_subscribe(
                                 return Ok(());// Handle the error as needed
                             }
                         };
+                        let account_json = AccountValue {
+                            data : Data {
+                                parsed: ParsedData {
+                                     parsed: decoded_account
+                                },
+                              executable : executable,
+                              lamports : lamports,
+                              owner : owner,
+                              rent_epoch : rent  
+                            }
+                        };
                 
-                        let account_info = serde_json::json!({
-                            "pubkey": pubkey_str,
-                            "lamports": lamports,
-                            "owner": owner,
-                            "executable": executable,
-                            "slot": slot,
-                            "decoded_data": decoded_account
-                        });
-                
-                     //   println!("\nAccount Info: {}", account_info);
+                        println!("\nAccount Info: {:?}", account_json);
                     } else {
                         println!("Account data is None for slot: {}", slot);
                     }
@@ -228,7 +253,6 @@ pub fn decode_account_data(buf: &[u8]) -> Result<DecodedAccount, AccountDecodeEr
                 .map_err(|e| AccountDecodeError {
                     message: format!("Failed to deserialize Pool: {}", e),
                 })?;
-            println!("\nDecoded Pool Amm Structure: {:#?}", data);
             Ok(DecodedAccount::Pool(data.0)) 
         }
         GLOBAL_CONFIG_ACCOUNT_DISCM => {
@@ -236,7 +260,6 @@ pub fn decode_account_data(buf: &[u8]) -> Result<DecodedAccount, AccountDecodeEr
                 .map_err(|e| AccountDecodeError {
                     message: format!("Failed to deserialize GlobalConfigz: {}", e),
                 })?;
-            println!("\nDecoded GlobalConfig Structure: {:#?}", data);
             Ok(DecodedAccount::GlobalConfig(data.0))
         }
         _ => Err(AccountDecodeError {
