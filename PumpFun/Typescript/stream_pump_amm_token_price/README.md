@@ -1,8 +1,8 @@
-# Real-Time PumpFun AMM Transaction Tracker on Solana
+# Stream token price update on pumpfun amm
 
-This project provides real-time streaming and parsing of PumpFun AMM transactions on the Solana blockchain. By monitoring live buy and sell events, it delivers actionable insights into market activity, user behavior, and trading trends within the PumpFun ecosystem. Ideal for developers, traders, and analysts seeking to understand Solana's decentralized finance (DeFi) dynamics.
+This project streams real-time token prices from the Pump.fun AMM using the formula `pool_sol_reserve / pool_token_reserve`. It enables users to track price movements and market capitalization in real time. By monitoring token prices before migration, the project provides valuable insights into market trends and potential investment opportunities.
 
-![screenshot](assets/amm-buy-sell.png?raw=true "Screenshot")
+![screenshot](assets/amm-usage-screenshot.png?raw=true "Screenshot")
 
 ## Getting Started
 
