@@ -24,7 +24,8 @@ export function parseSwapTransactionOutput(parsedInstruction) {
     const price = calculatePumpFunPrice(
         virtual_sol_reserves,
         virtual_token_reserves
-    ) + " Sol"; // Price in Sol, Multiply with Sol Price To get USD Price
+    ); // Price in Sol, Multiply with Sol Price To get USD Price
+     const formattedPrice = price.toFixed(20).replace(/0+$/, ''); // trims extra trailing zeros
 
     const output = {
         bonding_curve,
@@ -34,7 +35,7 @@ export function parseSwapTransactionOutput(parsedInstruction) {
         real_token_reserves,
         mint,
         creator,
-        price,
+        formattedPrice,
         supply,
     };
 
