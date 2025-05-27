@@ -1,12 +1,7 @@
-# Streaming Pumpfun Amm transaction using gRPC and parsing instructions in Rust
+# Stream token price update on pumpfun amm
 
-This project enables real-time gRPC streaming of Pumpfun AMM transactions on Solana, specifically targeting the program at pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA.
-It efficiently parses instructions from both the Pumpfun AMM and the Token Program, extracting essential transaction details for analysis.
 
-Built with Rust, the implementation emphasizes high-performance decoding, leveraging the language’s strong type safety and concurrency features to handle high-throughput transaction streams.
-Parsed instructions are structured into a serializable format to ensure seamless integration with downstream systems.
-
-This architecture ensures scalable and efficient processing, making it well-suited for applications that require deep insight into Solana-based DeFi activity.
+This project streams real-time token prices from the Pump.fun AMM using the formula `pool_sol_reserve / pool_token_reserve`. It enables users to track price movements and market capitalization in real time. By monitoring token prices before migration, the project provides valuable insights into market trends and potential investment opportunities.
 
 ```
 $ cargo run -- --endpoint <endpoint> --x-token <token>
