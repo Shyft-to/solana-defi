@@ -1,8 +1,12 @@
 # Stream token price update on pumpfun
 
-This project streams and calculates token prices on Pump.fun, allowing users to track price movements and market capitalization in real time. By monitoring token prices before migration, it provides valuable insights into market trends and potential opportunities.
+This project streams real-time token prices from the Pump.fun using the formula `virtualSolReserves / virtualTokenReserves`. It allows users to monitor live price movements and market capitalization. By tracking token prices prior to migration, the project delivers valuable insights into market trends and emerging investment opportunities.
 
-![screenshot](assets/run-project.png?raw=true "Screenshot")
+
+
+screenshot
+
+![screenshot](assets/usage-screenshot-pumpfun.png?raw=true "Screenshot")
 
 ## Getting Started
 
@@ -26,7 +30,7 @@ This project streams and calculates token prices on Pump.fun, allowing users to 
     npm run start
     ```
 
-*Note: On `.env` please input your env details before running the script.*
+*Note: Please rename the `.env.sample` file to `.env` and input your env details before running the script.*
 
 ## Related Links
 
