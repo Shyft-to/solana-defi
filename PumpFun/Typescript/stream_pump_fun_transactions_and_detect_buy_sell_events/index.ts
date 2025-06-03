@@ -17,7 +17,7 @@ import { TransactionFormatter } from "./utils/transaction-formatter";
 import pumpFunIdl from "./idls/pump_0.1.0.json";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import { transactionOutput } from "./utils/transactionOutput";
+import { parseSwapTransactionOutput } from "./utils/pumpfun_formatted_txn";
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -48,7 +48,7 @@ PUMP_FUN_EVENT_PARSER.addParserFromIdl(
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
+  console.log("Streaming Buy Sell on Pumpfun...")
   const stream = await client.subscribe();
 
   // Create `error` / `end` handler
@@ -76,18 +76,16 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       const parsedTxn = decodePumpFunTxn(txn);
 
       if (!parsedTxn) return;
-      const tOutput = transactionOutput(parsedTxn)
-
+      const parsedPumpfunTxn = parseSwapTransactionOutput(parsedTxn)
+       console.log(
+        new Date(),
+        ":",
+        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+        JSON.stringify(parsedPumpfunTxn, null, 2) + "\n"
+      );
       console.log(
-        `
-        TYPE : ${tOutput.type}
-        MINT : ${tOutput.mint}
-        SIGNER : ${tOutput.user}
-        TOKEN AMOUNT : ${tOutput.tokenAmount}
-        SOL AMOUNT : ${tOutput.solAmount} SOL
-        SIGNATURE : ${txn.transaction.signatures[0]}
-        `
-      )
+        "--------------------------------------------------------------------------------------------------"
+      );
     }
   });
 
