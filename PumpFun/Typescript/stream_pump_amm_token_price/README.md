@@ -9,7 +9,7 @@ This project streams real-time token prices from the Pump.fun AMM using the form
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_pump_fun_amm_transactions_and_detect_buy_sell_events
+   cd PumpFun/Typescript/stream_pump_amm_token_price
    ```
 
 2. **Install Dependencies:**
