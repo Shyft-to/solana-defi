@@ -2,7 +2,7 @@
 
 This project streams real-time token prices from the Pump.fun using the formula `virtualSolReserves / virtualTokenReserves`. It allows users to monitor live price movements and market capitalization. By tracking token prices prior to migration, the project delivers valuable insights into market trends and emerging investment opportunities.
 
-
+Note: Prices are calculated in SOL. To convert to USD, please multiply the amount by the current SOL-to-USD exchange rate.
 
 screenshot
 
