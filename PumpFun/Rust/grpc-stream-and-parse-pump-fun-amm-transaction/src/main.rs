@@ -1,6 +1,7 @@
 mod serialization;
 mod instruction_account_mapper;
 mod token_serializable;
+mod event_account_mapper;
 
 use {
     backoff::{future::retry, ExponentialBackoff}, clap::Parser as ClapParser, futures::{
@@ -37,7 +38,9 @@ use crate::token_serializable::convert_to_serializable;
 
 use solana_transaction_status::Rewards;
 use::solana_sdk::transaction::Result as TransactionResult;
-
+use crate::event_account_mapper::AccountEventError;
+use crate::event_account_mapper::DecodedEvent;
+use crate::event_account_mapper::decode_event_data;
 
 type TxnFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
 
@@ -106,11 +109,13 @@ struct TransactionInstructionWithParent {
     parent_program_id: Option<Pubkey>,
 }
 
+
 #[derive(Clone, Debug, Serialize,PartialEq)]
 pub struct DecodedInstruction {
     pub name: String,
     pub accounts: Vec<AccountMetadata>,
     pub data: serde_json::Value,
+    pub event: Option<DecodedEvent>, // 👈 this is always serializable
     #[serde(serialize_with = "serialize_pubkey")]
     pub program_id: Pubkey,
     #[serde(serialize_with = "serialize_option_pubkey")]
@@ -469,7 +474,7 @@ async fn geyser_subscribe(
                             block_time: Some(block_time),
                         };
 
-                    
+                        let mut decoded_event_json = None;
 
                         let compiled_instructions: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
@@ -488,6 +493,31 @@ async fn geyser_subscribe(
                                 vec![]
                             }
                         };
+
+                        if let TransactionWithStatusMeta::Complete(versioned_meta) = &confirmed_txn_with_meta.tx_with_meta {
+                      if let Some(logs) = &versioned_meta.meta.log_messages {
+                      if let Some(data_msg) = event_account_mapper::extract_log_message(logs) {
+                         match base64::decode(&data_msg) {
+                        Ok(decoded_bytes) => {
+                        match decode_event_data(&decoded_bytes) {
+                            Ok(event) => {
+                            decoded_event_json = Some(event);
+                           // println!("✅ Successfully decoded account: {:#?}", decoded_event_json);
+                            }
+                            Err(err) => {
+                             eprintln!("❌ Failed to decode account data: {}", err.message);
+                             decoded_event_json = None; // explicitly fall back to None
+                            }
+                        }
+                    }
+                        Err(err) => {
+                        eprintln!("❌ Failed to decode base64 log message: {}", err);
+                                }
+                            }
+                        }
+                            }
+                        }   
+
 
                         
                         let token_idl_json = fs::read_to_string("idls/token_program_idl.json")
@@ -522,6 +552,7 @@ async fn geyser_subscribe(
                                                             return;
                                                         }
                                                     },
+                                                   event: decoded_event_json.clone(),                                                    
                                                     program_id: instruction.instruction.program_id,
                                                     parent_program_id: instruction.parent_program_id,
                                                 };
@@ -567,6 +598,7 @@ async fn geyser_subscribe(
                                                                 return;
                                                             }
                                                         },
+                                                        event: None,                                                      
                                                         program_id: instruction.instruction.program_id,
                                                         parent_program_id: instruction.parent_program_id,
                                                     };
@@ -613,6 +645,7 @@ async fn geyser_subscribe(
                                                             return;
                                                         }
                                                     },
+                                                     event: decoded_event_json.clone(),                                                    
                                                     program_id: instruction.instruction.program_id,
                                                     parent_program_id: instruction.parent_program_id,
                                                 };
@@ -659,6 +692,7 @@ async fn geyser_subscribe(
                                                                 return;
                                                             }
                                                         },
+                                                        event: None,                                                      
                                                         program_id: instruction.instruction.program_id,
                                                         parent_program_id: instruction.parent_program_id,
                                                     };
