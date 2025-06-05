@@ -16,8 +16,7 @@ import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/gr
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import pumpFunAmmIdl from "./idls/pump_amm_0.1.0.json";
-import { writeFileSync } from "fs";
+import pumpSwapAmmIdl from "./idls/pump_amm_0.1.0.json";
 import { parseSwapTransactionOutput } from "./utils/swapTransactionParser";
 
 interface SubscribeRequest {
@@ -34,18 +33,18 @@ interface SubscribeRequest {
 }
 
 const TXN_FORMATTER = new TransactionFormatter();
-const PUMP_FUN_AMM_PROGRAM_ID = new PublicKey(
+const PUMP_AMM_PROGRAM_ID = new PublicKey(
   "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
 );
-const PUMP_FUN_IX_PARSER = new SolanaParser([]);
-PUMP_FUN_IX_PARSER.addParserFromIdl(
-  PUMP_FUN_AMM_PROGRAM_ID.toBase58(),
-  pumpFunAmmIdl as Idl
+const PUMP_AMM_IX_PARSER = new SolanaParser([]);
+PUMP_AMM_IX_PARSER.addParserFromIdl(
+  PUMP_AMM_PROGRAM_ID.toBase58(),
+  pumpSwapAmmIdl as Idl
 );
-const PUMP_FUN_EVENT_PARSER = new SolanaEventParser([], console);
-PUMP_FUN_EVENT_PARSER.addParserFromIdl(
-  PUMP_FUN_AMM_PROGRAM_ID.toBase58(),
-  pumpFunAmmIdl as Idl
+const PUMP_AMM_EVENT_PARSER = new SolanaEventParser([], console);
+PUMP_AMM_EVENT_PARSER.addParserFromIdl(
+  PUMP_AMM_PROGRAM_ID.toBase58(),
+  pumpSwapAmmIdl as Idl
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
@@ -76,7 +75,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now()
       );
 
-      const parsedTxn = decodePumpFunTxn(txn);
+      const parsedTxn = decodePumpAmmTxn(txn);
 
       if (!parsedTxn) return;
      const formattedSwapTxn = parseSwapTransactionOutput(parsedTxn,txn);
@@ -136,7 +135,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [PUMP_FUN_AMM_PROGRAM_ID.toBase58()],
+      accountInclude: [PUMP_AMM_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },
@@ -152,28 +151,28 @@ const req: SubscribeRequest = {
 
 subscribeCommand(client, req);
 
-function decodePumpFunTxn(tx: VersionedTransactionResponse) {
+function decodePumpAmmTxn(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
   try{
-  const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
+  const paredIxs = PUMP_AMM_IX_PARSER.parseTransactionData(
     tx.transaction.message,
     tx.meta.loadedAddresses,
   );
 
-  const pumpFunIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+  const pumpAmmIxs = paredIxs.filter((ix) =>
+    ix.programId.equals(PUMP_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
   );
 
-  const parsedInnerIxs = PUMP_FUN_IX_PARSER.parseTransactionWithInnerInstructions(tx);
+  const parsedInnerIxs = PUMP_AMM_IX_PARSER.parseTransactionWithInnerInstructions(tx);
 
-  const pumpfun_amm_inner_ixs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+  const pump_amm_inner_ixs = parsedInnerIxs.filter((ix) =>
+    ix.programId.equals(PUMP_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
   );
 
 
-  if (pumpFunIxs.length === 0) return;
-  const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: {pumpFunIxs,events}, inner_ixs:  pumpfun_amm_inner_ixs };
+  if (pumpAmmIxs.length === 0) return;
+  const events = PUMP_AMM_EVENT_PARSER.parseEvent(tx);
+  const result = { instructions: {pumpAmmIxs,events}, inner_ixs:  pump_amm_inner_ixs };
   bnLayoutFormatter(result);
   return result;
   }catch(err){
