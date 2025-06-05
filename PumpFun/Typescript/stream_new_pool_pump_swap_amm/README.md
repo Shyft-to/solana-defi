@@ -1,6 +1,6 @@
-# Stream and parse Pump.Fun New Pool transactions instructions via gRPC
+# Stream and parse Pump Swap Amm New Pool transactions instructions via gRPC
 
-This project provides a Node.js service to fetch and parse new pool transactions from Pump.Fun AMM using gRPC.
+This project provides a Node.js service to fetch and parse new pool transactions from Pump Swap AMM using gRPC.
 
 ## Features
 - Uses Solana gRPC API to retrieve new pool transaction.
@@ -13,7 +13,7 @@ This project provides a Node.js service to fetch and parse new pool transactions
 ## Installation
 ```sh
 git clone https://github.com/Shyft-to/solana-defi.git
-cd stream_new_pool_pumpfun_amm_transactions
+cd stream_new_pool_pumpfun_swap_amm
 npm install
 ```
 

@@ -1,4 +1,4 @@
-export function pumpfun_amm_formatter(parsedInstruction,txn){
+export function pump_amm_formatter(parsedInstruction,txn){
     let output = {};
     const instruction_name = parsedInstruction.instructions.find((x)=> x.name === 'create_pool')
     if(!instruction_name)return;

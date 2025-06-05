@@ -16,8 +16,8 @@ import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/gr
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import pumpFunAmmIdl from "./idls/pump_amm_0.1.0.json";
-import { pumpfun_amm_formatter } from "./utils/pumpfun-amm-txn-formatter";
+import pumpAmmIdl from "./idls/pump_amm_0.1.0.json";
+import { pump_amm_formatter } from "./utils/pump-amm-txn-formatter";
 import { writeFileSync } from "fs";
 
 const originalConsoleWarn = console.warn;
@@ -68,22 +68,22 @@ interface SubscribeRequest {
 }
 
 const TXN_FORMATTER = new TransactionFormatter();
-const PUMP_FUN_AMM_PROGRAM_ID = new PublicKey(
+const PUMP_AMM_PROGRAM_ID = new PublicKey(
   "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
 );
-const PUMP_FUN_IX_PARSER = new SolanaParser([]);
-PUMP_FUN_IX_PARSER.addParserFromIdl(
-  PUMP_FUN_AMM_PROGRAM_ID.toBase58(),
-  pumpFunAmmIdl as Idl
+const PUMP_AMM_IX_PARSER = new SolanaParser([]);
+PUMP_AMM_IX_PARSER.addParserFromIdl(
+  PUMP_AMM_PROGRAM_ID.toBase58(),
+  pumpAmmIdl as Idl
 );
-const PUMP_FUN_EVENT_PARSER = new SolanaEventParser([], console);
-PUMP_FUN_EVENT_PARSER.addParserFromIdl(
-  PUMP_FUN_AMM_PROGRAM_ID.toBase58(),
-  pumpFunAmmIdl as Idl
+const PUMP_AMM_EVENT_PARSER = new SolanaEventParser([], console);
+PUMP_AMM_EVENT_PARSER.addParserFromIdl(
+  PUMP_AMM_PROGRAM_ID.toBase58(),
+  pumpAmmIdl as Idl
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  console.log("Searching Newly Created Pools on Pumpfun AMM");
+  console.log("Searching Newly Created Pools on Pump Swap AMM");
   const stream = await client.subscribe();
 
   const streamClosed = new Promise<void>((resolve, reject) => {
@@ -108,10 +108,10 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now()
       );
 
-      const parsedTxn = decodePumpFunTxn(txn);
+      const parsedTxn = decodePumpAmmTxn(txn);
 
       if (!parsedTxn) return;
-      const formatterPAMMTxn = pumpfun_amm_formatter(parsedTxn, txn);
+      const formatterPAMMTxn = pump_amm_formatter(parsedTxn, txn);
       if (!formatterPAMMTxn) return;
       console.log(
         new Date(),
@@ -162,11 +162,11 @@ const req: SubscribeRequest = {
   accounts: {},
   slots: {},
   transactions: {
-    pumpFun: {
+    pumpAmm: {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [PUMP_FUN_AMM_PROGRAM_ID.toBase58()],
+      accountInclude: [PUMP_AMM_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },
@@ -182,21 +182,21 @@ const req: SubscribeRequest = {
 
 subscribeCommand(client, req);
 
-function decodePumpFunTxn(tx: VersionedTransactionResponse) {
+function decodePumpAmmTxn(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
 
-  const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
+  const paredIxs = PUMP_AMM_IX_PARSER.parseTransactionData(
     tx.transaction.message,
     tx.meta.loadedAddresses
   );
 
-  const pumpFunIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_FUN_AMM_PROGRAM_ID)
+  const pumpAmmIxs = paredIxs.filter((ix) =>
+    ix.programId.equals(PUMP_AMM_PROGRAM_ID)
   );
 
-  if (pumpFunIxs.length === 0) return;
-  const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: pumpFunIxs, events };
+  if (pumpAmmIxs.length === 0) return;
+  const events = PUMP_AMM_EVENT_PARSER.parseEvent(tx);
+  const result = { instructions: pumpAmmIxs, events };
   bnLayoutFormatter(result);
   return result;
 }
