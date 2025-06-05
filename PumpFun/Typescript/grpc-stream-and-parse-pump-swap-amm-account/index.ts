@@ -13,7 +13,7 @@ import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/gey
 import {  PublicKey } from "@solana/web3.js";
 import { parsedAccountData } from "./utils/accountStateParser";
 
-const PUMP_FUN_AMM_PROGRAM_ID = new PublicKey(
+const PUMP_SWAP_AMM_PROGRAM_ID = new PublicKey(
   "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
 );
 
@@ -97,10 +97,10 @@ const client = new Client(
 const req: SubscribeRequest = {
   "slots": {},
   "accounts": {
-    "pumpfun": {
+    "pumpswap_amm": {
       "account": [],
       "filters": [],
-      "owner": [PUMP_FUN_AMM_PROGRAM_ID.toBase58()]
+      "owner": [PUMP_SWAP_AMM_PROGRAM_ID.toBase58()]
     }
   },
   "transactions": {},
