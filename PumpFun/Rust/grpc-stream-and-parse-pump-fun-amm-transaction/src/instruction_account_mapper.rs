@@ -49,7 +49,11 @@ impl<'info> InstructionAccountMapper<'info> for Idl {
         let instruction = self
             .instructions
             .iter()
-            .find(|ix| ix.name.to_lowercase() == instruction_name.to_lowercase())
+            .find(|ix| 
+                ix.name.to_lowercase() == instruction_name.to_lowercase() 
+                || ix.name == instruction_name ||
+                to_pascal_case(&ix.name) == instruction_name
+            )
             .ok_or(ProgramError::InvalidArgument)?;
 
         let mut account_metadata: Vec<AccountMetadata> = accounts
@@ -78,4 +82,15 @@ impl<'info> InstructionAccountMapper<'info> for Idl {
 
         Ok(account_metadata)
     }
+}
+fn to_pascal_case(s: &str) -> String {
+    s.split('_')
+        .map(|word| {
+            let mut c = word.chars();
+            match c.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        })
+        .collect::<String>()
 }
