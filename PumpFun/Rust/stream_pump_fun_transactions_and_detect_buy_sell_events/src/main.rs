@@ -766,7 +766,6 @@ async fn geyser_subscribe(
                         },
                         block_time: confirmed_txn_with_meta.block_time,
                     };
-                   //    info!("Pumpfun TXN: {:?}", parsed_confirmed_txn_with_meta);
                         let pumpfun_txn = parsed_pump_txn(parsed_confirmed_txn_with_meta.clone());
                         if let Some(pumpfun_txn) = pumpfun_txn {
                          println!("Pump AMM:\n{:#?}", pumpfun_txn);
