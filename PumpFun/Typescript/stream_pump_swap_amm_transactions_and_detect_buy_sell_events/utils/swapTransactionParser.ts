@@ -2,7 +2,7 @@ export function parseSwapTransactionOutput(parsedInstruction, transaction) {
     const SOL_MINT = 'So11111111111111111111111111111111111111112';
     let output = {};
 
-    const swapInstruction = parsedInstruction.instructions.pumpFunIxs.find(
+    const swapInstruction = parsedInstruction.instructions.pumpAmmIxs.find(
         (instruction) => instruction.name === 'buy' || instruction.name === 'sell'
     );
 
