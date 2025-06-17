@@ -9,7 +9,7 @@ focusing on identifying important account updates and changes,
 thereby offering valuable information about the pool’s status
 
 
-![screenshot](assets/PumpfunAmm.png?raw=true "Screenshot")
+![screenshot](assets/PumpAmm.png?raw=true "Screenshot")
 
 
 ## Getting Started
@@ -18,7 +18,7 @@ thereby offering valuable information about the pool’s status
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
    
-   cd PumpFun/Typescript/grpc-stream-and-parse-pump-fun-amm-account
+   cd PumpFun/Typescript/grpc-stream-and-parse-pump-swap-amm-account
    ```
 
 2. **Install Dependencies:**
