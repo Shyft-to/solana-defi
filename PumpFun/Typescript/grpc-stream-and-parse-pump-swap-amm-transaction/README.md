@@ -1,6 +1,6 @@
-# Stream and parse Pump.Fun AMM transaction instructions via gRPC
+# Stream and parse Pumpswap AMM transaction instructions via gRPC
 
-This project provides a Node.js service to fetch and parse transactions from Pump.Fun AMM using gRPC.
+This project provides a Node.js service to fetch and parse transactions from Pumpswap AMM using gRPC.
 
 ## Features
 - Uses Solana gRPC API for efficient transaction retrieval.
@@ -9,8 +9,8 @@ This project provides a Node.js service to fetch and parse transactions from Pum
 
 ## Installation
 ```sh
-git clone https://github.com/impin2rex/stream-and-parse-pump-fun-amm-transaction-instructions-via-grpc.git
-cd stream-and-parse-pump-fun-amm-transaction-instructions-via-grpc
+git clone https://github.com/Shyft-to/solana-defi.git
+cd grpc-stream-and-parse-pump-swap-amm-transaction
 npm install
 ```
 

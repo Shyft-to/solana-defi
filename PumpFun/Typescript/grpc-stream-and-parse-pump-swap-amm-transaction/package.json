@@ -1,19 +1,19 @@
 {
-  "name": "stream-and-parse-pump-fun-amm-transaction-instructions-via-grpc",
+  "name": "grpc-stream-and-parse-pump-swap-amm-transaction",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
   "type": "commonjs",
-  "scripts": {
-    "watch": "npx ts-node-dev index.ts",
-    "build": "npx tsc",
-    "start": "node dist/index.js"
+    "scripts": {
+    "start": "npx ts-node index.ts",
+    "build": "npx tsc"
   },
-  "author": "impin2rex",
+  "author": "shyft-to",
   "keywords": [
     "solana",
     "grpc",
-    "pump.fun",
+    "pump",
+    "swap",
     "amm",
     "transaction",
     "parser",
