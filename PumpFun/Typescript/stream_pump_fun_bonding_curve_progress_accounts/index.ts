@@ -1,15 +1,8 @@
 import "dotenv/config";
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 
 import * as fs from 'fs';
 import { BorshAccountsCoder } from "@coral-xyz/anchor";
@@ -22,19 +15,7 @@ const PUMP_PROGRAM_ID = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 const program_idl = JSON.parse(fs.readFileSync('./Idl/pump_0.1.0.json', 'utf8'));
 
 const accountCoder = new BorshAccountsCoder(program_idl);
-
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
+const accountNames = ["BondingCurve", "Global"];
 
 async function handleStream(client: Client, args: SubscribeRequest) {
   console.log("Subscribing to account updates...");
@@ -60,27 +41,33 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     try {
       if (data?.account) {
         const accountName = getAccountName(data.account.account.data);
-        const decodedData = accountCoder.decodeAny(data.account.account.data);
-        if (!decodedData)
-          return;
 
-        bnLayoutFormatter(decodedData);
+        if(accountName === "BondingCurve") {
+          const decodedData = accountCoder.decodeAny(data.account.account.data);
+          if (!decodedData)
+            return;
 
-        const accountInfo = {
-          pubkey: bs58.encode(data.account.account.pubkey),
-          data: decodedData,
-          owner: bs58.encode(data.account.account.owner),
-          lamports: data.account.account.lamports,
-          executable: data.account.account.executable,
-          rentEpoch: data.account.account.rentEpoch,
-          //slot: data.account.account.slot
-        };
-        // console.log(accountName, accountInfo);
+          
+          /* 
+          * To get the decoded bonding Curve account Info: 
+          
+            bnLayoutFormatter(decodedData);
+            const accountInfo = {
+              pubkey: bs58.encode(data.account.account.pubkey),
+              data: decodedData,
+              owner: bs58.encode(data.account.account.owner),
+              lamports: data.account.account.lamports,
+              executable: data.account.account.executable,
+              rentEpoch: data.account.account.rentEpoch,
+            }; 
+          */
 
-        // console.log("Decoded Account Info for ", bs58.encode(data.account.account.pubkey));
-        console.dir(accountInfo, { depth: null });
+          const formattedLamports = formatLamports(data.account.account.lamports);
+          const progress = ((Number(formattedLamports)/84 )* 100);
+
+          console.log(`Bonding Curve ${bs58.encode(data.account.account.pubkey)} Progress: ${progress}%`);
+        }
       }
-
     } catch (error) {
       if (error) {
         console.log(error)
@@ -125,7 +112,7 @@ const req: SubscribeRequest = {
   "accounts": {
     "pumpfun": {
       "account": [],
-      "filters": [],
+      "filters": [], //memcmp filters to stream bonding curve accounts can also be added
       "owner": [PUMP_PROGRAM_ID] // raydium program id to subscribe to
     }
   },
@@ -140,14 +127,12 @@ const req: SubscribeRequest = {
 subscribeCommand(client, req);
 
 function getAccountName(data: string) {
-  const discriminator = Buffer.from(data, 'base64').slice(0, 8)
-  const accountNames = [Buffer.from("BondingCurve")]
-  
+  const discriminator = Buffer.from(data, 'base64').slice(0, 8);
+
   let account;
   accountNames.forEach((accountName) => {
-    console.log(discriminator)
-    console.log(accountName)
-    if (accountName.equals(discriminator)) {
+    const accountDiscriminator = accountCoder.accountDiscriminator(accountName);
+    if (accountDiscriminator.equals(discriminator)) {
       account = accountName
     }
   })
@@ -157,4 +142,8 @@ function getAccountName(data: string) {
   }
 
   return account
+}
+
+function formatLamports(lamports: number) {
+  return Number(lamports/1000000000).toFixed(2);
 }
