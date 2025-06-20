@@ -1,4 +1,4 @@
-# Stream and parse Pump.fun bonding curve in Real-time
+# Stream and parse Pump.fun bonding curve progress in Real-time
 
 This project streams Pump.fun account data on Solana in real-time via gRPC. Specifically, it focuses on parsing and tracking the bonding curve accounts. As updates are received, relevant data such as balance and metadata tied to the bonding curve are extracted and decoded using `BorshAccountCoder` from `@project-serum/anchor`.
 
