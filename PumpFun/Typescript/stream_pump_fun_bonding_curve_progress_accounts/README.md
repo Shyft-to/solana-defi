@@ -1,8 +1,8 @@
-# Stream and parse Pump.fun account updates in Real-time
+# Stream and parse Pump.fun bonding curve in Real-time
 
-This project streams PumpFun account updates on Solana in real-time. Once the updates are received, these updates are parsed using their corresponding IDL. Typically, accounts associated with a program have their owner field set to that program's address. For pump.fun, this can be used in monitoring various activities such as Token migration to Raydium, once the bonding curve is complete.  
+This project streams Pump.fun account data on Solana in real-time via gRPC. Specifically, it focuses on parsing and tracking the bonding curve accounts. As updates are received, relevant data such as balance and metadata tied to the bonding curve are extracted and decoded using `BorshAccountCoder` from `@project-serum/anchor`.
 
-This project uses `BorshAccountCoder` from `@project-serum/anchor` to decode account data.
+By analyzing these updates, the project calculates the bonding curve progress in real-time—providing insights into how far a token has advanced through the Pump.fun lifecycle. This is especially useful for detecting when a token is ready for actions like migration to Raydium or other post-curve events.
 
 ```
 Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
@@ -18,7 +18,7 @@ Pump.fun Program Id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
 2. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_and_parse_all_pump_fun_accounts
+   cd PumpFun/Typescript/stream_pump_fun_bonding_curve_progress_accounts
    ```
 
 3. **Install Dependencies:**
