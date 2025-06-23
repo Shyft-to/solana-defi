@@ -3,6 +3,53 @@ use solana_program::pubkey::Pubkey;
 
 pub const GLOBAL_CONFIG_ACCOUNT_DISCM: [u8; 8] = [149, 8, 156, 202, 160, 252, 176, 217];
 pub const POOL_ACCOUNT_DISCM: [u8; 8] = [241, 154, 109, 4, 17, 177, 109, 188];
+pub const BONDING_CURVE_DISCM : [u8; 8] = [ 23,183,248, 55, 96,216,172,96];
+
+#[derive(Clone,Debug,BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BondingCurve {
+    pub virtual_token_reserve: u64,
+    pub virtual_sol_reserve : u64,
+    pub real_token_reserve : u64,
+    pub real_sol_reserve : u64,
+    pub token_total_supply : u64,
+    pub complete : bool,
+    pub creator : Pubkey,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct BondingCurveAccount(pub BondingCurve);
+
+impl BondingCurveAccount {
+   pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        use std::io::Read;
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != BONDING_CURVE_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        BONDING_CURVE_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(BondingCurve::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&BONDING_CURVE_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
 
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -68,6 +115,7 @@ pub struct Pool {
     pub pool_quote_token_account: Pubkey,
 
     pub lp_supply: u64,
+    pub coin_creator: Pubkey,
 }
 
 #[derive(Clone, Debug, PartialEq)]
