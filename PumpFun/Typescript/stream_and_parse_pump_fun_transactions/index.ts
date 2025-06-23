@@ -36,6 +36,7 @@ const TXN_FORMATTER = new TransactionFormatter();
 const PUMP_FUN_PROGRAM_ID  = new PublicKey(
   "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 );
+
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 )
@@ -81,7 +82,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       if (!parsedTxn) return;
 
       const pumpfunParsedTxn = pumpFunParsedTransaction(parsedTxn, txn);
-      if (!pumpfunParsedTxn) return;
 
       console.log(
         new Date(),
