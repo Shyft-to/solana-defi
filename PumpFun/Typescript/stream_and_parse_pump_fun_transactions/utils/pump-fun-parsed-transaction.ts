@@ -1,4 +1,4 @@
-export function pumpFunParsedTransaction(parsedInstruction,txn){
+﻿export function pumpFunParsedTransaction(parsedInstruction,txn){
   let output = {};
 
     output = {
