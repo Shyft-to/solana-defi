@@ -1,44 +1,41 @@
-export function parseSwapTransactionOutput(parsedInstruction){
+export function parseSwapTransactionOutput(parsedInstruction) {
+  const innerInstructions = parsedInstruction.inner_ixs ?? [];
 
-    const swapInstruction = parsedInstruction.instructions.find(
-         (instruction) => instruction.name === 'buy' || instruction.name === 'sell'
-      );
-      if (!swapInstruction) {
-           return;
-      }
+  const swapInstruction = innerInstructions.find(
+    (ix) => ix.name === 'buy' || ix.name === 'sell'
+  );
 
-      const signerPubkey = swapInstruction.accounts.find((account) => account.name === 'user')?.pubkey;
-     const out_amount = parsedInstruction?.events?.[0]?.data?.solAmount;
-     const determineBuySellEvent = () => {
-         const mint = swapInstruction.accounts.find((account) => account.name === 'mint')?.pubkey;
-         if (!mint ) {
-             console.error("Base or quote mint not found in swap accounts");
-             return { type: "Unknown", mint: null };
-         }
+  if (!swapInstruction) return;
+  const { name: type, accounts = [], args = {} } = swapInstruction;
+  const baseAmountIn = args?.amount;
 
-         const eventType = swapInstruction.name === 'buy' ? "Buy" : "Sell";
+  const bondingCurve = accounts.find(a => a.name === 'bondingCurve')?.pubkey;
+  const userPubkey = accounts.find(a => a.name === 'user')?.pubkey;
+  const mint = accounts.find(a => a.name === 'mint')?.pubkey;
 
-         return { type: eventType, mint };
-     };
-
-     const buySellEvent = determineBuySellEvent();
-     const base_amount_in =  swapInstruction.args?.amount;
-     
-      const amountIn = swapInstruction.name === 'buy'
-         ? out_amount
-         : base_amount_in;
-
-  const amountOut = swapInstruction.name === 'sell'
-          ? out_amount
-         : base_amount_in;
-     const transactionEvent = {
-         type: swapInstruction.name,
-         user: signerPubkey,
-         mint: buySellEvent.mint,
-         out_amount: amountOut,
-         in_amount: amountIn, 
-      };
+  const transferInstruction = innerInstructions.find(
+    ix => ix.name === 'transfer' && ix.args.amount !== baseAmountIn
+  );
+  const alternativeAmountOut = innerInstructions.find(
+    ix =>
+      ix.name === 'transfer' &&
+      ix.args.amount !== baseAmountIn &&
+      ix.accounts.some(acct => acct.pubkey === bondingCurve)
+  )?.args?.lamports;
+  const solEventAmount = parsedInstruction?.events?.[0]?.data?.solAmount;
+  const outAmount = solEventAmount ?? alternativeAmountOut;
 
 
-    return  transactionEvent ;
+  const isBuy = type === 'buy';
+  const inAmount = isBuy ? outAmount : baseAmountIn;
+  const finalOutAmount = isBuy ? baseAmountIn : outAmount;
+
+  return {
+    type,
+    user: userPubkey,
+    mint,
+    bonding_curve: bondingCurve,
+    in_amount: inAmount,
+    out_amount: finalOutAmount,
+  };
 }
