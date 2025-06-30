@@ -1,6 +1,4 @@
 #[cfg(feature = "serde")]
-// use crate::serializer::{deserialize_u128_as_string, serialize_u128_as_string};
-use crate::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use inflector::Inflector;
 use solana_program::{
@@ -2701,7 +2699,7 @@ pub fn set_metaplex_creator_verify_writable_privileges<'me, 'info>(
 }
 
 pub fn set_metaplex_creator_verify_signer_privileges<'me, 'info>(
-    accounts: SetMetaplexCreatorAccounts<'me, 'info>,
+    _accounts: SetMetaplexCreatorAccounts<'me, 'info>,
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     Ok(())
 }
