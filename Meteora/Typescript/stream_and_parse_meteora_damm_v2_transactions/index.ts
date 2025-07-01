@@ -157,13 +157,19 @@ function decodeMeteoraDAMM(tx: VersionedTransactionResponse) {
   );
 
   const meteora_DAMM_Ixs = paredIxs.filter((ix) =>
-    ix.programId.equals(METEORA_DAMM_v2_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+    ix.programId.equals(METEORA_DAMM_v2_PROGRAM_ID) 
+    || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+    || ix.programId.equals(new PublicKey("ComputeBudget111111111111111111111111111111"))
+
+    ,
   );
 
   const parsedInnerIxs = METEORA_DAMM_IX_PARSER.parseTransactionWithInnerInstructions(tx);
-
   const meteroa_damm_inner_ixs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(METEORA_DAMM_v2_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+    ix.programId.equals(METEORA_DAMM_v2_PROGRAM_ID)
+    || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+    || ix.programId.equals(new PublicKey("ComputeBudget111111111111111111111111111111"))
+    ,
   );
 
 
