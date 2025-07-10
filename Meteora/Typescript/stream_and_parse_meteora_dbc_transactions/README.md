@@ -6,8 +6,8 @@ This project streams Meteora Dynamic Bonding Curve (DBC) transactions via gRPC,
 parsing both Meteora DBC and Token Program instructions in real time.
 
 It powers transactions on Jup Studio Launchpad by decoding 
-dynamic bonding curve mechanics—where activity adjusts
-dynamically with demand—enabling transparent, efficient execution.
+dynamic bonding curve mechanicsâ€”where activity adjusts
+dynamically with demandâ€”enabling transparent, efficient execution.
 
 Parsed data is structured for seamless processing and analysis,
 unlocking real-time insights into Solana-based transaction flows.
@@ -19,7 +19,7 @@ unlocking real-time insights into Solana-based transaction flows.
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_and_parse_meteora_dbc_transactions
+   cd Meteora/Typescript/stream_and_parse_meteora_dbc_transactions
    ```
 
 2. **Install Dependencies:**
