@@ -1,6 +1,6 @@
 <a id="readme-top"></a>
 
-# Streaming and Parsing Meteora DAMM New Pools using gRPC
+# Streaming and Parsing Meteora DAMM v2 New Pools using gRPC
 
 This project enables real-time streaming and parsing of newly created pools on Meteora’s DAMM (Dynamic Automated Market Maker) by detecting the `initialize_pool` instruction.
 It efficiently captures, decodes, and structures transaction data related to Meteora DAMM and Solana Token Program instructions as they occur on-chain.
@@ -17,7 +17,7 @@ Built in Rust for safety and performance, and using gRPC streaming, the implemen
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd Meteora/Typescript/stream_and_parse_meteora_damm_new_pools
+   cd Meteora/Typescript/stream_and_parse_meteora_v2_damm_new_pools
    ```
 
 2. **Install Dependencies:**

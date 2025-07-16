@@ -76,6 +76,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       const parsedTxn = decodeCpmmTxn(txn);
       if (!parsedTxn) return; 
       const formattedTxn = parsedTransactionOutput(parsedTxn,txn);
+       if (!formattedTxn) return;
        console.log(
          new Date(),
          ":",

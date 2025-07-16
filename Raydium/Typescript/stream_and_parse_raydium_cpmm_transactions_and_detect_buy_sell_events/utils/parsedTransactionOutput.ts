@@ -1,74 +1,75 @@
 export function parsedTransactionOutput(parsedTxn, txn) {
   const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-const swapInstruction = parsedTxn.innerInstructions?.find(
-    (instruction) => instruction.name === 'swapBaseInput' || instruction.name === 'swapBaseOutput'
+  const swapInstruction = parsedTxn.innerInstructions?.find(
+    (instr) => instr.name === 'swapBaseInput' || instr.name === 'swapBaseOutput'
   );
 
-  if (!swapInstruction) {
-    console.error("swapBaseInput or swapBaseOutput instruction not found in innerInstructions");
-    return txn; 
-  }
+  if (!swapInstruction) return;
 
-  const signerPubkey = swapInstruction.accounts?.find((account) => account.name === 'payer')?.pubkey;
+  const getAccountPubkey = (name) =>
+    swapInstruction.accounts?.find((acc) => acc.name === name)?.pubkey;
 
+  const signerPubkey = getAccountPubkey('payer');
   if (!signerPubkey) {
     console.error("Payer account not found in swapInstruction accounts");
     return txn;
   }
-    const swapAmount = swapInstruction.name === 'swapBaseInput' 
-    ? swapInstruction.args?.amountIn 
+
+  const expectedAmount = swapInstruction.args.amountIn ?? swapInstruction.args.amountOut;
+
+  const transferInstruction = parsedTxn.innerInstructions.find(
+    (x) => x.name === 'transferChecked' && x.args.amount !== expectedAmount
+  );
+
+  const amountOut = transferInstruction?.args?.amount ?? 0;
+
+  const isSwapInput = swapInstruction.name === 'swapBaseInput';
+
+  const swapAmount = isSwapInput
+    ? swapInstruction.args?.amountIn
     : swapInstruction.args?.maxAmountIn;
 
-  const minimumAmount = swapInstruction.name === 'swapBaseInput' 
-    ? swapInstruction.args?.minimumAmountOut 
-    : swapInstruction.args?.amountOut;
+  const inputMint = getAccountPubkey('inputTokenMint');
+  const outputMint = getAccountPubkey('outputTokenMint');
 
-  const determineBuySellEvent = () => {
-    const inputMintPubkey = swapInstruction.accounts?.find((account) => account.name === 'inputTokenMint')?.pubkey;
-    const outputMintPubkey = swapInstruction.accounts?.find((account) => account.name === 'outputTokenMint')?.pubkey;
+  let type = 'Unknown';
+  let mint = null;
 
-    if (!inputMintPubkey || !outputMintPubkey) {
-      console.error("Input or output mint not found in swap accounts");
-      return { type: "Unknown", mint: null };
-    }
-
-    const mint = inputMintPubkey === SOL_MINT ? outputMintPubkey : inputMintPubkey;
-    const eventType = inputMintPubkey === SOL_MINT ? "Buy" : "Sell";
-
-    return { type: eventType, mint };
-  };
-
-  const buySellEvent = determineBuySellEvent();
+  if (inputMint && outputMint) {
+    type = inputMint === SOL_MINT ? 'Buy' : 'Sell';
+    mint = inputMint === SOL_MINT ? outputMint : inputMint;
+  } else {
+    console.error("Input or output token mint not found.");
+  }
+  const amount_in = type === 'Buy' ? swapAmount : swapAmount;
+  const amount_out = type === 'Buy' ? amountOut : amountOut;
 
   const transactionEvent = {
-    name : swapInstruction.name,
-    type: buySellEvent.type,
+    name: swapInstruction.name,
+    type,
     user: signerPubkey,
-    mint: buySellEvent.mint,
-    amount: swapAmount,
-    amount_out: minimumAmount,
+    mint,
+    amount: amount_in,
+    amount_out,
   };
 
-  let rpcTxnWithParsed = {};
-
-  if (txn.version === 0) {
-    rpcTxnWithParsed = {
-      ...txn,
-      meta: {
-        ...txn.meta,
-        innerInstructions: parsedTxn.innerInstructions,
-      },
-      transaction: {
-        ...txn.transaction,
-        message: {
-          ...txn.transaction.message,
-          compiledInstructions: parsedTxn.compiledInstructions,
+  const rpcTxnWithParsed = txn.version === 0
+    ? {
+        ...txn,
+        meta: {
+          ...txn.meta,
+          innerInstructions: parsedTxn.innerInstructions,
+        },
+        transaction: {
+          ...txn.transaction,
+          message: {
+            ...txn.transaction.message,
+            compiledInstructions: parsedTxn.compiledInstructions,
+          },
         },
       }
-    }
+    : txn;
 
-  }
-
-  return {rpcTxnWithParsed,transactionEvent};
+  return { rpcTxnWithParsed, transactionEvent };
 }

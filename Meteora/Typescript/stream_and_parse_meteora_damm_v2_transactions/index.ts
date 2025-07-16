@@ -33,22 +33,22 @@ interface SubscribeRequest {
 }
 
 const TXN_FORMATTER = new TransactionFormatter();
-const METEORA_DAMM_PROGRAM_ID = new PublicKey(
+const METEORA_DAMM_v2_PROGRAM_ID = new PublicKey(
   "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
 );
 const METEORA_DAMM_IX_PARSER = new SolanaParser([]);
 METEORA_DAMM_IX_PARSER.addParserFromIdl(
-  METEORA_DAMM_PROGRAM_ID.toBase58(),
+  METEORA_DAMM_v2_PROGRAM_ID.toBase58(),
   meteoraDAMMIdl as Idl,
 );
 const METEORA_DAMM_EVENT_PARSER = new SolanaEventParser([], console);
 METEORA_DAMM_EVENT_PARSER.addParserFromIdl(
-  METEORA_DAMM_PROGRAM_ID.toBase58(),
+  METEORA_DAMM_v2_PROGRAM_ID.toBase58(),
   meteoraDAMMIdl as Idl,
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  console.log("Listening to new pools on Meteora DAMM...")
+  // Subscribe for events
   const stream = await client.subscribe();
 
   // Create `error` / `end` handler
@@ -77,7 +77,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
 
       if (!parsedInstruction) return;
       const parsedMeteoraDamm = meteoradammTransactionOutput(parsedInstruction,txn)
-      if(!parsedMeteoraDamm) return;
      console.log(
         new Date(),
         ":",
@@ -131,7 +130,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [METEORA_DAMM_PROGRAM_ID.toBase58()],
+      accountInclude: [METEORA_DAMM_v2_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },
@@ -158,13 +157,19 @@ function decodeMeteoraDAMM(tx: VersionedTransactionResponse) {
   );
 
   const meteora_DAMM_Ixs = paredIxs.filter((ix) =>
-    ix.programId.equals(METEORA_DAMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+    ix.programId.equals(METEORA_DAMM_v2_PROGRAM_ID) 
+    || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+    || ix.programId.equals(new PublicKey("ComputeBudget111111111111111111111111111111"))
+
+    ,
   );
 
   const parsedInnerIxs = METEORA_DAMM_IX_PARSER.parseTransactionWithInnerInstructions(tx);
-
   const meteroa_damm_inner_ixs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(METEORA_DAMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+    ix.programId.equals(METEORA_DAMM_v2_PROGRAM_ID)
+    || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+    || ix.programId.equals(new PublicKey("ComputeBudget111111111111111111111111111111"))
+    ,
   );
 
 

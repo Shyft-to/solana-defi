@@ -1,5 +1,8 @@
-﻿export function pumpFunParsedTransaction(parsedInstruction,txn){
+export function pumpFunParsedTransaction(parsedInstruction,txn){
+  const instructions = parsedInstruction.instructions.find((x)=> x.name === "migrate");
+   if(!instructions) return;
   let output = {};
+
     output = {
       ...txn,
       meta: {
