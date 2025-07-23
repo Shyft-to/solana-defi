@@ -66,6 +66,7 @@ pub async fn connect_and_stream(
     x_token: Option<&str>,
     pubkey_filter: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Waiting for Migrated Transactions");
     let endpoint = Endpoint::from_str(endpoint)?
         .keep_alive_while_idle(true)
         .http2_keep_alive_interval(Duration::from_secs(5))
@@ -114,12 +115,12 @@ pub async fn connect_and_stream(
                 };
 
                 if !matching_entries.is_empty() {
-                    println!(
-                        "slot {}, entries: {}, filtered transactions: {}",
-                        slot_entry.slot,
-                        matching_entries.len(),
-                        matching_entries.iter().map(|e| e.transactions.len()).sum::<usize>()
-                    );
+                    // println!(
+                    //     "slot {}, entries: {}, filtered transactions: {}",
+                    //     slot_entry.slot,
+                    //     matching_entries.len(),
+                    //     matching_entries.iter().map(|e| e.transactions.len()).sum::<usize>()
+                    // );
 
                     let raydium_launchpad_idl = fs::read_to_string("idls/raydium_launchpad.json")
                         .expect("Unable to read IDL JSON file");

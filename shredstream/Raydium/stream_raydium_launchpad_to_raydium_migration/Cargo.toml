@@ -6,8 +6,8 @@ members = [
 
 [workspace.package]
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
-homepage = "https://your-homepage.com"
+authors = ["Shyft"]
+homepage = "https://shyft.to"
 version = "0.1.0"
 
 [workspace.dependencies]
