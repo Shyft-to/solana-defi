@@ -118,7 +118,7 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 }
 
 const client = new Client(
-  process.env.ENDPOINT!,
+  process.env.GRPC_URL!,
   process.env.X_TOKEN,
   undefined
 );
@@ -155,13 +155,38 @@ function decodePumpAMMTxn(tx: VersionedTransactionResponse) {
     tx.meta.loadedAddresses
   );
 
-  const pumpFunIxs = paredIxs.filter((ix) =>
+  const pumpSwapIxs = paredIxs.filter((ix) =>
     ix.programId.equals(PUMP_AMM_PROGRAM_ID)
   );
-
-  if (pumpFunIxs.length === 0) return;
+   const hydratedTx = hydrateLoadedAddresses(tx);
+   const parsedInnerIxs = PUMP_AMM_IX_PARSER.parseTransactionWithInnerInstructions(hydratedTx);
+   const inner_ixs = parsedInnerIxs.filter((ix) =>
+      ix.programId.equals(PUMP_AMM_PROGRAM_ID) || 
+      ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+   || ix.programId.equals(new PublicKey("11111111111111111111111111111111"))
+      ,
+     );
+  if (pumpSwapIxs.length === 0 && inner_ixs.length === 0) return;
   const events = PUMP_AMM_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: pumpFunIxs, events };
+   const result = { instructions: pumpSwapIxs, inner_instructions: {inner_ixs,
+   events }};
   bnLayoutFormatter(result);
   return result;
+}
+function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
+  const loaded = tx.meta?.loadedAddresses;
+  if (!loaded) return tx;
+
+  function ensurePublicKey(arr: (Buffer | PublicKey)[]) {
+    return arr.map(item =>
+      item instanceof PublicKey ? item : new PublicKey(item)
+    );
+  }
+
+  tx.meta.loadedAddresses = {
+    writable: ensurePublicKey(loaded.writable),
+    readonly: ensurePublicKey(loaded.readonly),
+  };
+
+  return tx;
 }
