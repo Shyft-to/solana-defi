@@ -110,12 +110,12 @@ pub enum DecodedAccount {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ParsedData  {
-    parsed: DecodedAccount,
+    parsed_data: DecodedAccount,
 }
 #[allow(dead_code)]
 #[derive(Debug,Clone)]
 struct Data  {
-   parsed : ParsedData,
+   account : ParsedData,
    executable: bool,
    lamports : u64,
    owner : String,
@@ -124,7 +124,7 @@ struct Data  {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-struct AccountValue {
+struct Value {
     data: Data,
 }
 
@@ -217,10 +217,10 @@ async fn geyser_subscribe(
                                 return Ok(());// Handle the error as needed
                             }
                         };
-                        let account_json = AccountValue {
+                        let account_json = Value {
                             data : Data {
-                                parsed: ParsedData {
-                                     parsed: decoded_account
+                                account: ParsedData {
+                                     parsed_data: decoded_account
                                 },
                               executable : executable,
                               lamports : lamports,
