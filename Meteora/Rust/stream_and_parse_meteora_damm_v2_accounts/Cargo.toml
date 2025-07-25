@@ -1,5 +1,5 @@
 [package]
-name = "pump_fun_grpc_txn_stream_n_parse"
+name = "stream_and_parse_meteora_damm_v2_accounts"
 version = "0.1.0"
 edition = "2021"
 
