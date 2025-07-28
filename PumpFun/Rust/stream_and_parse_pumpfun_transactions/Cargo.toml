@@ -1,5 +1,5 @@
 [package]
-name = "grpc-raydium-pool-monitoring-rust"
+name = "stream_and_parse_pumpfun_transactions"
 version = "1.0.0"
 authors = ["adilcpm"]
 edition = "2021"
