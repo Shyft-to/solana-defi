@@ -1,5 +1,5 @@
 [package]
-name = "whirlpool_grpc_txn_stream_n_parse"
+name = ""stream_and_parse_orca_transactions_and_detect_buy_sell_events
 version = "0.1.0"
 edition = "2021"
 
