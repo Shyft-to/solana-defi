@@ -1,0 +1,15 @@
+[package]
+name = "jito-protos"
+version = "0.1.0"
+description = "Protobufs for working with block engine"
+authors = ["Shyft"]
+homepage = "https://shyft.to"
+edition = "2021"
+publish = false
+[dependencies]
+prost = "0.12"
+prost-types = "0.12"
+tonic = { version = "0.10", features = ["tls", "tls-roots", "tls-webpki-roots"] }
+[build-dependencies]
+protobuf-src = "1"
+tonic-build = "0.10"
