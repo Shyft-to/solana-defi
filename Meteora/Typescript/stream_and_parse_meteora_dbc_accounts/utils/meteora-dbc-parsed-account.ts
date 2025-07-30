@@ -22,7 +22,10 @@ export function meteoraDbcParsedAccount(data) {
     const signature = dataTx.txnSignature ? decodeTransact(dataTx.txnSignature) : null;
     const pubKey = dataTx.pubkey ? decodeTransact(dataTx.pubkey) : null;
     const owner = dataTx.owner ? decodeTransact(dataTx.owner) : null;
-    
+    const executable = dataTx.executable;
+    const rentEpoch = dataTx.rentEpoch;
+    const lamports = dataTx.lamports;
+   
     let parsedAccount = null;
     try {
         parsedAccount = coder.decodeAny(dataTx.data);
@@ -30,13 +33,16 @@ export function meteoraDbcParsedAccount(data) {
     
     } catch (error) {
     }
+     const value = {
+       data : parsedAccount,
+       executable: executable,
+       lamports : lamports,
+       owner : owner,
+       rentEpoch : rentEpoch
+    }
+    
 
-    return {
-        signature,
-        pubKey,
-        owner,
-        parsedAccount
-    };
+    return value;
    }catch(error){
    }
 }
