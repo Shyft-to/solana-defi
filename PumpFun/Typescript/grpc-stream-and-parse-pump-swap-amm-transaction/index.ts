@@ -17,6 +17,7 @@ import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import pumpAmmIdl from "./idls/pump_amm_0.1.0.json";
+import { parseSwapTransactionOutput } from "./utils/pumpSwapTransactionParser";
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -74,14 +75,15 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       );
 
       const parsedTxn = decodePumpAMMTxn(txn);
-
       if (!parsedTxn) return;
+      const parsedSwapTxn = parseSwapTransactionOutput(parsedTxn,txn);
+      if(!parsedSwapTxn) return;
 
       console.log(
         new Date(),
         ":",
         `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
-        JSON.stringify(parsedTxn, null, 2) + "\n"
+        JSON.stringify(parsedSwapTxn, null, 2) + "\n"
       );
       console.log(
         "--------------------------------------------------------------------------------------------------"
@@ -156,7 +158,9 @@ function decodePumpAMMTxn(tx: VersionedTransactionResponse) {
   );
 
   const pumpSwapIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_AMM_PROGRAM_ID)
+    ix.programId.equals(PUMP_AMM_PROGRAM_ID) ||
+       ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+   || ix.programId.equals(new PublicKey("11111111111111111111111111111111"))
   );
    const hydratedTx = hydrateLoadedAddresses(tx);
    const parsedInnerIxs = PUMP_AMM_IX_PARSER.parseTransactionWithInnerInstructions(hydratedTx);
