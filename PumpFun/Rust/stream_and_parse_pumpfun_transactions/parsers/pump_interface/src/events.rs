@@ -161,6 +161,38 @@ impl SetParamsEventEvent {
     }
 }
 
+pub const INIT_USER_VOLUME_ACCUMULATOR_EVENT_DISCM: [u8; 8] = [134, 36, 13, 72, 232, 101, 130, 216];
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
+pub struct InitUserVolumeAccumulatorEvent {
+    pub payer: Pubkey,
+    pub user: Pubkey,
+    pub timestamp: i64,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct InitUserVolumeAccumulatorEventEvent(pub InitUserVolumeAccumulatorEvent);
+impl BorshSerialize for InitUserVolumeAccumulatorEventEvent {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        INIT_USER_VOLUME_ACCUMULATOR_EVENT_DISCM.serialize(writer)?;
+        self.0.serialize(writer)
+    }
+}
+impl InitUserVolumeAccumulatorEventEvent {
+    pub fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let maybe_discm = <[u8; 8]>::deserialize(buf)?;
+        if maybe_discm != INIT_USER_VOLUME_ACCUMULATOR_EVENT_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    INIT_USER_VOLUME_ACCUMULATOR_EVENT_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(InitUserVolumeAccumulatorEvent::deserialize(buf)?))
+    }
+}
+
+
 pub const COLLECT_CREATOR_FEE_EVENT_DISCM: [u8; 8] = [122, 2, 127, 1, 14, 191, 12, 175];
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
 pub struct CollectCreatorFeeEvent {

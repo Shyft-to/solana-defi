@@ -12,6 +12,7 @@ use pump_interface::events::{
     SetCreatorEvent, SetCreatorEventEvent, SET_CREATOR_EVENT_DISCM,
     SetMetaplexCreatorEvent, SetMetaplexCreatorEventEvent, SET_METAPLEX_CREATOR_EVENT_DISCM,
     UpdateGlobalAuthorityEvent, UpdateGlobalAuthorityEventEvent, UPDATE_GLOBAL_AUTHORITY_EVENT_DISCM,
+    InitUserVolumeAccumulatorEvent,InitUserVolumeAccumulatorEventEvent,INIT_USER_VOLUME_ACCUMULATOR_EVENT_DISCM,
  };
 
 #[derive(Debug, Clone, Serialize,PartialEq)]
@@ -26,6 +27,7 @@ pub enum DecodedEvent {
     SetCreatorEvent(SetCreatorEvent),
     SetMetaplexCreatorEvent(SetMetaplexCreatorEvent),
     UpdateGlobalAuthorityEvent(UpdateGlobalAuthorityEvent),
+    InitUserVolumeAccumulatorEvent(InitUserVolumeAccumulatorEvent),
 }
 
 #[derive(Debug)]
@@ -105,6 +107,12 @@ pub fn decode_event_data(buf: &[u8]) -> Result<DecodedEvent, AccountEventError> 
             message: format!("Failed to deserialize SetCreatorEvent: {}", e),
         })?;
         Ok(DecodedEvent::SetCreatorEvent(data.0))
+    }
+    INIT_USER_VOLUME_ACCUMULATOR_EVENT_DISCM => {
+        let data = InitUserVolumeAccumulatorEventEvent::deserialize(&mut &buf[..]).map_err(|e| AccountEventError {
+            message: format!("Failed to deserialize InitUserVolumeAccumulatorEvent: {}", e),
+        })?;
+        Ok(DecodedEvent::InitUserVolumeAccumulatorEvent(data.0))
     }
     SET_METAPLEX_CREATOR_EVENT_DISCM => {
         let data = SetMetaplexCreatorEventEvent::deserialize(&mut &buf[..]).map_err(|e| AccountEventError {
