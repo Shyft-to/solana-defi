@@ -3,7 +3,20 @@ use {
         future::TryFutureExt,
         sink::SinkExt,
         stream::StreamExt,
-    }, log::{error, info}, pump_interface::accounts::{BondingCurve, BondingCurveAccount, Global, GlobalAccount, BONDING_CURVE_ACCOUNT_DISCM, GLOBAL_ACCOUNT_DISCM},serde::Serialize, std::{
+    }, log::{error, info}, pump_interface::accounts::{
+        BondingCurve,
+        BondingCurveAccount,
+        Global, 
+        GlobalAccount, 
+        BONDING_CURVE_ACCOUNT_DISCM, 
+        GLOBAL_ACCOUNT_DISCM,
+        GlobalVolumeAccumulator,
+        GlobalVolumeAccumulatorAccount,
+        GLOBAL_VOLUME_ACCUMULATOR_DISCM,
+        UserVolumeAccumulator, 
+        UserVolumeAccumulatorAccount,
+        USER_VOLUME_ACCUMULATOR_DISCM
+     },serde::Serialize, std::{
         collections::HashMap, env, sync::Arc, time::Duration
     }, tokio::sync::Mutex, tonic::transport::channel::ClientTlsConfig, yellowstone_grpc_client::{GeyserGrpcClient, Interceptor}, yellowstone_grpc_proto::{
         geyser::SubscribeRequestFilterAccounts,
@@ -87,6 +100,8 @@ impl AccountData for EmptyAccount {}
 pub enum DecodedAccount {
     BondingCurve(BondingCurve),
     Global(Global),
+    GlobalVolumeAccumulator(GlobalVolumeAccumulator),
+    UserVolumeAccumulator(UserVolumeAccumulator),
 }
 
 #[derive(Debug)]
@@ -181,7 +196,7 @@ async fn geyser_subscribe(
                             "decoded_data": decoded_account
                         });
                 
-                        println!("\nAccount Info: {}", account_info);
+                        println!("\nAccount Info: {:#?}", account_info);
                     } else {
                         println!("Account data is None for slot: {}", slot);
                     }
@@ -224,22 +239,32 @@ pub fn decode_account_data(buf: &[u8]) -> Result<DecodedAccount, AccountDecodeEr
 
     match discriminator {
         BONDING_CURVE_ACCOUNT_DISCM => {
-            //println!("Bonding Curve Account detected. Proceeding with deserialization...");
             let data = BondingCurveAccount::deserialize(buf)
                 .map_err(|e| AccountDecodeError {
-                    message: format!("Failed to deserialize BondingCurveAccount: {}", e),
+                    message: format!("Failed to deserialize Bonding Curve Structure : {}", e),
                 })?;
-            println!("\nDecoded Bonding Curve Structure: {:#?}", data);
-            Ok(DecodedAccount::BondingCurve(data.0)) // Unwrapping the inner BondingCurve struct
+            Ok(DecodedAccount::BondingCurve(data.0)) 
         }
         GLOBAL_ACCOUNT_DISCM => {
-            //println!("Global Account detected. Proceeding with deserialization...");
             let data = GlobalAccount::deserialize(buf)
                 .map_err(|e| AccountDecodeError {
-                    message: format!("Failed to deserialize GlobalAccount: {}", e),
+                    message: format!("Failed to deserialize Global Structure: {}", e),
                 })?;
-            println!("\nDecoded Global Structure: {:#?}", data);
-            Ok(DecodedAccount::Global(data.0)) // Unwrapping the inner Global struct
+            Ok(DecodedAccount::Global(data.0)) 
+        }
+        GLOBAL_VOLUME_ACCUMULATOR_DISCM => {
+            let data = GlobalVolumeAccumulatorAccount::deserialize(buf)
+                .map_err(|e| AccountDecodeError {
+                    message: format!("Failed to deserialize Global Volume Accumulator: {}", e),
+                })?;
+            Ok(DecodedAccount::GlobalVolumeAccumulator(data.0)) 
+        }
+        USER_VOLUME_ACCUMULATOR_DISCM => {
+            let data = UserVolumeAccumulatorAccount::deserialize(buf)
+                .map_err(|e| AccountDecodeError {
+                    message: format!("Failed to deserialize User Volume Accumulator: {}", e),
+                })?;
+            Ok(DecodedAccount::UserVolumeAccumulator(data.0)) 
         }
         _ => Err(AccountDecodeError {
             message: "Account discriminator not found.".to_string(),
