@@ -29,7 +29,6 @@ tonic = "0.12.1"
 yellowstone-grpc-client = "4.0.0"
 yellowstone-grpc-proto = { version = "4.0.0", default-features = false ,features = ["plugin"] }
 yellowstone-vixen-core = { git = "https://github.com/rpcpool/yellowstone-vixen" }
-yellowstone-vixen-parser = { git = "https://github.com/rpcpool/yellowstone-vixen", features = ["raydium"] }
 indicatif = "0.17.9"
 solana-account-decoder-client-types = "2.1.7"
 solana-client = "2.1.7"
