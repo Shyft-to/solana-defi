@@ -10,7 +10,6 @@ use solana_program::{
     pubkey::Pubkey, program_error::ProgramError,
 };
 use std::io::Read;
-// use std::fmt;
 use strum_macros::{Display, EnumString};
 
 
@@ -18,16 +17,23 @@ use strum_macros::{Display, EnumString};
 #[derive(Clone, Debug, PartialEq, EnumString, Display)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PumpProgramIx {
+    AdminSetCreator(AdminSetCreatorIxArgs),
+    AdminSetIdlAuthority(AdminSetIdlAuthorityIxArgs),
+    AdminUpdateTokenIncentives(AdminUpdateTokenIncentivesIxArgs),
     Buy(BuyIxArgs),
+    ClaimTokenIncentives,
+    CloseUserVolumeAccumulator,
     CollectCreatorFee,
     Create(CreateIxArgs),
     ExtendAccount,
+    InitUserVolumeAccumulator,
     Initialize,
     Migrate,
     Sell(SellIxArgs),
     SetCreator(SetCreatorIxArgs),
     SetMetaPlexCreator,
     SetParams(SetParamsIxArgs),
+    SyncUserVolumeAccumlator,
     UpdateGlobalAuthority,
 }
 
@@ -40,18 +46,23 @@ impl PumpProgramIx {
         let mut maybe_discm = [0u8; 8];
         reader.read_exact(&mut maybe_discm)?;
         match maybe_discm {
+            ADMIN_SET_CREATOR_IX_DISCM => Ok(Self::AdminSetCreator(AdminSetCreatorIxArgs::deserialize(&mut reader)?)),
+            ADMIN_SET_IDL_AUTHORITY_IX_DISCM => Ok(Self::AdminSetIdlAuthority(AdminSetIdlAuthorityIxArgs::deserialize(&mut reader)?)),
+            ADMIN_UPDATE_TOKEN_INCENTIVES_IX_DISCM => Ok(Self::AdminUpdateTokenIncentives(AdminUpdateTokenIncentivesIxArgs::deserialize(&mut reader)?)),
             BUY_IX_DISCM => Ok(Self::Buy(BuyIxArgs::deserialize(&mut reader)?)),
+            CLAIM_TOKEN_INCENTIVES_IX_DISCM => Ok(Self::ClaimTokenIncentives),
+            CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM => Ok(Self::CloseUserVolumeAccumulator),
             COLLECT_CREATOR_FEE_IX_DISCM => Ok(Self::CollectCreatorFee),
             CREATE_IX_DISCM => Ok(Self::Create(CreateIxArgs::deserialize(&mut reader)?)),
             EXTEND_ACCOUNT_IX_DISCM => Ok(Self::ExtendAccount),
+            INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM => Ok(Self::InitUserVolumeAccumulator),
             INITIALIZE_IX_DISCM => Ok(Self::Initialize),
             MIGRATE_IX_DISCM => Ok(Self::Migrate),
             SELL_IX_DISCM => Ok(Self::Sell(SellIxArgs::deserialize(&mut reader)?)),
             SET_CREATOR_IX_DISCM => Ok(Self::SetCreator(SetCreatorIxArgs::deserialize(&mut reader)?)),
             SET_METAPLEX_CREATOR_IX_DISCM => Ok(Self::SetMetaPlexCreator),
-            SET_PARAMS_IX_DISCM => {
-                Ok(Self::SetParams(SetParamsIxArgs::deserialize(&mut reader)?))
-            }
+            SET_PARAMS_IX_DISCM => Ok(Self::SetParams(SetParamsIxArgs::deserialize(&mut reader)?)),
+            SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM => Ok(Self::SyncUserVolumeAccumlator),
             UPDATE_GLOBAL_AUTHORITY_IX_DISCM => Ok(Self::UpdateGlobalAuthority),
             _ => {
                 Err(
@@ -65,16 +76,31 @@ impl PumpProgramIx {
     }
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         match self {
+            Self::AdminSetCreator(args) => {
+                writer.write_all(&ADMIN_SET_CREATOR_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::AdminSetIdlAuthority(args) => {
+                writer.write_all(&ADMIN_SET_IDL_AUTHORITY_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::AdminUpdateTokenIncentives(args) => {
+                writer.write_all(&ADMIN_UPDATE_TOKEN_INCENTIVES_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
              Self::Buy(args) => {
                 writer.write_all(&BUY_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
+            Self::ClaimTokenIncentives => writer.write_all(&CLAIM_TOKEN_INCENTIVES_IX_DISCM),
+            Self::CloseUserVolumeAccumulator => writer.write_all(&CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM),
             Self::CollectCreatorFee => writer.write_all(&COLLECT_CREATOR_FEE_IX_DISCM),
             Self::Create(args) => {
                 writer.write_all(&CREATE_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
             Self::ExtendAccount => writer.write_all(&EXTEND_ACCOUNT_IX_DISCM),
+            Self::InitUserVolumeAccumulator => writer.write_all(&INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM),
             Self::Initialize => writer.write_all(&INITIALIZE_IX_DISCM),
             Self::Migrate =>  writer.write_all(&MIGRATE_IX_DISCM),
 
@@ -92,7 +118,7 @@ impl PumpProgramIx {
                 writer.write_all(&SET_PARAMS_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
-
+            Self::SyncUserVolumeAccumlator => writer.write_all(&SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM),
             Self::UpdateGlobalAuthority => writer.write_all(&UPDATE_GLOBAL_AUTHORITY_IX_DISCM),
         }
     }
@@ -118,7 +144,824 @@ fn invoke_instruction_signed<'info, A: Into<[AccountInfo<'info>; N]>, const N: u
     invoke_signed(ix, &account_info, seeds)
 }
 
-pub const BUY_IX_ACCOUNTS_LEN: usize = 12;
+pub const ADMIN_SET_CREATOR_IX_ACCOUNTS_LEN: usize = 6;
+#[derive(Copy, Clone, Debug)]
+pub struct AdminSetCreatorAccounts<'me, 'info> {
+    pub admin_set_creator_authority: &'me AccountInfo<'info>,
+    pub global: &'me AccountInfo<'info>,
+    pub mint: &'me AccountInfo<'info>,
+    pub bonding_curve: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct AdminSetCreatorKeys {
+    pub admin_set_creator_authority: Pubkey,
+    pub global : Pubkey,
+    pub mint : Pubkey,
+    pub bonding_curve: Pubkey,
+    pub event_authority : Pubkey,
+    pub program : Pubkey,
+}
+
+impl From<AdminSetCreatorAccounts<'_, '_>> for AdminSetCreatorKeys {
+    fn from(accounts: AdminSetCreatorAccounts) -> Self {
+        Self {
+            admin_set_creator_authority : *accounts.admin_set_creator_authority.key,
+            global : *accounts.global.key,
+            mint : *accounts.mint.key,
+            bonding_curve : *accounts.bonding_curve.key,
+            event_authority : *accounts.event_authority.key,
+            program : *accounts.program.key 
+        }
+    }
+}
+impl From<AdminSetCreatorKeys> for [AccountMeta; ADMIN_SET_CREATOR_IX_ACCOUNTS_LEN] {
+    fn from(keys: AdminSetCreatorKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.admin_set_creator_authority,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.global,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.bonding_curve,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; ADMIN_SET_CREATOR_IX_ACCOUNTS_LEN]> for AdminSetCreatorKeys {
+    fn from(pubkeys: [Pubkey; ADMIN_SET_CREATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            admin_set_creator_authority: pubkeys[0],
+            global: pubkeys[1],
+            mint: pubkeys[2],
+            bonding_curve: pubkeys[3],
+            event_authority: pubkeys[4],
+            program: pubkeys[5],
+        }
+    }
+}
+
+impl<'info> From<AdminSetCreatorAccounts<'_, 'info>> for [AccountInfo<'info>; ADMIN_SET_CREATOR_IX_ACCOUNTS_LEN] {
+    fn from(accounts: AdminSetCreatorAccounts<'_, 'info>) -> Self {
+        [
+            accounts.admin_set_creator_authority.clone(),
+            accounts.global.clone(),
+            accounts.mint.clone(),
+            accounts.bonding_curve.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; ADMIN_SET_CREATOR_IX_ACCOUNTS_LEN]>
+for AdminSetCreatorAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; ADMIN_SET_CREATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            admin_set_creator_authority: &arr[0],
+            global: &arr[1],
+            mint: &arr[2],
+            bonding_curve: &arr[3],
+            event_authority: &arr[4],
+            program: &arr[5],
+        }
+    }
+}
+pub const ADMIN_SET_CREATOR_IX_DISCM: [u8; 8] = [69, 25, 171, 142, 57, 239, 13, 4];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AdminSetCreatorIxArgs {
+    pub creator: Pubkey,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct AdminSetCreatorIxData(pub AdminSetCreatorIxArgs);
+impl From<AdminSetCreatorIxArgs> for AdminSetCreatorIxData {
+    fn from(args: AdminSetCreatorIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl AdminSetCreatorIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != ADMIN_SET_CREATOR_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        ADMIN_SET_CREATOR_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(AdminSetCreatorIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&ADMIN_SET_CREATOR_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn admin_set_creator_authority_ix_with_program_id(
+    program_id: Pubkey,
+    keys: AdminSetCreatorKeys,
+    args: AdminSetCreatorIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; ADMIN_SET_CREATOR_IX_ACCOUNTS_LEN] = keys.into();
+    let data: AdminSetCreatorIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn admin_set_creator_authority_ix(keys: AdminSetCreatorKeys, args: AdminSetCreatorIxArgs) -> std::io::Result<Instruction> {
+    admin_set_creator_authority_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn admin_set_creator_authority_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: AdminSetCreatorAccounts<'_, '_>,
+    args: AdminSetCreatorIxArgs,
+) -> ProgramResult {
+    let keys: AdminSetCreatorKeys = accounts.into();
+    let ix = admin_set_creator_authority_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn admin_set_creator_authority_invoke(accounts: AdminSetCreatorAccounts<'_, '_>, args: AdminSetCreatorIxArgs) -> ProgramResult {
+    admin_set_creator_authority_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn admin_set_creator_authority_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: AdminSetCreatorAccounts<'_, '_>,
+    args: AdminSetCreatorIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: AdminSetCreatorKeys = accounts.into();
+    let ix = admin_set_creator_authority_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn admin_set_creator_authority_invoke_signed(
+    accounts: AdminSetCreatorAccounts<'_, '_>,
+    args: AdminSetCreatorIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    admin_set_creator_authority_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn admin_set_creator_authority_verify_account_keys(
+    accounts: AdminSetCreatorAccounts<'_, '_>,
+    keys: AdminSetCreatorKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.admin_set_creator_authority.key, keys.admin_set_creator_authority),
+        (*accounts.global.key, keys.global),
+        (*accounts.mint.key, keys.mint),
+        (*accounts.bonding_curve.key, keys.bonding_curve),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn admin_set_creator_authority_verify_writable_privileges<'me, 'info>(
+    accounts: AdminSetCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.admin_set_creator_authority,
+        accounts.bonding_curve,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn admin_set_creator_authority_verify_signer_privileges<'me, 'info>(
+    accounts: AdminSetCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.admin_set_creator_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn admin_set_creator_authority_verify_account_privileges<'me, 'info>(
+    accounts: AdminSetCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    admin_set_creator_authority_verify_writable_privileges(accounts)?;
+    admin_set_creator_authority_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+
+pub const ADMIN_SET_IDL_AUTHORITY_IX_ACCOUNTS_LEN: usize = 7;
+#[derive(Copy, Clone, Debug)]
+pub struct AdminSetIdlAuthorityAccounts<'me, 'info> {
+    pub authority: &'me AccountInfo<'info>,
+    pub global: &'me AccountInfo<'info>,
+    pub idl_account: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub program_signer: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program : &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct AdminSetIdlAuthorityKeys {
+    pub authority: Pubkey,
+    pub global : Pubkey,
+    pub idl_account : Pubkey,
+    pub system_program: Pubkey,
+    pub program_signer: Pubkey,
+    pub event_authority : Pubkey,
+    pub program : Pubkey,
+}
+
+impl From<AdminSetIdlAuthorityAccounts<'_, '_>> for AdminSetIdlAuthorityKeys {
+    fn from(accounts: AdminSetIdlAuthorityAccounts) -> Self {
+        Self {
+            authority : *accounts.authority.key,
+            global : *accounts.global.key,
+            idl_account : *accounts.idl_account.key,
+            system_program : *accounts.system_program.key,
+            program_signer : *accounts.program_signer.key,
+            event_authority : *accounts.event_authority.key,
+            program : *accounts.program.key 
+        }
+    }
+}
+impl From<AdminSetIdlAuthorityKeys> for [AccountMeta; ADMIN_SET_IDL_AUTHORITY_IX_ACCOUNTS_LEN] {
+    fn from(keys: AdminSetIdlAuthorityKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.authority,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.global,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.idl_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey : keys.program_signer,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; ADMIN_SET_IDL_AUTHORITY_IX_ACCOUNTS_LEN]> for AdminSetIdlAuthorityKeys {
+    fn from(pubkeys: [Pubkey; ADMIN_SET_IDL_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            authority: pubkeys[0],
+            global: pubkeys[1],
+            idl_account: pubkeys[2],
+            system_program: pubkeys[3],
+            program_signer: pubkeys[4],
+            event_authority: pubkeys[5],
+            program: pubkeys[6],
+        }
+    }
+}
+
+impl<'info> From<AdminSetIdlAuthorityAccounts<'_, 'info>> for [AccountInfo<'info>; ADMIN_SET_IDL_AUTHORITY_IX_ACCOUNTS_LEN] {
+    fn from(accounts: AdminSetIdlAuthorityAccounts<'_, 'info>) -> Self {
+        [
+            accounts.authority.clone(),
+            accounts.global.clone(),
+            accounts.idl_account.clone(),
+            accounts.system_program.clone(),
+            accounts.program_signer.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; ADMIN_SET_IDL_AUTHORITY_IX_ACCOUNTS_LEN]>
+for AdminSetIdlAuthorityAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; ADMIN_SET_IDL_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            authority: &arr[0],
+            global: &arr[1],
+            idl_account: &arr[2],
+            system_program: &arr[3],
+            program_signer: &arr[4],
+            event_authority: &arr[5],
+            program: &arr[6],
+        }
+    }
+}
+
+pub const ADMIN_SET_IDL_AUTHORITY_IX_DISCM: [u8; 8] = [8, 217, 96, 231, 144, 104, 192, 5];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AdminSetIdlAuthorityIxArgs {
+    pub idl_authority: Pubkey,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct AdminSetIdlAuthorityIxData(pub AdminSetIdlAuthorityIxArgs);
+impl From<AdminSetIdlAuthorityIxArgs> for AdminSetIdlAuthorityIxData {
+    fn from(args: AdminSetIdlAuthorityIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl AdminSetIdlAuthorityIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != ADMIN_SET_IDL_AUTHORITY_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        ADMIN_SET_IDL_AUTHORITY_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(AdminSetIdlAuthorityIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&ADMIN_SET_IDL_AUTHORITY_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn admin_set_idl_authority_authority_ix_with_program_id(
+    program_id: Pubkey,
+    keys: AdminSetIdlAuthorityKeys,
+    args: AdminSetIdlAuthorityIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; ADMIN_SET_IDL_AUTHORITY_IX_ACCOUNTS_LEN] = keys.into();
+    let data: AdminSetIdlAuthorityIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn admin_set_idl_authority_authority_ix(keys: AdminSetIdlAuthorityKeys, args: AdminSetIdlAuthorityIxArgs) -> std::io::Result<Instruction> {
+    admin_set_idl_authority_authority_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn admin_set_idl_authority_authority_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: AdminSetIdlAuthorityAccounts<'_, '_>,
+    args: AdminSetIdlAuthorityIxArgs,
+) -> ProgramResult {
+    let keys: AdminSetIdlAuthorityKeys = accounts.into();
+    let ix = admin_set_idl_authority_authority_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn admin_set_idl_authority_authority_invoke(
+    accounts: AdminSetIdlAuthorityAccounts<'_, '_>,
+    args: AdminSetIdlAuthorityIxArgs) -> ProgramResult {
+    admin_set_idl_authority_authority_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn admin_set_idl_authority_authority_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: AdminSetIdlAuthorityAccounts<'_, '_>,
+    args: AdminSetIdlAuthorityIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: AdminSetIdlAuthorityKeys = accounts.into();
+    let ix = admin_set_idl_authority_authority_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn admin_set_idl_authority_authority_invoke_signed(
+    accounts: AdminSetIdlAuthorityAccounts<'_, '_>,
+    args: AdminSetIdlAuthorityIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    admin_set_idl_authority_authority_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn admin_set_idl_authority_authority_verify_account_keys(
+    accounts: AdminSetIdlAuthorityAccounts<'_, '_>,
+    keys: AdminSetIdlAuthorityKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.authority.key, keys.authority),
+        (*accounts.global.key, keys.global),
+        (*accounts.idl_account.key, keys.idl_account),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.program_signer.key, keys.program_signer),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn admin_set_idl_authority_authority_verify_writable_privileges<'me, 'info>(
+    accounts: AdminSetIdlAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.authority,
+        accounts.idl_account,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn admin_set_idl_authority_authority_verify_signer_privileges<'me, 'info>(
+    accounts: AdminSetIdlAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn admin_set_idl_authority_authority_verify_account_privileges<'me, 'info>(
+    accounts: AdminSetIdlAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    admin_set_idl_authority_authority_verify_writable_privileges(accounts)?;
+    admin_set_idl_authority_authority_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const ADMIN_UPDATE_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN: usize = 10;
+
+#[derive(Copy, Clone, Debug)]
+pub struct AdminUpdateTokenIncentivesAccounts<'me, 'info> {
+    pub authority: &'me AccountInfo<'info>,
+    pub global: &'me AccountInfo<'info>,
+    pub global_volume_accumulator: &'me AccountInfo<'info>,
+    pub mint: &'me AccountInfo<'info>,
+    pub global_incentive_token_account: &'me AccountInfo<'info>,
+    pub associated_token_program: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub token_program: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct AdminUpdateTokenIncentivesKeys {
+    pub authority: Pubkey,
+    pub global: Pubkey,
+    pub global_volume_accumulator: Pubkey,
+    pub mint: Pubkey,
+    pub global_incentive_token_account: Pubkey,
+    pub associated_token_program: Pubkey,
+    pub system_program: Pubkey,
+    pub token_program: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<AdminUpdateTokenIncentivesAccounts<'_, '_>> for AdminUpdateTokenIncentivesKeys {
+    fn from(accounts: AdminUpdateTokenIncentivesAccounts) -> Self {
+        Self {
+            authority: *accounts.authority.key,
+            global: *accounts.global.key,
+            global_volume_accumulator: *accounts.global_volume_accumulator.key,
+            mint: *accounts.mint.key,
+            global_incentive_token_account: *accounts.global_incentive_token_account.key,
+            associated_token_program: *accounts.associated_token_program.key,
+            system_program: *accounts.system_program.key,
+            token_program: *accounts.token_program.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<AdminUpdateTokenIncentivesKeys> for [AccountMeta; ADMIN_UPDATE_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN] {
+    fn from(keys: AdminUpdateTokenIncentivesKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.authority,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.global,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.global_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.global_incentive_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.associated_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; ADMIN_UPDATE_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN]> for AdminUpdateTokenIncentivesKeys {
+    fn from(pubkeys: [Pubkey; ADMIN_UPDATE_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            authority: pubkeys[0],
+            global: pubkeys[1],
+            global_volume_accumulator: pubkeys[2],
+            mint: pubkeys[3],
+            global_incentive_token_account: pubkeys[4],
+            associated_token_program: pubkeys[5],
+            system_program: pubkeys[6],
+            token_program: pubkeys[7],
+            event_authority: pubkeys[8],
+            program: pubkeys[9],
+        }
+    }
+}
+
+impl<'info> From<AdminUpdateTokenIncentivesAccounts<'_, 'info>> for [AccountInfo<'info>; ADMIN_UPDATE_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN] {
+    fn from(accounts: AdminUpdateTokenIncentivesAccounts<'_, 'info>) -> Self {
+        [
+            accounts.authority.clone(),
+            accounts.global.clone(),
+            accounts.global_volume_accumulator.clone(),
+            accounts.mint.clone(),
+            accounts.global_incentive_token_account.clone(),
+            accounts.associated_token_program.clone(),
+            accounts.system_program.clone(),
+            accounts.token_program.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; ADMIN_UPDATE_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN]> for AdminUpdateTokenIncentivesAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; ADMIN_UPDATE_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            authority: &arr[0],
+            global: &arr[1],
+            global_volume_accumulator: &arr[2],
+            mint: &arr[3],
+            global_incentive_token_account: &arr[4],
+            associated_token_program: &arr[5],
+            system_program: &arr[6],
+            token_program: &arr[7],
+            event_authority: &arr[8],
+            program: &arr[9],
+        }
+    }
+}
+
+pub const ADMIN_UPDATE_TOKEN_INCENTIVES_IX_DISCM: [u8; 8] = [209, 11, 115, 87, 213, 23, 124, 204];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AdminUpdateTokenIncentivesIxArgs {
+    pub start_time: i64,
+    pub end_time: i64,
+    pub seconds_in_a_day: i64,
+    pub day_number: u64,
+    pub pump_token_supply_per_day: u64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AdminUpdateTokenIncentivesIxData(pub AdminUpdateTokenIncentivesIxArgs);
+
+impl From<AdminUpdateTokenIncentivesIxArgs> for AdminUpdateTokenIncentivesIxData {
+    fn from(args: AdminUpdateTokenIncentivesIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl AdminUpdateTokenIncentivesIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != ADMIN_UPDATE_TOKEN_INCENTIVES_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    ADMIN_UPDATE_TOKEN_INCENTIVES_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(AdminUpdateTokenIncentivesIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&ADMIN_UPDATE_TOKEN_INCENTIVES_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn admin_update_token_incentives_ix_with_program_id(
+    program_id: Pubkey,
+    keys: AdminUpdateTokenIncentivesKeys,
+    args: AdminUpdateTokenIncentivesIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; ADMIN_UPDATE_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN] = keys.into();
+    let data: AdminUpdateTokenIncentivesIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn admin_update_token_incentives_ix(
+    keys: AdminUpdateTokenIncentivesKeys,
+    args: AdminUpdateTokenIncentivesIxArgs,
+) -> std::io::Result<Instruction> {
+    admin_update_token_incentives_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn admin_update_token_incentives_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: AdminUpdateTokenIncentivesAccounts<'_, '_>,
+    args: AdminUpdateTokenIncentivesIxArgs,
+) -> ProgramResult {
+    let keys: AdminUpdateTokenIncentivesKeys = accounts.into();
+    let ix = admin_update_token_incentives_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn admin_update_token_incentives_invoke(
+    accounts: AdminUpdateTokenIncentivesAccounts<'_, '_>,
+    args: AdminUpdateTokenIncentivesIxArgs,
+) -> ProgramResult {
+    admin_update_token_incentives_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn admin_update_token_incentives_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: AdminUpdateTokenIncentivesAccounts<'_, '_>,
+    args: AdminUpdateTokenIncentivesIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: AdminUpdateTokenIncentivesKeys = accounts.into();
+    let ix = admin_update_token_incentives_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn admin_update_token_incentives_invoke_signed(
+    accounts: AdminUpdateTokenIncentivesAccounts<'_, '_>,
+    args: AdminUpdateTokenIncentivesIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    admin_update_token_incentives_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn admin_update_token_incentives_verify_account_keys(
+    accounts: AdminUpdateTokenIncentivesAccounts<'_, '_>,
+    keys: AdminUpdateTokenIncentivesKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.authority.key, keys.authority),
+        (*accounts.global.key, keys.global),
+        (*accounts.global_volume_accumulator.key, keys.global_volume_accumulator),
+        (*accounts.mint.key, keys.mint),
+        (*accounts.global_incentive_token_account.key, keys.global_incentive_token_account),
+        (*accounts.associated_token_program.key, keys.associated_token_program),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.token_program.key, keys.token_program),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn admin_update_token_incentives_verify_writable_privileges<'me, 'info>(
+    accounts: AdminUpdateTokenIncentivesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.authority,
+        accounts.global_volume_accumulator,
+        accounts.global_incentive_token_account,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn admin_update_token_incentives_verify_signer_privileges<'me, 'info>(
+    accounts: AdminUpdateTokenIncentivesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn admin_update_token_incentives_verify_account_privileges<'me, 'info>(
+    accounts: AdminUpdateTokenIncentivesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    admin_update_token_incentives_verify_writable_privileges(accounts)?;
+    admin_update_token_incentives_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const BUY_IX_ACCOUNTS_LEN: usize = 14;
 #[derive(Copy, Clone, Debug)]
 pub struct BuyAccounts<'me, 'info> {
     pub global: &'me AccountInfo<'info>,
@@ -130,9 +973,11 @@ pub struct BuyAccounts<'me, 'info> {
     pub user: &'me AccountInfo<'info>,
     pub system_program: &'me AccountInfo<'info>,
     pub token_program: &'me AccountInfo<'info>,
-    pub rent: &'me AccountInfo<'info>,
+    pub creator_vault: &'me AccountInfo<'info>,
     pub event_authority: &'me AccountInfo<'info>,
     pub program: &'me AccountInfo<'info>,
+    pub global_volume_accumulator :  &'me AccountInfo<'info>,
+    pub user_volume_accumulator: &'me AccountInfo<'info>,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BuyKeys {
@@ -145,9 +990,11 @@ pub struct BuyKeys {
     pub user: Pubkey,
     pub system_program: Pubkey,
     pub token_program: Pubkey,
-    pub rent: Pubkey,
+    pub creator_vault: Pubkey,
     pub event_authority: Pubkey,
     pub program: Pubkey,
+    pub global_volume_accumulator: Pubkey,
+    pub user_volume_accumulator: Pubkey,
 }
 impl From<BuyAccounts<'_, '_>> for BuyKeys {
     fn from(accounts: BuyAccounts) -> Self {
@@ -161,9 +1008,11 @@ impl From<BuyAccounts<'_, '_>> for BuyKeys {
             user: *accounts.user.key,
             system_program: *accounts.system_program.key,
             token_program: *accounts.token_program.key,
-            rent: *accounts.rent.key,
+            creator_vault: *accounts.creator_vault.key,
             event_authority: *accounts.event_authority.key,
             program: *accounts.program.key,
+            global_volume_accumulator: *accounts.global_volume_accumulator.key,
+            user_volume_accumulator: *accounts.user_volume_accumulator.key,
         }
     }
 }
@@ -216,9 +1065,9 @@ impl From<BuyKeys> for [AccountMeta; BUY_IX_ACCOUNTS_LEN] {
                 is_writable: false,
             },
             AccountMeta {
-                pubkey: keys.rent,
+                pubkey: keys.creator_vault,
                 is_signer: false,
-                is_writable: false,
+                is_writable: true,
             },
             AccountMeta {
                 pubkey: keys.event_authority,
@@ -230,6 +1079,16 @@ impl From<BuyKeys> for [AccountMeta; BUY_IX_ACCOUNTS_LEN] {
                 is_signer: false,
                 is_writable: false,
             },
+            AccountMeta {
+                pubkey: keys.global_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            }, 
         ]
     }
 }
@@ -245,9 +1104,11 @@ impl From<[Pubkey; BUY_IX_ACCOUNTS_LEN]> for BuyKeys {
             user: pubkeys[6],
             system_program: pubkeys[7],
             token_program: pubkeys[8],
-            rent: pubkeys[9],
+            creator_vault: pubkeys[9],
             event_authority: pubkeys[10],
             program: pubkeys[11],
+            global_volume_accumulator: pubkeys[12],
+            user_volume_accumulator: pubkeys[13],
         }
     }
 }
@@ -263,9 +1124,11 @@ impl<'info> From<BuyAccounts<'_, 'info>> for [AccountInfo<'info>; BUY_IX_ACCOUNT
             accounts.user.clone(),
             accounts.system_program.clone(),
             accounts.token_program.clone(),
-            accounts.rent.clone(),
+            accounts.creator_vault.clone(),
             accounts.event_authority.clone(),
             accounts.program.clone(),
+            accounts.global_volume_accumulator.clone(),
+            accounts.user_volume_accumulator.clone(),
         ]
     }
 }
@@ -282,12 +1145,15 @@ for BuyAccounts<'me, 'info> {
             user: &arr[6],
             system_program: &arr[7],
             token_program: &arr[8],
-            rent: &arr[9],
+            creator_vault: &arr[9],
             event_authority: &arr[10],
             program: &arr[11],
+            global_volume_accumulator: &arr[12],
+            user_volume_accumulator: &arr[13]
         }
     }
 }
+
 pub const BUY_IX_DISCM: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -389,9 +1255,11 @@ pub fn buy_verify_account_keys(
         (*accounts.user.key, keys.user),
         (*accounts.system_program.key, keys.system_program),
         (*accounts.token_program.key, keys.token_program),
-        (*accounts.rent.key, keys.rent),
+        (*accounts.creator_vault.key, keys.creator_vault),
         (*accounts.event_authority.key, keys.event_authority),
         (*accounts.program.key, keys.program),
+        (*accounts.global_volume_accumulator.key, keys.global_volume_accumulator),
+        (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
     ] {
         if actual != expected {
             return Err((actual, expected));
@@ -408,6 +1276,9 @@ pub fn buy_verify_writable_privileges<'me, 'info>(
         accounts.associated_bonding_curve,
         accounts.associated_user,
         accounts.user,
+        accounts.creator_vault,
+        accounts.global_volume_accumulator,
+        accounts.user_volume_accumulator,
     ] {
         if !should_be_writable.is_writable {
             return Err((should_be_writable, ProgramError::InvalidAccountData));
@@ -430,6 +1301,569 @@ pub fn buy_verify_account_privileges<'me, 'info>(
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     buy_verify_writable_privileges(accounts)?;
     buy_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN: usize = 12;
+
+#[derive(Copy, Clone, Debug)]
+pub struct ClaimTokenIncentivesAccounts<'me, 'info> {
+    pub user: &'me AccountInfo<'info>,
+    pub user_ata: &'me AccountInfo<'info>,
+    pub global_volume_accumulator: &'me AccountInfo<'info>,
+    pub global_incentive_token_account: &'me AccountInfo<'info>,
+    pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub mint: &'me AccountInfo<'info>,
+    pub token_program: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub associated_token_program: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+    pub payer: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ClaimTokenIncentivesKeys {
+    pub user: Pubkey,
+    pub user_ata: Pubkey,
+    pub global_volume_accumulator: Pubkey,
+    pub global_incentive_token_account: Pubkey,
+    pub user_volume_accumulator: Pubkey,
+    pub mint: Pubkey,
+    pub token_program: Pubkey,
+    pub system_program: Pubkey,
+    pub associated_token_program: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+    pub payer: Pubkey,
+}
+
+impl From<ClaimTokenIncentivesAccounts<'_, '_>> for ClaimTokenIncentivesKeys {
+    fn from(accounts: ClaimTokenIncentivesAccounts) -> Self {
+        Self {
+            user: *accounts.user.key,
+            user_ata: *accounts.user_ata.key,
+            global_volume_accumulator: *accounts.global_volume_accumulator.key,
+            global_incentive_token_account: *accounts.global_incentive_token_account.key,
+            user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            mint: *accounts.mint.key,
+            token_program: *accounts.token_program.key,
+            system_program: *accounts.system_program.key,
+            associated_token_program: *accounts.associated_token_program.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+            payer: *accounts.payer.key,
+        }
+    }
+}
+
+impl From<ClaimTokenIncentivesKeys> for [AccountMeta; CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN] {
+    fn from(keys: ClaimTokenIncentivesKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.user,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.user_ata,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.global_volume_accumulator,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.global_incentive_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.associated_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.payer,
+                is_signer: true,
+                is_writable: true,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN]> for ClaimTokenIncentivesKeys {
+    fn from(pubkeys: [Pubkey; CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            user: pubkeys[0],
+            user_ata: pubkeys[1],
+            global_volume_accumulator: pubkeys[2],
+            global_incentive_token_account: pubkeys[3],
+            user_volume_accumulator: pubkeys[4],
+            mint: pubkeys[5],
+            token_program: pubkeys[6],
+            system_program: pubkeys[7],
+            associated_token_program: pubkeys[8],
+            event_authority: pubkeys[9],
+            program: pubkeys[10],
+            payer: pubkeys[11],
+        }
+    }
+}
+
+impl<'info> From<ClaimTokenIncentivesAccounts<'_, 'info>> for [AccountInfo<'info>; CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN] {
+    fn from(accounts: ClaimTokenIncentivesAccounts<'_, 'info>) -> Self {
+        [
+            accounts.user.clone(),
+            accounts.user_ata.clone(),
+            accounts.global_volume_accumulator.clone(),
+            accounts.global_incentive_token_account.clone(),
+            accounts.user_volume_accumulator.clone(),
+            accounts.mint.clone(),
+            accounts.token_program.clone(),
+            accounts.system_program.clone(),
+            accounts.associated_token_program.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+            accounts.payer.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN]> for ClaimTokenIncentivesAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            user: &arr[0],
+            user_ata: &arr[1],
+            global_volume_accumulator: &arr[2],
+            global_incentive_token_account: &arr[3],
+            user_volume_accumulator: &arr[4],
+            mint: &arr[5],
+            token_program: &arr[6],
+            system_program: &arr[7],
+            associated_token_program: &arr[8],
+            event_authority: &arr[9],
+            program: &arr[10],
+            payer: &arr[11],
+        }
+    }
+}
+
+pub const CLAIM_TOKEN_INCENTIVES_IX_DISCM: [u8; 8] = [16, 4, 71, 28, 204, 1, 40, 27];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ClaimTokenIncentivesIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClaimTokenIncentivesIxData(pub ClaimTokenIncentivesIxArgs);
+
+impl From<ClaimTokenIncentivesIxArgs> for ClaimTokenIncentivesIxData {
+    fn from(args: ClaimTokenIncentivesIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl ClaimTokenIncentivesIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLAIM_TOKEN_INCENTIVES_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CLAIM_TOKEN_INCENTIVES_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(ClaimTokenIncentivesIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLAIM_TOKEN_INCENTIVES_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn claim_token_incentives_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ClaimTokenIncentivesKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN] = keys.into();
+    let data: ClaimTokenIncentivesIxData = ClaimTokenIncentivesIxArgs {}.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn claim_token_incentives_ix(
+    keys: ClaimTokenIncentivesKeys,
+) -> std::io::Result<Instruction> {
+    claim_token_incentives_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn claim_token_incentives_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ClaimTokenIncentivesAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: ClaimTokenIncentivesKeys = accounts.into();
+    let ix = claim_token_incentives_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn claim_token_incentives_invoke(
+    accounts: ClaimTokenIncentivesAccounts<'_, '_>,
+) -> ProgramResult {
+    claim_token_incentives_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn claim_token_incentives_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ClaimTokenIncentivesAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: ClaimTokenIncentivesKeys = accounts.into();
+    let ix = claim_token_incentives_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn claim_token_incentives_invoke_signed(
+    accounts: ClaimTokenIncentivesAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    claim_token_incentives_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn claim_token_incentives_verify_account_keys(
+    accounts: ClaimTokenIncentivesAccounts<'_, '_>,
+    keys: ClaimTokenIncentivesKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.user.key, keys.user),
+        (*accounts.user_ata.key, keys.user_ata),
+        (*accounts.global_volume_accumulator.key, keys.global_volume_accumulator),
+        (*accounts.global_incentive_token_account.key, keys.global_incentive_token_account),
+        (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.mint.key, keys.mint),
+        (*accounts.token_program.key, keys.token_program),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.associated_token_program.key, keys.associated_token_program),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+        (*accounts.payer.key, keys.payer),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn claim_token_incentives_verify_writable_privileges<'me, 'info>(
+    accounts: ClaimTokenIncentivesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.user_ata,
+        accounts.global_incentive_token_account,
+        accounts.user_volume_accumulator,
+        accounts.payer,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn claim_token_incentives_verify_signer_privileges<'me, 'info>(
+    accounts: ClaimTokenIncentivesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.payer] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn claim_token_incentives_verify_account_privileges<'me, 'info>(
+    accounts: ClaimTokenIncentivesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    claim_token_incentives_verify_writable_privileges(accounts)?;
+    claim_token_incentives_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const CLOSE_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN: usize = 4;
+
+#[derive(Copy, Clone, Debug)]
+pub struct CloseUserVolumeAccumulatorAccounts<'me, 'info> {
+    pub user: &'me AccountInfo<'info>,
+    pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CloseUserVolumeAccumulatorKeys {
+    pub user: Pubkey,
+    pub user_volume_accumulator: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<CloseUserVolumeAccumulatorAccounts<'_, '_>> for CloseUserVolumeAccumulatorKeys {
+    fn from(accounts: CloseUserVolumeAccumulatorAccounts) -> Self {
+        Self {
+            user: *accounts.user.key,
+            user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<CloseUserVolumeAccumulatorKeys> for [AccountMeta; CLOSE_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] {
+    fn from(keys: CloseUserVolumeAccumulatorKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.user,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; CLOSE_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]> for CloseUserVolumeAccumulatorKeys {
+    fn from(pubkeys: [Pubkey; CLOSE_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            user: pubkeys[0],
+            user_volume_accumulator: pubkeys[1],
+            event_authority: pubkeys[2],
+            program: pubkeys[3],
+        }
+    }
+}
+
+impl<'info> From<CloseUserVolumeAccumulatorAccounts<'_, 'info>> for [AccountInfo<'info>; CLOSE_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] {
+    fn from(accounts: CloseUserVolumeAccumulatorAccounts<'_, 'info>) -> Self {
+        [
+            accounts.user.clone(),
+            accounts.user_volume_accumulator.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; CLOSE_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]> for CloseUserVolumeAccumulatorAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; CLOSE_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            user: &arr[0],
+            user_volume_accumulator: &arr[1],
+            event_authority: &arr[2],
+            program: &arr[3],
+        }
+    }
+}
+
+pub const CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM: [u8; 8] = [249, 69, 164, 218, 150, 103, 84, 138];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CloseUserVolumeAccumulatorIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CloseUserVolumeAccumulatorIxData(pub CloseUserVolumeAccumulatorIxArgs);
+
+impl From<CloseUserVolumeAccumulatorIxArgs> for CloseUserVolumeAccumulatorIxData {
+    fn from(args: CloseUserVolumeAccumulatorIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl CloseUserVolumeAccumulatorIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(CloseUserVolumeAccumulatorIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn close_user_volume_accumulator_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CloseUserVolumeAccumulatorKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLOSE_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] = keys.into();
+    let data: CloseUserVolumeAccumulatorIxData = CloseUserVolumeAccumulatorIxArgs {}.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn close_user_volume_accumulator_ix(
+    keys: CloseUserVolumeAccumulatorKeys,
+) -> std::io::Result<Instruction> {
+    close_user_volume_accumulator_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn close_user_volume_accumulator_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseUserVolumeAccumulatorAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: CloseUserVolumeAccumulatorKeys = accounts.into();
+    let ix = close_user_volume_accumulator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn close_user_volume_accumulator_invoke(
+    accounts: CloseUserVolumeAccumulatorAccounts<'_, '_>,
+) -> ProgramResult {
+    close_user_volume_accumulator_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn close_user_volume_accumulator_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseUserVolumeAccumulatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CloseUserVolumeAccumulatorKeys = accounts.into();
+    let ix = close_user_volume_accumulator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn close_user_volume_accumulator_invoke_signed(
+    accounts: CloseUserVolumeAccumulatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    close_user_volume_accumulator_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn close_user_volume_accumulator_verify_account_keys(
+    accounts: CloseUserVolumeAccumulatorAccounts<'_, '_>,
+    keys: CloseUserVolumeAccumulatorKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.user.key, keys.user),
+        (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn close_user_volume_accumulator_verify_writable_privileges<'me, 'info>(
+    accounts: CloseUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.user, accounts.user_volume_accumulator] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn close_user_volume_accumulator_verify_signer_privileges<'me, 'info>(
+    accounts: CloseUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.user] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn close_user_volume_accumulator_verify_account_privileges<'me, 'info>(
+    accounts: CloseUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    close_user_volume_accumulator_verify_writable_privileges(accounts)?;
+    close_user_volume_accumulator_verify_signer_privileges(accounts)?;
     Ok(())
 }
 
@@ -1222,6 +2656,260 @@ pub fn extend_account_verify_account_privileges<'me, 'info>(
     Ok(())
 }
 
+pub const INIT_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN: usize = 6;
+
+#[derive(Copy, Clone, Debug)]
+pub struct InitUserVolumeAccumulatorAccounts<'me, 'info> {
+    pub payer: &'me AccountInfo<'info>,
+    pub user: &'me AccountInfo<'info>,
+    pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct InitUserVolumeAccumulatorKeys {
+    pub payer: Pubkey,
+    pub user: Pubkey,
+    pub user_volume_accumulator: Pubkey,
+    pub system_program: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<InitUserVolumeAccumulatorAccounts<'_, '_>> for InitUserVolumeAccumulatorKeys {
+    fn from(accounts: InitUserVolumeAccumulatorAccounts) -> Self {
+        Self {
+            payer: *accounts.payer.key,
+            user: *accounts.user.key,
+            user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            system_program: *accounts.system_program.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<InitUserVolumeAccumulatorKeys> for [AccountMeta; INIT_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] {
+    fn from(keys: InitUserVolumeAccumulatorKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.payer,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; INIT_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]> for InitUserVolumeAccumulatorKeys {
+    fn from(pubkeys: [Pubkey; INIT_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            payer: pubkeys[0],
+            user: pubkeys[1],
+            user_volume_accumulator: pubkeys[2],
+            system_program: pubkeys[3],
+            event_authority: pubkeys[4],
+            program: pubkeys[5],
+        }
+    }
+}
+
+impl<'info> From<InitUserVolumeAccumulatorAccounts<'_, 'info>> for [AccountInfo<'info>; INIT_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] {
+    fn from(accounts: InitUserVolumeAccumulatorAccounts<'_, 'info>) -> Self {
+        [
+            accounts.payer.clone(),
+            accounts.user.clone(),
+            accounts.user_volume_accumulator.clone(),
+            accounts.system_program.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; INIT_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]> for InitUserVolumeAccumulatorAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; INIT_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            payer: &arr[0],
+            user: &arr[1],
+            user_volume_accumulator: &arr[2],
+            system_program: &arr[3],
+            event_authority: &arr[4],
+            program: &arr[5],
+        }
+    }
+}
+
+pub const INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM: [u8; 8] = [94, 6, 202, 115, 255, 96, 232, 183];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct InitUserVolumeAccumulatorIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InitUserVolumeAccumulatorIxData(pub InitUserVolumeAccumulatorIxArgs);
+
+impl From<InitUserVolumeAccumulatorIxArgs> for InitUserVolumeAccumulatorIxData {
+    fn from(args: InitUserVolumeAccumulatorIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl InitUserVolumeAccumulatorIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(InitUserVolumeAccumulatorIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn init_user_volume_accumulator_ix_with_program_id(
+    program_id: Pubkey,
+    keys: InitUserVolumeAccumulatorKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; INIT_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] = keys.into();
+    let data: InitUserVolumeAccumulatorIxData = InitUserVolumeAccumulatorIxArgs {}.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn init_user_volume_accumulator_ix(
+    keys: InitUserVolumeAccumulatorKeys,
+) -> std::io::Result<Instruction> {
+    init_user_volume_accumulator_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn init_user_volume_accumulator_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: InitUserVolumeAccumulatorAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: InitUserVolumeAccumulatorKeys = accounts.into();
+    let ix = init_user_volume_accumulator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn init_user_volume_accumulator_invoke(
+    accounts: InitUserVolumeAccumulatorAccounts<'_, '_>,
+) -> ProgramResult {
+    init_user_volume_accumulator_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn init_user_volume_accumulator_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: InitUserVolumeAccumulatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: InitUserVolumeAccumulatorKeys = accounts.into();
+    let ix = init_user_volume_accumulator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn init_user_volume_accumulator_invoke_signed(
+    accounts: InitUserVolumeAccumulatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    init_user_volume_accumulator_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn init_user_volume_accumulator_verify_account_keys(
+    accounts: InitUserVolumeAccumulatorAccounts<'_, '_>,
+    keys: InitUserVolumeAccumulatorKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.payer.key, keys.payer),
+        (*accounts.user.key, keys.user),
+        (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn init_user_volume_accumulator_verify_writable_privileges<'me, 'info>(
+    accounts: InitUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.payer, accounts.user_volume_accumulator] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn init_user_volume_accumulator_verify_signer_privileges<'me, 'info>(
+    accounts: InitUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.payer] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn init_user_volume_accumulator_verify_account_privileges<'me, 'info>(
+    accounts: InitUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    init_user_volume_accumulator_verify_writable_privileges(accounts)?;
+    init_user_volume_accumulator_verify_signer_privileges(accounts)?;
+    Ok(())
+}
 
 pub const INITIALIZE_IX_ACCOUNTS_LEN: usize = 3;
 #[derive(Copy, Clone, Debug)]
@@ -2953,7 +4641,243 @@ pub fn set_params_verify_account_privileges<'me, 'info>(
     set_params_verify_signer_privileges(accounts)?;
     Ok(())
 }
+pub const SYNC_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN: usize = 5;
 
+#[derive(Copy, Clone, Debug)]
+pub struct SyncUserVolumeAccumulatorAccounts<'me, 'info> {
+    pub user: &'me AccountInfo<'info>,
+    pub global_volume_accumulator: &'me AccountInfo<'info>,
+    pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SyncUserVolumeAccumulatorKeys {
+    pub user: Pubkey,
+    pub global_volume_accumulator: Pubkey,
+    pub user_volume_accumulator: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<SyncUserVolumeAccumulatorAccounts<'_, '_>> for SyncUserVolumeAccumulatorKeys {
+    fn from(accounts: SyncUserVolumeAccumulatorAccounts) -> Self {
+        Self {
+            user: *accounts.user.key,
+            global_volume_accumulator: *accounts.global_volume_accumulator.key,
+            user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<SyncUserVolumeAccumulatorKeys> for [AccountMeta; SYNC_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] {
+    fn from(keys: SyncUserVolumeAccumulatorKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.user,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.global_volume_accumulator,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; SYNC_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]> for SyncUserVolumeAccumulatorKeys {
+    fn from(pubkeys: [Pubkey; SYNC_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            user: pubkeys[0],
+            global_volume_accumulator: pubkeys[1],
+            user_volume_accumulator: pubkeys[2],
+            event_authority: pubkeys[3],
+            program: pubkeys[4],
+        }
+    }
+}
+
+impl<'info> From<SyncUserVolumeAccumulatorAccounts<'_, 'info>> for [AccountInfo<'info>; SYNC_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] {
+    fn from(accounts: SyncUserVolumeAccumulatorAccounts<'_, 'info>) -> Self {
+        [
+            accounts.user.clone(),
+            accounts.global_volume_accumulator.clone(),
+            accounts.user_volume_accumulator.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SYNC_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]> for SyncUserVolumeAccumulatorAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; SYNC_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            user: &arr[0],
+            global_volume_accumulator: &arr[1],
+            user_volume_accumulator: &arr[2],
+            event_authority: &arr[3],
+            program: &arr[4],
+        }
+    }
+}
+
+pub const SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM: [u8; 8] = [86, 31, 192, 87, 163, 87, 79, 238];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SyncUserVolumeAccumulatorIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SyncUserVolumeAccumulatorIxData(pub SyncUserVolumeAccumulatorIxArgs);
+
+impl From<SyncUserVolumeAccumulatorIxArgs> for SyncUserVolumeAccumulatorIxData {
+    fn from(args: SyncUserVolumeAccumulatorIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl SyncUserVolumeAccumulatorIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(SyncUserVolumeAccumulatorIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn sync_user_volume_accumulator_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SyncUserVolumeAccumulatorKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SYNC_USER_VOLUME_ACCUMULATOR_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SyncUserVolumeAccumulatorIxData = SyncUserVolumeAccumulatorIxArgs {}.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn sync_user_volume_accumulator_ix(
+    keys: SyncUserVolumeAccumulatorKeys,
+) -> std::io::Result<Instruction> {
+    sync_user_volume_accumulator_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn sync_user_volume_accumulator_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SyncUserVolumeAccumulatorAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: SyncUserVolumeAccumulatorKeys = accounts.into();
+    let ix = sync_user_volume_accumulator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn sync_user_volume_accumulator_invoke(
+    accounts: SyncUserVolumeAccumulatorAccounts<'_, '_>,
+) -> ProgramResult {
+    sync_user_volume_accumulator_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn sync_user_volume_accumulator_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SyncUserVolumeAccumulatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SyncUserVolumeAccumulatorKeys = accounts.into();
+    let ix = sync_user_volume_accumulator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn sync_user_volume_accumulator_invoke_signed(
+    accounts: SyncUserVolumeAccumulatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    sync_user_volume_accumulator_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn sync_user_volume_accumulator_verify_account_keys(
+    accounts: SyncUserVolumeAccumulatorAccounts<'_, '_>,
+    keys: SyncUserVolumeAccumulatorKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.user.key, keys.user),
+        (*accounts.global_volume_accumulator.key, keys.global_volume_accumulator),
+        (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn sync_user_volume_accumulator_verify_writable_privileges<'me, 'info>(
+    accounts: SyncUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.user_volume_accumulator] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn sync_user_volume_accumulator_verify_signer_privileges<'me, 'info>(
+    accounts: SyncUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    Ok(())
+}
+
+pub fn sync_user_volume_accumulator_verify_account_privileges<'me, 'info>(
+    accounts: SyncUserVolumeAccumulatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    sync_user_volume_accumulator_verify_writable_privileges(accounts)?;
+    sync_user_volume_accumulator_verify_signer_privileges(accounts)?;
+    Ok(())
+}
 pub const UPDATE_GLOBAL_AUTHORITY_IX_ACCOUNTS_LEN: usize = 5;
 
 #[derive(Copy, Clone, Debug)]

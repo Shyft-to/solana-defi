@@ -1,7 +1,6 @@
 use base64::engine::general_purpose;
 use base64::Engine;
 use serde::Serialize; 
-use solana_program::pubkey::Pubkey;
 use pump_interface::events::{
     CreateEvent, CreateEventEvent, CREATE_EVENT_EVENT_DISCM,
     TradeEvent, TradeEventEvent, TRADE_EVENT_EVENT_DISCM,
