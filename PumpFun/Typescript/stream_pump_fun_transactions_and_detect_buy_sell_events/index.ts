@@ -9,9 +9,9 @@ import Client, {
   SubscribeRequestFilterSlots,
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
+import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { Idl } from "@project-serum/anchor";
+import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import pumpFunIdl from "./idls/pump_0.1.0.json";
