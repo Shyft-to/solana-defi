@@ -2,9 +2,16 @@ export function parseSwapTransactionOutput(parsedInstruction) {
     const parsedEvent = parsedInstruction.instructions.events[0]?.data;
     const supply = 1_000_000_000_000_000;
 
-    const swapInstruction = parsedInstruction.instructions.pumpFunIxs.find(
-        (instruction) => instruction.name === 'buy' || instruction.name === 'sell'
-    );
+    let swapInstruction =
+        parsedInstruction.instructions.pumpFunIxs?.find(
+            (instruction) => instruction.name === 'buy' || instruction.name === 'sell'
+        );
+
+    if (!swapInstruction) {
+        swapInstruction = parsedInstruction.inner_ixs?.find(
+            (ix) => ix.name === 'buy' || ix.name === 'sell'
+        );
+    }
 
     if (!swapInstruction) {
         return;
@@ -14,20 +21,20 @@ export function parseSwapTransactionOutput(parsedInstruction) {
         (account) => account.name === 'bonding_curve'
     )?.pubkey;
 
-    const virtual_sol_reserves = parsedEvent.virtual_sol_reserves;
-    const virtual_token_reserves = parsedEvent.virtual_token_reserves;
-    const real_sol_reserves = parsedEvent.real_sol_reserves;
-    const real_token_reserves = parsedEvent.real_token_reserves;
-    const mint = parsedEvent.mint;
-    const creator = parsedEvent.creator;
+    const virtual_sol_reserves = parsedEvent?.virtual_sol_reserves;
+    const virtual_token_reserves = parsedEvent?.virtual_token_reserves;
+    const real_sol_reserves = parsedEvent?.real_sol_reserves;
+    const real_token_reserves = parsedEvent?.real_token_reserves;
+    const mint = parsedEvent?.mint;
+    const creator = parsedEvent?.creator;
 
     const price = calculatePumpFunPrice(
         virtual_sol_reserves,
         virtual_token_reserves
-    ); // Price in Sol, Multiply with Sol Price To get USD Price
-     const formattedPrice = price.toFixed(20).replace(/0+$/, ''); // trims extra trailing zeros
+    ); 
+    const formattedPrice = price.toFixed(20).replace(/0+$/, '');
 
-    const output = {
+    return {
         bonding_curve,
         virtual_sol_reserves,
         virtual_token_reserves,
@@ -38,15 +45,13 @@ export function parseSwapTransactionOutput(parsedInstruction) {
         formattedPrice,
         supply,
     };
-
-    return output;
 }
 
 function calculatePumpFunPrice(
     virtualSolReserves: number,
     virtualTokenReserves: number
 ): number {
-    const sol = virtualSolReserves / 1_000_000_000; // convert lamports to SOL
-    const tokens = virtualTokenReserves / Math.pow(10, 6);
+    const sol = virtualSolReserves / 1_000_000_000; 
+    const tokens = virtualTokenReserves / 1_000_000; 
     return sol / tokens;
 }
