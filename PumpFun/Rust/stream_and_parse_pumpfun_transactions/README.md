@@ -1,18 +1,15 @@
-# Stream Pumpfun Transactions and Track Buy/Sell Events in Real-Time  
-![screenshot](assets/usage-screenshot.png?raw=true "Screenshot")
+# Streaming Pumpfun transaction using gRPC and parsing instructions in Rust
 
-
-This project focuses on streaming Pump.fun transactions using gRPC and parsing buy/sell events in real-time. By decoding transaction data, it identifies key details such as the buyer/seller addresses and the transaction amounts. The implementation leverages Rust’s performance and type safety to efficiently process high-throughput transaction streams from Solana’s ecosystem. Structured for seamless integration, this solution extracts actionable insights from Pump.fun and Token Program instructions, enabling real-time analysis of market activity. Ideal for traders and developers, it provides a robust foundation for tracking and analyzing on-chain trading behavior on Pump.fun.
+This project streams Pump.fun transactions from gRPC, parsing both Pump.fun and Token Program instructions in real-time. It efficiently decodes transaction data, extracts meaningful insights, and structures the parsed instructions into a serializable format for easy processing and analysis. The implementation ensures smooth integration with Solana’s ecosystem, leveraging Rust’s strong type safety and performance for handling high-throughput transaction streams.
 
 ```
- cargo run -- --endpoint<gRpc endpoint url> --x-token<token>
-````
-## Notes
---PS: this code only works for the program ID <address>
--- DON'T attempt to use the code for any other program
--- Using the Latest Pumpfun IDL updated August 1, 2025
+$ cargo run -- --endpoint <endpoint> --x-token <token>
+```
 
-gRPC client examples :https://github.com/Shyft-to/solana-defi
-Blogs : blogs.shyft.to
-Learn about shyft: https://shyft.to/
-Discord: https://discord.gg/6bSmYuDa
+![screenshot](assets/usage-screenshot.png?raw=true "Screenshot")
+
+## Related Links
+
+- Shyft gRPC Docs: [https://docs.shyft.to/solana-fast-grpc/grpc-docs]  
+- Start Streaming with Shyft: [https://shyft.to/solana-yellowstone-grpc]  
+- Shyft Website: [https://shyft.to/]
