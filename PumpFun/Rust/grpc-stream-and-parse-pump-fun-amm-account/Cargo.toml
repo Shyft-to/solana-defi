@@ -1,5 +1,6 @@
 [package]
-name = "pump_fun_grpc_stream_n_parse"
+name = "grpc-stream-and-parse-pump-swap-amm-account
+"
 version = "0.1.0"
 edition = "2021"
 
