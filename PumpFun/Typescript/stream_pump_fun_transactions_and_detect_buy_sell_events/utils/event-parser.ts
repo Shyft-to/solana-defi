@@ -42,7 +42,9 @@ export class SolanaEventParser {
 
   parseEvent(txn: VersionedTransactionResponse | ParsedTransactionWithMeta) {
     try {
-      let programIds: string[] = [];
+      let programIds: string[] = Array.from(this.eventDecoders.keys()).map(
+        (e) => e.toString()
+      );
       if (
         txn?.transaction.message instanceof Message ||
         txn?.transaction.message instanceof MessageV0
