@@ -1,5 +1,5 @@
 [package]
-name = "grpc-stream-and-parse-pump-swap-amm-transaction"
+name = "stream_and_parse_pump_swap_amm_transaction"
 version = "0.1.0"
 edition = "2021"
 
