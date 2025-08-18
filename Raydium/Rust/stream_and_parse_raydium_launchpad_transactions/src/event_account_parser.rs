@@ -2,6 +2,7 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use serde::Serialize; 
 use solana_program::pubkey::Pubkey;
+use solana_transaction_status::InnerInstructions;
 
 use raydium_launchpad_interface::events::{
     ClaimVestedEvent, ClaimVestedEventEvent, CLAIM_VESTED_EVENT_DISCM,
@@ -27,17 +28,18 @@ pub fn convert_to_discm(base64_string: &str) -> Result<Vec<u8>, base64::DecodeEr
     general_purpose::STANDARD.decode(base64_string)
 }
 
-pub fn extract_log_message(logs: &[String]) -> Option<String> {
-    logs.iter()
-        .find_map(|message| {
-            if message.starts_with("Program data: ") {
-                let encoded = message.trim_start_matches("Program data: ").trim();
-                Some(encoded.to_string())
-            } else {
-                None
-            }
-        })
+pub fn extract_inner_data(inner_instructions: &[InnerInstructions]) -> Vec<Vec<u8>> {
+    let mut all_data: Vec<Vec<u8>> = Vec::new();
+
+    for inner in inner_instructions {
+        for inner_inst in &inner.instructions {
+            let data = &inner_inst.instruction.data;
+            all_data.push(data.clone());
+        }
+    }
+    all_data
 }
+
 
 pub fn decode_event_data(buf: &[u8]) -> Result<DecodedEvent, AccountEventError> {
     if buf.len() < 8 {

@@ -69,9 +69,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         }
       }
     } catch (error) {
-      if (error) {
-        console.log(error)
-      }
     }
   });
 
@@ -112,8 +109,8 @@ const req: SubscribeRequest = {
   "accounts": {
     "pumpfun": {
       "account": [],
-      "filters": [], //memcmp filters to stream bonding curve accounts can also be added
-      "owner": [PUMP_PROGRAM_ID] // raydium program id to subscribe to
+      "filters": [], 
+      "owner": [PUMP_PROGRAM_ID] 
     }
   },
   "transactions": {},

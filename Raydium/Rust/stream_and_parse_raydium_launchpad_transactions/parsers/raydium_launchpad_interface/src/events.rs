@@ -6,7 +6,8 @@ use solana_program::pubkey::Pubkey;
 pub const CLAIM_VESTED_EVENT_DISCM: [u8; 8] = [21, 194, 114, 87, 120, 211, 226, 32];
 pub const CREATE_VESTING_EVENT_DISCM: [u8; 8] = [150, 152, 11, 179, 52, 210, 191, 125];
 pub const POOL_CREATE_EVENT_DISCM: [u8; 8] = [151, 215, 226, 9, 118, 161, 115, 174];
-pub const TRADE_EVENT_DISCM: [u8; 8] = [189, 219, 127, 211, 78, 230, 97, 238];
+pub const TRADE_EVENT_DISCM: [u8; 8] = [228, 69, 165, 46, 81, 203, 154, 29];
+
 
 // ClaimVestedEvent
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq,serde::Serialize, serde::Deserialize)]
@@ -172,8 +173,7 @@ pub enum TradeDirection {
     Sell,
 }
 
-// TradeEvent
-#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq,serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TradeEvent {
     pub pool_state: Pubkey,
     pub total_base_sell: u64,
@@ -192,6 +192,8 @@ pub struct TradeEvent {
     pub pool_status: PoolStatus,
 }
 
+
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct TradeEventEvent(pub TradeEvent);
 
@@ -201,7 +203,6 @@ impl BorshSerialize for TradeEventEvent {
         self.0.serialize(writer)
     }
 }
-
 impl TradeEventEvent {
     pub fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let maybe_discm = <[u8; 8]>::deserialize(buf)?;
@@ -214,6 +215,14 @@ impl TradeEventEvent {
                 ),
             ));
         }
+
+        // consume the extra 8 bytes wrapper (quick/hacky fix)
+        if buf.len() < 8 {
+            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "missing extra header"));
+        }
+        let _extra: [u8; 8] = <[u8; 8]>::deserialize(buf)?;
+
+        // now deserialize the real struct
         Ok(Self(TradeEvent::deserialize(buf)?))
     }
 }

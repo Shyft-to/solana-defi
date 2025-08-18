@@ -244,10 +244,10 @@ fn to_camel_case(name: &str) -> String {
 fn get_instruction_name_with_typename(instruction: &TokenInstruction) -> String {
     let debug_string = format!("{:?}", instruction);
     if let Some(first_brace) = debug_string.find(" {") {
-        let name = &debug_string[..first_brace]; // Extract name before `{`
+        let name = &debug_string[..first_brace];
         to_camel_case(name)
     } else {
-        to_camel_case(&debug_string) // Directly convert unit variant names
+        to_camel_case(&debug_string)
     }
 }
 
@@ -483,7 +483,6 @@ async fn geyser_subscribe(
                             block_time: Some(block_time),
                         };
                         let mut decoded_event_json = None;
-                    
 
                         let compiled_instructions: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
@@ -503,29 +502,17 @@ async fn geyser_subscribe(
                             }
                         };
                    if let TransactionWithStatusMeta::Complete(versioned_meta) = &confirmed_txn_with_meta.tx_with_meta {
-                      if let Some(logs) = &versioned_meta.meta.log_messages {
-                      if let Some(data_msg) = event_account_parser::extract_log_message(logs) {
-                         match base64::decode(&data_msg) {
-                        Ok(decoded_bytes) => {
-                        match decode_event_data(&decoded_bytes) {
-                            Ok(event) => {
-                            decoded_event_json = Some(event);
-                            }
-                            Err(err) => {
-                             eprintln!("❌ Failed to decode account data: {}", err.message);
-                             decoded_event_json = None; // explicitly fall back to None
-                            }
-                        }
+                    if let Some(inner_instructions) = &versioned_meta.meta.inner_instructions {
+                      if let data_msg = event_account_parser::extract_inner_data(inner_instructions) {
+                      for data in data_msg.iter() {
+                         match event_account_parser::decode_event_data(data) {
+                            Ok(decoded_event) => {decoded_event_json =  Some(decoded_event)},
+                            Err(e) => { },
+                         }
                     }
-                        Err(err) => {
-                        eprintln!("❌ Failed to decode base64 log message: {}", err);
-                                }
-                            }
-                        }
-                            }
-                        }   
-
-                        
+                      }
+                    }
+                        }        
                         let token_idl_json = fs::read_to_string("idls/token_program_idl.json")
                         .expect("Unable to read Token IDL JSON file");
 
@@ -573,7 +560,6 @@ async fn geyser_subscribe(
                                         }
                                     }
                                     Err(e) => {       
-                                         error!("Failed to decode instruction: {:?}\n", e);
                                     }
                                 }}
                                 else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
@@ -619,7 +605,7 @@ async fn geyser_subscribe(
                                             }
                                             
                                         },
-                                        Err(_) => println!("Failed to decode token instruction"),
+                                        Err(_) => {},
                                     }
                                 }
                         });
@@ -667,7 +653,7 @@ async fn geyser_subscribe(
                                         }
                                     }
                                     Err(e) => {
-                                        error!("Failed to decode instruction: {:?}\n", e);
+                                    
                                     }
                                 }}
                                 else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
@@ -726,22 +712,22 @@ async fn geyser_subscribe(
                                 signatures: versioned_tx_with_meta.transaction.signatures.clone(),
                                 message: match &versioned_tx_with_meta.transaction.message {
                                     VersionedMessage::V0(msg) => ParsedMessage {
-                                        header: msg.header.clone(), // Now correctly extracting the header
+                                        header: msg.header.clone(), 
                                         account_keys: msg.account_keys.clone(),
                                         recent_blockhash: msg.recent_blockhash.clone(),
-                                        instructions: decoded_compiled_instructions.clone(), // Replacing instructions
+                                        instructions: decoded_compiled_instructions.clone(), 
                                         address_table_lookups: msg.address_table_lookups.clone(),
                                     },
                                     VersionedMessage::Legacy(msg) => ParsedMessage {
                                         header: msg.header.clone(),
                                         account_keys: msg.account_keys.clone(),
                                         recent_blockhash: msg.recent_blockhash.clone(),
-                                        instructions: decoded_compiled_instructions.clone(), // Replacing instructions
-                                        address_table_lookups: vec![], // Legacy messages don't have address table lookups
+                                        instructions: decoded_compiled_instructions.clone(), 
+                                        address_table_lookups: vec![], 
                                     },
                                 },
                             },
-                            _ => panic!("Expected Complete variant"), // Ensure we only handle Complete
+                            _ => panic!("Expected Complete variant"), 
                         },
                         meta: match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => ParsedTransactionStatusMeta {
@@ -749,7 +735,7 @@ async fn geyser_subscribe(
                                 fee: versioned_tx_with_meta.meta.fee,
                                 pre_balances: versioned_tx_with_meta.meta.pre_balances.clone(),
                                 post_balances: versioned_tx_with_meta.meta.post_balances.clone(),
-                                inner_instructions: decoded_inner_instructions.clone(), // Replacing inner_instructions
+                                inner_instructions: decoded_inner_instructions.clone(), 
                                 log_messages: versioned_tx_with_meta.meta.log_messages.clone(),
                                 pre_token_balances: versioned_tx_with_meta.meta.pre_token_balances.clone(),
                                 post_token_balances: versioned_tx_with_meta.meta.post_token_balances.clone(),
@@ -758,7 +744,7 @@ async fn geyser_subscribe(
                                 return_data: versioned_tx_with_meta.meta.return_data.clone(),
                                 compute_units_consumed: versioned_tx_with_meta.meta.compute_units_consumed,
                             },
-                            _ => panic!("Expected Complete variant"), // Ensure we only handle Complete
+                            _ => panic!("Expected Complete variant"), 
                         },
                         block_time: confirmed_txn_with_meta.block_time,
                     };
