@@ -13,6 +13,7 @@ use solana_program::{
 };
 use std::io::Read;
 use strum_macros::{Display, EnumString};
+
 #[derive(Clone, Debug, PartialEq, EnumString, Display)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WhirlpoolProgramIx {
@@ -47,6 +48,18 @@ pub enum WhirlpoolProgramIx {
     DeletePositionBundle,
     OpenBundledPosition(OpenBundledPositionIxArgs),
     CloseBundledPosition(CloseBundledPositionIxArgs),
+    OpenPositionWithTokenExtensions(OpenPositionWithTokenExtensionsIxArgs),
+    ClosePositionWithTokenExtensions,
+    LockPosition(LockPositionIxArgs),
+    ResetPositionRange(ResetPositionRangeIxArgs),
+    TransferLockedPosition,
+    InitializeAdaptiveFeeTier,
+    SetDefaultBaseFeeRate(SetDefaultBaseFeeRateIxArgs),
+    SetDelegatedFeeAuthority,
+    SetInitializePoolAuthority,
+    SetPresetAdaptiveFeeConstants(SetPresetAdaptiveFeeConstantsIxArgs),
+    InitializePoolWithAdaptiveFee(InitializePoolWithAdaptiveFeeIxArgs),
+    SetFeeRateByDelegatedFeeAuthority(SetFeeRateByDelegatedFeeAuthorityIxArgs),
     CollectFeesV2(CollectFeesV2IxArgs),
     CollectProtocolFeesV2(CollectProtocolFeesV2IxArgs),
     CollectRewardV2(CollectRewardV2IxArgs),
@@ -68,6 +81,7 @@ impl WhirlpoolProgramIx {
         // Use the ToString derived method to get the enum variant name
         self.to_string().to_camel_case()
     }
+ 
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
         let mut reader = buf;
         let mut maybe_discm = [0u8; 8];
@@ -152,6 +166,36 @@ impl WhirlpoolProgramIx {
             CLOSE_BUNDLED_POSITION_IX_DISCM => Ok(Self::CloseBundledPosition(
                 CloseBundledPositionIxArgs::deserialize(&mut reader)?,
             )),
+            OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM => Ok(Self::OpenPositionWithTokenExtensions(
+                OpenPositionWithTokenExtensionsIxArgs::deserialize(&mut reader)?,
+            )),
+            CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM => {
+                Ok(Self::ClosePositionWithTokenExtensions)
+            }
+            LOCK_POSITION_IX_DISCM => Ok(Self::LockPosition(
+                LockPositionIxArgs::deserialize(&mut reader)?,
+            )),
+            RESET_POSITION_RANGE_IX_DISCM => Ok(Self::ResetPositionRange(
+                ResetPositionRangeIxArgs::deserialize(&mut reader)?,
+            )),
+            TRANSFER_LOCKED_POSITION_IX_DISCM => Ok(Self::TransferLockedPosition),
+            INITIALIZE_ADAPTIVE_FEE_TIER_IX_DISCM => Ok(Self::InitializeAdaptiveFeeTier),
+            SET_DEFAULT_BASE_FEE_RATE_IX_DISCM => Ok(Self::SetDefaultBaseFeeRate(
+                SetDefaultBaseFeeRateIxArgs::deserialize(&mut reader)?,
+            )),
+            SET_DELEGATED_FEE_AUTHORITY_IX_DISCM => Ok(Self::SetDelegatedFeeAuthority),
+            SET_INITIALIZE_POOL_AUTHORITY_IX_DISCM => Ok(Self::SetInitializePoolAuthority),
+            SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_DISCM => Ok(Self::SetPresetAdaptiveFeeConstants(
+                SetPresetAdaptiveFeeConstantsIxArgs::deserialize(&mut reader)?,
+            )),
+            INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_DISCM => Ok(Self::InitializePoolWithAdaptiveFee(
+                InitializePoolWithAdaptiveFeeIxArgs::deserialize(&mut reader)?,
+            )),
+            SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_DISCM => {
+                Ok(Self::SetFeeRateByDelegatedFeeAuthority(
+                    SetFeeRateByDelegatedFeeAuthorityIxArgs::deserialize(&mut reader)?,
+                ))
+            }
             COLLECT_FEES_V2_IX_DISCM => Ok(Self::CollectFeesV2(CollectFeesV2IxArgs::deserialize(
                 &mut reader,
             )?)),
@@ -191,161 +235,203 @@ impl WhirlpoolProgramIx {
             )),
         }
     }
+
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        match self {
-            Self::InitializeConfig(args) => {
-                writer.write_all(&INITIALIZE_CONFIG_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializePool(args) => {
-                writer.write_all(&INITIALIZE_POOL_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializeTickArray(args) => {
-                writer.write_all(&INITIALIZE_TICK_ARRAY_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializeFeeTier(args) => {
-                writer.write_all(&INITIALIZE_FEE_TIER_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializeReward(args) => {
-                writer.write_all(&INITIALIZE_REWARD_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SetRewardEmissions(args) => {
-                writer.write_all(&SET_REWARD_EMISSIONS_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::OpenPosition(args) => {
-                writer.write_all(&OPEN_POSITION_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::OpenPositionWithMetadata(args) => {
-                writer.write_all(&OPEN_POSITION_WITH_METADATA_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::IncreaseLiquidity(args) => {
-                writer.write_all(&INCREASE_LIQUIDITY_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::DecreaseLiquidity(args) => {
-                writer.write_all(&DECREASE_LIQUIDITY_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::UpdateFeesAndRewards => writer.write_all(&UPDATE_FEES_AND_REWARDS_IX_DISCM),
-            Self::CollectFees => writer.write_all(&COLLECT_FEES_IX_DISCM),
-            Self::CollectReward(args) => {
-                writer.write_all(&COLLECT_REWARD_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CollectProtocolFees => writer.write_all(&COLLECT_PROTOCOL_FEES_IX_DISCM),
-            Self::Swap(args) => {
-                writer.write_all(&SWAP_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::ClosePosition => writer.write_all(&CLOSE_POSITION_IX_DISCM),
-            Self::SetDefaultFeeRate(args) => {
-                writer.write_all(&SET_DEFAULT_FEE_RATE_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SetDefaultProtocolFeeRate(args) => {
-                writer.write_all(&SET_DEFAULT_PROTOCOL_FEE_RATE_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SetFeeRate(args) => {
-                writer.write_all(&SET_FEE_RATE_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SetProtocolFeeRate(args) => {
-                writer.write_all(&SET_PROTOCOL_FEE_RATE_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SetFeeAuthority => writer.write_all(&SET_FEE_AUTHORITY_IX_DISCM),
-            Self::SetCollectProtocolFeesAuthority => {
-                writer.write_all(&SET_COLLECT_PROTOCOL_FEES_AUTHORITY_IX_DISCM)
-            }
-            Self::SetRewardAuthority(args) => {
-                writer.write_all(&SET_REWARD_AUTHORITY_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SetRewardAuthorityBySuperAuthority(args) => {
-                writer.write_all(&SET_REWARD_AUTHORITY_BY_SUPER_AUTHORITY_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SetRewardEmissionsSuperAuthority => {
-                writer.write_all(&SET_REWARD_EMISSIONS_SUPER_AUTHORITY_IX_DISCM)
-            }
-            Self::TwoHopSwap(args) => {
-                writer.write_all(&TWO_HOP_SWAP_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializePositionBundle => {
-                writer.write_all(&INITIALIZE_POSITION_BUNDLE_IX_DISCM)
-            }
-            Self::InitializePositionBundleWithMetadata => {
-                writer.write_all(&INITIALIZE_POSITION_BUNDLE_WITH_METADATA_IX_DISCM)
-            }
-            Self::DeletePositionBundle => writer.write_all(&DELETE_POSITION_BUNDLE_IX_DISCM),
-            Self::OpenBundledPosition(args) => {
-                writer.write_all(&OPEN_BUNDLED_POSITION_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CloseBundledPosition(args) => {
-                writer.write_all(&CLOSE_BUNDLED_POSITION_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CollectFeesV2(args) => {
-                writer.write_all(&COLLECT_FEES_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CollectProtocolFeesV2(args) => {
-                writer.write_all(&COLLECT_PROTOCOL_FEES_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CollectRewardV2(args) => {
-                writer.write_all(&COLLECT_REWARD_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::DecreaseLiquidityV2(args) => {
-                writer.write_all(&DECREASE_LIQUIDITY_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::IncreaseLiquidityV2(args) => {
-                writer.write_all(&INCREASE_LIQUIDITY_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializePoolV2(args) => {
-                writer.write_all(&INITIALIZE_POOL_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializeRewardV2(args) => {
-                writer.write_all(&INITIALIZE_REWARD_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SetRewardEmissionsV2(args) => {
-                writer.write_all(&SET_REWARD_EMISSIONS_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::SwapV2(args) => {
-                writer.write_all(&SWAP_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::TwoHopSwapV2(args) => {
-                writer.write_all(&TWO_HOP_SWAP_V2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializeConfigExtension => {
-                writer.write_all(&INITIALIZE_CONFIG_EXTENSION_IX_DISCM)
-            }
-            Self::SetConfigExtensionAuthority => {
-                writer.write_all(&SET_CONFIG_EXTENSION_AUTHORITY_IX_DISCM)
-            }
-            Self::SetTokenBadgeAuthority => writer.write_all(&SET_TOKEN_BADGE_AUTHORITY_IX_DISCM),
-            Self::InitializeTokenBadge => writer.write_all(&INITIALIZE_TOKEN_BADGE_IX_DISCM),
-            Self::DeleteTokenBadge => writer.write_all(&DELETE_TOKEN_BADGE_IX_DISCM),
+       match self {
+        Self::InitializeConfig(args) => {
+            writer.write_all(&INITIALIZE_CONFIG_IX_DISCM)?;
+            args.serialize(&mut writer)
         }
+        Self::InitializePool(args) => {
+            writer.write_all(&INITIALIZE_POOL_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializeTickArray(args) => {
+            writer.write_all(&INITIALIZE_TICK_ARRAY_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializeFeeTier(args) => {
+            writer.write_all(&INITIALIZE_FEE_TIER_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializeReward(args) => {
+            writer.write_all(&INITIALIZE_REWARD_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetRewardEmissions(args) => {
+            writer.write_all(&SET_REWARD_EMISSIONS_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::OpenPosition(args) => {
+            writer.write_all(&OPEN_POSITION_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::OpenPositionWithMetadata(args) => {
+            writer.write_all(&OPEN_POSITION_WITH_METADATA_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::IncreaseLiquidity(args) => {
+            writer.write_all(&INCREASE_LIQUIDITY_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::DecreaseLiquidity(args) => {
+            writer.write_all(&DECREASE_LIQUIDITY_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::UpdateFeesAndRewards => writer.write_all(&UPDATE_FEES_AND_REWARDS_IX_DISCM),
+        Self::CollectFees => writer.write_all(&COLLECT_FEES_IX_DISCM),
+        Self::CollectReward(args) => {
+            writer.write_all(&COLLECT_REWARD_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CollectProtocolFees => writer.write_all(&COLLECT_PROTOCOL_FEES_IX_DISCM),
+        Self::Swap(args) => {
+            writer.write_all(&SWAP_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::ClosePosition => writer.write_all(&CLOSE_POSITION_IX_DISCM),
+        Self::SetDefaultFeeRate(args) => {
+            writer.write_all(&SET_DEFAULT_FEE_RATE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetDefaultProtocolFeeRate(args) => {
+            writer.write_all(&SET_DEFAULT_PROTOCOL_FEE_RATE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetFeeRate(args) => {
+            writer.write_all(&SET_FEE_RATE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetProtocolFeeRate(args) => {
+            writer.write_all(&SET_PROTOCOL_FEE_RATE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetFeeAuthority => writer.write_all(&SET_FEE_AUTHORITY_IX_DISCM),
+        Self::SetCollectProtocolFeesAuthority => {
+            writer.write_all(&SET_COLLECT_PROTOCOL_FEES_AUTHORITY_IX_DISCM)
+        }
+        Self::SetRewardAuthority(args) => {
+            writer.write_all(&SET_REWARD_AUTHORITY_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetRewardAuthorityBySuperAuthority(args) => {
+            writer.write_all(&SET_REWARD_AUTHORITY_BY_SUPER_AUTHORITY_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetRewardEmissionsSuperAuthority => {
+            writer.write_all(&SET_REWARD_EMISSIONS_SUPER_AUTHORITY_IX_DISCM)
+        }
+        Self::TwoHopSwap(args) => {
+            writer.write_all(&TWO_HOP_SWAP_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializePositionBundle => {
+            writer.write_all(&INITIALIZE_POSITION_BUNDLE_IX_DISCM)
+        }
+        Self::InitializePositionBundleWithMetadata => {
+            writer.write_all(&INITIALIZE_POSITION_BUNDLE_WITH_METADATA_IX_DISCM)
+        }
+        Self::DeletePositionBundle => writer.write_all(&DELETE_POSITION_BUNDLE_IX_DISCM),
+        Self::OpenBundledPosition(args) => {
+            writer.write_all(&OPEN_BUNDLED_POSITION_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CloseBundledPosition(args) => {
+            writer.write_all(&CLOSE_BUNDLED_POSITION_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        
+        Self::OpenPositionWithTokenExtensions(args) => {
+            writer.write_all(&OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::ClosePositionWithTokenExtensions => {
+            writer.write_all(&CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM)
+        }
+        Self::LockPosition(args) => {
+            writer.write_all(&LOCK_POSITION_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::ResetPositionRange(args) => {
+            writer.write_all(&RESET_POSITION_RANGE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::TransferLockedPosition => writer.write_all(&TRANSFER_LOCKED_POSITION_IX_DISCM),
+        Self::InitializeAdaptiveFeeTier => writer.write_all(&INITIALIZE_ADAPTIVE_FEE_TIER_IX_DISCM),
+        Self::SetDefaultBaseFeeRate(args) => {
+            writer.write_all(&SET_DEFAULT_BASE_FEE_RATE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetDelegatedFeeAuthority => {
+            writer.write_all(&SET_DELEGATED_FEE_AUTHORITY_IX_DISCM)
+        }
+        Self::SetInitializePoolAuthority => {
+            writer.write_all(&SET_INITIALIZE_POOL_AUTHORITY_IX_DISCM)
+        }
+        Self::SetPresetAdaptiveFeeConstants(args) => {
+            writer.write_all(&SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializePoolWithAdaptiveFee(args) => {
+            writer.write_all(&INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetFeeRateByDelegatedFeeAuthority(args) => {
+            writer.write_all(&SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CollectFeesV2(args) => {
+            writer.write_all(&COLLECT_FEES_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CollectProtocolFeesV2(args) => {
+            writer.write_all(&COLLECT_PROTOCOL_FEES_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CollectRewardV2(args) => {
+            writer.write_all(&COLLECT_REWARD_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::DecreaseLiquidityV2(args) => {
+            writer.write_all(&DECREASE_LIQUIDITY_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::IncreaseLiquidityV2(args) => {
+            writer.write_all(&INCREASE_LIQUIDITY_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializePoolV2(args) => {
+            writer.write_all(&INITIALIZE_POOL_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializeRewardV2(args) => {
+            writer.write_all(&INITIALIZE_REWARD_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SetRewardEmissionsV2(args) => {
+            writer.write_all(&SET_REWARD_EMISSIONS_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::SwapV2(args) => {
+            writer.write_all(&SWAP_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::TwoHopSwapV2(args) => {
+            writer.write_all(&TWO_HOP_SWAP_V2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializeConfigExtension => {
+            writer.write_all(&INITIALIZE_CONFIG_EXTENSION_IX_DISCM)
+        }
+        Self::SetConfigExtensionAuthority => {
+            writer.write_all(&SET_CONFIG_EXTENSION_AUTHORITY_IX_DISCM)
+        }
+        Self::SetTokenBadgeAuthority => writer.write_all(&SET_TOKEN_BADGE_AUTHORITY_IX_DISCM),
+        Self::InitializeTokenBadge => writer.write_all(&INITIALIZE_TOKEN_BADGE_IX_DISCM),
+        Self::DeleteTokenBadge => writer.write_all(&DELETE_TOKEN_BADGE_IX_DISCM),
     }
+}
+
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
         let mut data = Vec::new();
         self.serialize(&mut data)?;
@@ -738,7 +824,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_POOL_IX_ACCOUNTS_LEN]
         }
     }
 }
-pub const INITIALIZE_POOL_IX_DISCM: [u8; 8] = [95, 180, 10, 172, 84, 174, 232, 40];
+pub const INITIALIZE_POOL_IX_DISCM: [u8; 8] = [17, 43, 80, 74, 168, 202, 6, 113];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializePoolIxArgs {
@@ -981,7 +1067,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_TICK_ARRAY_IX_ACCOUNT
         }
     }
 }
-pub const INITIALIZE_TICK_ARRAY_IX_DISCM: [u8; 8] = [11, 188, 193, 214, 141, 91, 149, 184];
+pub const INITIALIZE_TICK_ARRAY_IX_DISCM: [u8; 8] = [214, 27, 15, 109, 164, 252, 221, 253];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeTickArrayIxArgs {
@@ -1980,7 +2066,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; OPEN_POSITION_IX_ACCOUNTS_LEN]>
         }
     }
 }
-pub const OPEN_POSITION_IX_DISCM: [u8; 8] = [135, 128, 47, 77, 15, 152, 240, 49];
+pub const OPEN_POSITION_IX_DISCM: [u8; 8] =  [87, 190, 72, 189, 204, 203, 226, 66];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OpenPositionIxArgs {
@@ -2318,7 +2404,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; OPEN_POSITION_WITH_METADATA_IX_A
         }
     }
 }
-pub const OPEN_POSITION_WITH_METADATA_IX_DISCM: [u8; 8] = [242, 29, 134, 48, 58, 110, 14, 60];
+pub const OPEN_POSITION_WITH_METADATA_IX_DISCM: [u8; 8] = [78, 217, 28, 185, 88, 104, 255, 231];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OpenPositionWithMetadataIxArgs {
@@ -2973,7 +3059,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; DECREASE_LIQUIDITY_IX_ACCOUNTS_L
         }
     }
 }
-pub const DECREASE_LIQUIDITY_IX_DISCM: [u8; 8] = [160, 38, 208, 111, 104, 91, 44, 1];
+pub const DECREASE_LIQUIDITY_IX_DISCM: [u8; 8] = [160, 38, 208, 111, 104, 91, 44, 1];//[191, 42, 59, 65, 87, 169, 31, 103];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DecreaseLiquidityIxArgs {
@@ -3225,7 +3311,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; UPDATE_FEES_AND_REWARDS_IX_ACCOU
         }
     }
 }
-pub const UPDATE_FEES_AND_REWARDS_IX_DISCM: [u8; 8] = [154, 230, 250, 13, 236, 209, 75, 223];
+pub const UPDATE_FEES_AND_REWARDS_IX_DISCM: [u8; 8] = [173, 178, 66, 24, 33, 156, 204, 31];
 #[derive(Clone, Debug, PartialEq)]
 pub struct UpdateFeesAndRewardsIxData;
 impl UpdateFeesAndRewardsIxData {
@@ -3716,7 +3802,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; COLLECT_REWARD_IX_ACCOUNTS_LEN]>
         }
     }
 }
-pub const COLLECT_REWARD_IX_DISCM: [u8; 8] = [70, 5, 132, 87, 86, 235, 177, 34];
+pub const COLLECT_REWARD_IX_DISCM: [u8; 8] = [206, 68, 114, 253, 168, 177, 245, 180];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CollectRewardIxArgs {
@@ -4277,7 +4363,8 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; SWAP_IX_ACCOUNTS_LEN]>
         }
     }
 }
-pub const SWAP_IX_DISCM: [u8; 8] = [248, 198, 158, 145, 225, 117, 135, 200];
+
+pub const SWAP_IX_DISCM: [u8; 8] = [248, 198, 158, 145, 225, 117, 135, 200];//[226, 131, 232, 117, 179, 0, 161, 53];//[162, 32, 85, 51, 77, 235, 26, 166];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SwapIxArgs {
@@ -4544,7 +4631,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; CLOSE_POSITION_IX_ACCOUNTS_LEN]>
         }
     }
 }
-pub const CLOSE_POSITION_IX_DISCM: [u8; 8] = [123, 134, 81, 0, 49, 68, 98, 98];
+pub const CLOSE_POSITION_IX_DISCM: [u8; 8] = [249, 157, 21, 138, 18, 27, 0, 36];
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClosePositionIxData;
 impl ClosePositionIxData {
@@ -5748,8 +5835,7 @@ impl<'me, 'info>
         }
     }
 }
-pub const SET_COLLECT_PROTOCOL_FEES_AUTHORITY_IX_DISCM: [u8; 8] =
-    [34, 150, 93, 244, 139, 225, 233, 67];
+pub const SET_COLLECT_PROTOCOL_FEES_AUTHORITY_IX_DISCM: [u8; 8] =[143, 110, 155, 16, 120, 18, 238, 225];
 #[derive(Clone, Debug, PartialEq)]
 pub struct SetCollectProtocolFeesAuthorityIxData;
 impl SetCollectProtocolFeesAuthorityIxData {
@@ -6172,8 +6258,7 @@ impl<'me, 'info>
         }
     }
 }
-pub const SET_REWARD_AUTHORITY_BY_SUPER_AUTHORITY_IX_DISCM: [u8; 8] =
-    [240, 154, 201, 198, 148, 93, 56, 25];
+pub const SET_REWARD_AUTHORITY_BY_SUPER_AUTHORITY_IX_DISCM: [u8; 8] = [240, 154, 201, 198, 148, 93, 56, 25];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SetRewardAuthorityBySuperAuthorityIxArgs {
@@ -6404,8 +6489,7 @@ impl<'me, 'info>
         }
     }
 }
-pub const SET_REWARD_EMISSIONS_SUPER_AUTHORITY_IX_DISCM: [u8; 8] =
-    [207, 5, 200, 209, 122, 56, 82, 183];
+pub const SET_REWARD_EMISSIONS_SUPER_AUTHORITY_IX_DISCM: [u8; 8] = [207, 5, 200, 209, 122, 56, 82, 183];
 #[derive(Clone, Debug, PartialEq)]
 pub struct SetRewardEmissionsSuperAuthorityIxData;
 impl SetRewardEmissionsSuperAuthorityIxData {
@@ -6786,7 +6870,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; TWO_HOP_SWAP_IX_ACCOUNTS_LEN]>
         }
     }
 }
-pub const TWO_HOP_SWAP_IX_DISCM: [u8; 8] = [195, 96, 237, 108, 68, 162, 219, 230];
+pub const TWO_HOP_SWAP_IX_DISCM: [u8; 8] =  [177, 70, 92, 17, 139, 19, 36, 226];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TwoHopSwapIxArgs {
@@ -7126,7 +7210,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_POSITION_BUNDLE_IX_AC
         }
     }
 }
-pub const INITIALIZE_POSITION_BUNDLE_IX_DISCM: [u8; 8] = [117, 45, 241, 149, 24, 18, 194, 65];
+pub const INITIALIZE_POSITION_BUNDLE_IX_DISCM: [u8; 8] =  [52, 140, 184, 23, 213, 64, 167, 99];
 #[derive(Clone, Debug, PartialEq)]
 pub struct InitializePositionBundleIxData;
 impl InitializePositionBundleIxData {
@@ -7445,8 +7529,7 @@ impl<'me, 'info>
         }
     }
 }
-pub const INITIALIZE_POSITION_BUNDLE_WITH_METADATA_IX_DISCM: [u8; 8] =
-    [93, 124, 16, 179, 249, 131, 115, 245];
+pub const INITIALIZE_POSITION_BUNDLE_WITH_METADATA_IX_DISCM: [u8; 8] = [93, 124, 16, 179, 249, 131, 115, 245];
 #[derive(Clone, Debug, PartialEq)]
 pub struct InitializePositionBundleWithMetadataIxData;
 impl InitializePositionBundleWithMetadataIxData {
@@ -7963,7 +8046,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; OPEN_BUNDLED_POSITION_IX_ACCOUNT
         }
     }
 }
-pub const OPEN_BUNDLED_POSITION_IX_DISCM: [u8; 8] = [169, 113, 126, 171, 213, 172, 212, 49];
+pub const OPEN_BUNDLED_POSITION_IX_DISCM: [u8; 8] = [166, 7, 214, 154, 60, 250, 249, 186];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OpenBundledPositionIxArgs {
@@ -8208,7 +8291,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; CLOSE_BUNDLED_POSITION_IX_ACCOUN
         }
     }
 }
-pub const CLOSE_BUNDLED_POSITION_IX_DISCM: [u8; 8] = [41, 36, 216, 245, 27, 85, 103, 67];
+pub const CLOSE_BUNDLED_POSITION_IX_DISCM: [u8; 8] =  [227, 166, 81, 110, 100, 89, 0, 113];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CloseBundledPositionIxArgs {
@@ -8352,6 +8435,3294 @@ pub fn close_bundled_position_verify_account_privileges<'me, 'info>(
     close_bundled_position_verify_signer_privileges(accounts)?;
     Ok(())
 }
+pub const OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN: usize = 10;
+
+#[derive(Copy, Clone, Debug)]
+pub struct OpenPositionWithTokenExtensionsAccounts<'me, 'info> {
+    pub funder: &'me AccountInfo<'info>,
+    pub owner: &'me AccountInfo<'info>,
+    pub position: &'me AccountInfo<'info>,
+    pub position_mint: &'me AccountInfo<'info>,
+    pub position_token_account: &'me AccountInfo<'info>,
+    pub whirlpool: &'me AccountInfo<'info>,
+    pub token_2022_program: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub associated_token_program: &'me AccountInfo<'info>,
+    pub metadata_update_auth: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct OpenPositionWithTokenExtensionsKeys {
+    pub funder: Pubkey,
+    pub owner: Pubkey,
+    pub position: Pubkey,
+    pub position_mint: Pubkey,
+    pub position_token_account: Pubkey,
+    pub whirlpool: Pubkey,
+    pub token_2022_program: Pubkey,
+    pub system_program: Pubkey,
+    pub associated_token_program: Pubkey,
+    pub metadata_update_auth: Pubkey,
+}
+
+impl From<OpenPositionWithTokenExtensionsAccounts<'_, '_>> for OpenPositionWithTokenExtensionsKeys {
+    fn from(accounts: OpenPositionWithTokenExtensionsAccounts) -> Self {
+        Self {
+            funder: *accounts.funder.key,
+            owner: *accounts.owner.key,
+            position: *accounts.position.key,
+            position_mint: *accounts.position_mint.key,
+            position_token_account: *accounts.position_token_account.key,
+            whirlpool: *accounts.whirlpool.key,
+            token_2022_program: *accounts.token_2022_program.key,
+            system_program: *accounts.system_program.key,
+            associated_token_program: *accounts.associated_token_program.key,
+            metadata_update_auth: *accounts.metadata_update_auth.key,
+        }
+    }
+}
+
+impl From<OpenPositionWithTokenExtensionsKeys> for [AccountMeta; OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN] {
+    fn from(keys: OpenPositionWithTokenExtensionsKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.funder,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.owner,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.position,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position_mint,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.whirlpool,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_2022_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.associated_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.metadata_update_auth,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]> for OpenPositionWithTokenExtensionsKeys {
+    fn from(pubkeys: [Pubkey; OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            funder: pubkeys[0],
+            owner: pubkeys[1],
+            position: pubkeys[2],
+            position_mint: pubkeys[3],
+            position_token_account: pubkeys[4],
+            whirlpool: pubkeys[5],
+            token_2022_program: pubkeys[6],
+            system_program: pubkeys[7],
+            associated_token_program: pubkeys[8],
+            metadata_update_auth: pubkeys[9],
+        }
+    }
+}
+
+impl<'info> From<OpenPositionWithTokenExtensionsAccounts<'_, 'info>>
+    for [AccountInfo<'info>; OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: OpenPositionWithTokenExtensionsAccounts<'_, 'info>) -> Self {
+        [
+            accounts.funder.clone(),
+            accounts.owner.clone(),
+            accounts.position.clone(),
+            accounts.position_mint.clone(),
+            accounts.position_token_account.clone(),
+            accounts.whirlpool.clone(),
+            accounts.token_2022_program.clone(),
+            accounts.system_program.clone(),
+            accounts.associated_token_program.clone(),
+            accounts.metadata_update_auth.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]>
+    for OpenPositionWithTokenExtensionsAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            funder: &arr[0],
+            owner: &arr[1],
+            position: &arr[2],
+            position_mint: &arr[3],
+            position_token_account: &arr[4],
+            whirlpool: &arr[5],
+            token_2022_program: &arr[6],
+            system_program: &arr[7],
+            associated_token_program: &arr[8],
+            metadata_update_auth: &arr[9],
+        }
+    }
+}
+
+pub const OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM: [u8; 8] = [83, 197, 33, 223, 152, 58, 144, 243];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct OpenPositionWithTokenExtensionsIxArgs {
+    pub tick_lower_index: i32,
+    pub tick_upper_index: i32,
+    pub with_token_metadata_extension: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct OpenPositionWithTokenExtensionsIxData(pub OpenPositionWithTokenExtensionsIxArgs);
+
+impl From<OpenPositionWithTokenExtensionsIxArgs> for OpenPositionWithTokenExtensionsIxData {
+    fn from(args: OpenPositionWithTokenExtensionsIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl OpenPositionWithTokenExtensionsIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(OpenPositionWithTokenExtensionsIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn open_position_with_token_extensions_ix_with_program_id(
+    program_id: Pubkey,
+    keys: OpenPositionWithTokenExtensionsKeys,
+    args: OpenPositionWithTokenExtensionsIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; OPEN_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN] = keys.into();
+    let data: OpenPositionWithTokenExtensionsIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn open_position_with_token_extensions_ix(
+    keys: OpenPositionWithTokenExtensionsKeys,
+    args: OpenPositionWithTokenExtensionsIxArgs,
+) -> std::io::Result<Instruction> {
+    open_position_with_token_extensions_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn open_position_with_token_extensions_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: OpenPositionWithTokenExtensionsAccounts<'_, '_>,
+    args: OpenPositionWithTokenExtensionsIxArgs,
+) -> ProgramResult {
+    let keys: OpenPositionWithTokenExtensionsKeys = accounts.into();
+    let ix = open_position_with_token_extensions_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn open_position_with_token_extensions_invoke(
+    accounts: OpenPositionWithTokenExtensionsAccounts<'_, '_>,
+    args: OpenPositionWithTokenExtensionsIxArgs,
+) -> ProgramResult {
+    open_position_with_token_extensions_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn open_position_with_token_extensions_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: OpenPositionWithTokenExtensionsAccounts<'_, '_>,
+    args: OpenPositionWithTokenExtensionsIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: OpenPositionWithTokenExtensionsKeys = accounts.into();
+    let ix = open_position_with_token_extensions_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn open_position_with_token_extensions_invoke_signed(
+    accounts: OpenPositionWithTokenExtensionsAccounts<'_, '_>,
+    args: OpenPositionWithTokenExtensionsIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    open_position_with_token_extensions_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn open_position_with_token_extensions_verify_account_keys(
+    accounts: OpenPositionWithTokenExtensionsAccounts<'_, '_>,
+    keys: OpenPositionWithTokenExtensionsKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.funder.key, keys.funder),
+        (*accounts.owner.key, keys.owner),
+        (*accounts.position.key, keys.position),
+        (*accounts.position_mint.key, keys.position_mint),
+        (*accounts.position_token_account.key, keys.position_token_account),
+        (*accounts.whirlpool.key, keys.whirlpool),
+        (*accounts.token_2022_program.key, keys.token_2022_program),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.associated_token_program.key, keys.associated_token_program),
+        (*accounts.metadata_update_auth.key, keys.metadata_update_auth),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn open_position_with_token_extensions_verify_writable_privileges<'me, 'info>(
+    accounts: OpenPositionWithTokenExtensionsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.funder,
+        accounts.position,
+        accounts.position_mint,
+        accounts.position_token_account,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn open_position_with_token_extensions_verify_signer_privileges<'me, 'info>(
+    accounts: OpenPositionWithTokenExtensionsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.funder, accounts.position_mint] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn open_position_with_token_extensions_verify_account_privileges<'me, 'info>(
+    accounts: OpenPositionWithTokenExtensionsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    open_position_with_token_extensions_verify_writable_privileges(accounts)?;
+    open_position_with_token_extensions_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN: usize = 6;
+
+#[derive(Copy, Clone, Debug)]
+pub struct ClosePositionWithTokenExtensionsAccounts<'me, 'info> {
+    pub position_authority: &'me AccountInfo<'info>,
+    pub receiver: &'me AccountInfo<'info>,
+    pub position: &'me AccountInfo<'info>,
+    pub position_mint: &'me AccountInfo<'info>,
+    pub position_token_account: &'me AccountInfo<'info>,
+    pub token_2022_program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ClosePositionWithTokenExtensionsKeys {
+    pub position_authority: Pubkey,
+    pub receiver: Pubkey,
+    pub position: Pubkey,
+    pub position_mint: Pubkey,
+    pub position_token_account: Pubkey,
+    pub token_2022_program: Pubkey,
+}
+
+impl From<ClosePositionWithTokenExtensionsAccounts<'_, '_>> for ClosePositionWithTokenExtensionsKeys {
+    fn from(accounts: ClosePositionWithTokenExtensionsAccounts) -> Self {
+        Self {
+            position_authority: *accounts.position_authority.key,
+            receiver: *accounts.receiver.key,
+            position: *accounts.position.key,
+            position_mint: *accounts.position_mint.key,
+            position_token_account: *accounts.position_token_account.key,
+            token_2022_program: *accounts.token_2022_program.key,
+        }
+    }
+}
+
+impl From<ClosePositionWithTokenExtensionsKeys> for [AccountMeta; CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN] {
+    fn from(keys: ClosePositionWithTokenExtensionsKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.position_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.receiver,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position_mint,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.token_2022_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]> for ClosePositionWithTokenExtensionsKeys {
+    fn from(pubkeys: [Pubkey; CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            position_authority: pubkeys[0],
+            receiver: pubkeys[1],
+            position: pubkeys[2],
+            position_mint: pubkeys[3],
+            position_token_account: pubkeys[4],
+            token_2022_program: pubkeys[5],
+        }
+    }
+}
+
+impl<'info> From<ClosePositionWithTokenExtensionsAccounts<'_, 'info>>
+    for [AccountInfo<'info>; CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: ClosePositionWithTokenExtensionsAccounts<'_, 'info>) -> Self {
+        [
+            accounts.position_authority.clone(),
+            accounts.receiver.clone(),
+            accounts.position.clone(),
+            accounts.position_mint.clone(),
+            accounts.position_token_account.clone(),
+            accounts.token_2022_program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]>
+    for ClosePositionWithTokenExtensionsAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            position_authority: &arr[0],
+            receiver: &arr[1],
+            position: &arr[2],
+            position_mint: &arr[3],
+            position_token_account: &arr[4],
+            token_2022_program: &arr[5],
+        }
+    }
+}
+
+pub const CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM: [u8; 8] = [1, 182, 135, 59, 155, 25, 99, 223];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ClosePositionWithTokenExtensionsIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClosePositionWithTokenExtensionsIxData(pub ClosePositionWithTokenExtensionsIxArgs);
+
+impl From<ClosePositionWithTokenExtensionsIxArgs> for ClosePositionWithTokenExtensionsIxData {
+    fn from(args: ClosePositionWithTokenExtensionsIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl ClosePositionWithTokenExtensionsIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(ClosePositionWithTokenExtensionsIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn close_position_with_token_extensions_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ClosePositionWithTokenExtensionsKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLOSE_POSITION_WITH_TOKEN_EXTENSIONS_IX_ACCOUNTS_LEN] = keys.into();
+    let data: ClosePositionWithTokenExtensionsIxData = ClosePositionWithTokenExtensionsIxArgs::default().into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn close_position_with_token_extensions_ix(
+    keys: ClosePositionWithTokenExtensionsKeys,
+) -> std::io::Result<Instruction> {
+    close_position_with_token_extensions_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn close_position_with_token_extensions_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ClosePositionWithTokenExtensionsAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: ClosePositionWithTokenExtensionsKeys = accounts.into();
+    let ix = close_position_with_token_extensions_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn close_position_with_token_extensions_invoke(
+    accounts: ClosePositionWithTokenExtensionsAccounts<'_, '_>,
+) -> ProgramResult {
+    close_position_with_token_extensions_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn close_position_with_token_extensions_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ClosePositionWithTokenExtensionsAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: ClosePositionWithTokenExtensionsKeys = accounts.into();
+    let ix = close_position_with_token_extensions_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn close_position_with_token_extensions_invoke_signed(
+    accounts: ClosePositionWithTokenExtensionsAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    close_position_with_token_extensions_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn close_position_with_token_extensions_verify_account_keys(
+    accounts: ClosePositionWithTokenExtensionsAccounts<'_, '_>,
+    keys: ClosePositionWithTokenExtensionsKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.position_authority.key, keys.position_authority),
+        (*accounts.receiver.key, keys.receiver),
+        (*accounts.position.key, keys.position),
+        (*accounts.position_mint.key, keys.position_mint),
+        (*accounts.position_token_account.key, keys.position_token_account),
+        (*accounts.token_2022_program.key, keys.token_2022_program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn close_position_with_token_extensions_verify_writable_privileges<'me, 'info>(
+    accounts: ClosePositionWithTokenExtensionsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.receiver,
+        accounts.position,
+        accounts.position_mint,
+        accounts.position_token_account,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn close_position_with_token_extensions_verify_signer_privileges<'me, 'info>(
+    accounts: ClosePositionWithTokenExtensionsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.position_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn close_position_with_token_extensions_verify_account_privileges<'me, 'info>(
+    accounts: ClosePositionWithTokenExtensionsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    close_position_with_token_extensions_verify_writable_privileges(accounts)?;
+    close_position_with_token_extensions_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const LOCK_POSITION_IX_ACCOUNTS_LEN: usize = 9;
+
+#[derive(Copy, Clone, Debug)]
+pub struct LockPositionAccounts<'me, 'info> {
+    pub funder: &'me AccountInfo<'info>,
+    pub position_authority: &'me AccountInfo<'info>,
+    pub position: &'me AccountInfo<'info>,
+    pub position_mint: &'me AccountInfo<'info>,
+    pub position_token_account: &'me AccountInfo<'info>,
+    pub lock_config: &'me AccountInfo<'info>,
+    pub whirlpool: &'me AccountInfo<'info>,
+    pub token_2022_program: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct LockPositionKeys {
+    pub funder: Pubkey,
+    pub position_authority: Pubkey,
+    pub position: Pubkey,
+    pub position_mint: Pubkey,
+    pub position_token_account: Pubkey,
+    pub lock_config: Pubkey,
+    pub whirlpool: Pubkey,
+    pub token_2022_program: Pubkey,
+    pub system_program: Pubkey,
+}
+
+impl From<LockPositionAccounts<'_, '_>> for LockPositionKeys {
+    fn from(accounts: LockPositionAccounts) -> Self {
+        Self {
+            funder: *accounts.funder.key,
+            position_authority: *accounts.position_authority.key,
+            position: *accounts.position.key,
+            position_mint: *accounts.position_mint.key,
+            position_token_account: *accounts.position_token_account.key,
+            lock_config: *accounts.lock_config.key,
+            whirlpool: *accounts.whirlpool.key,
+            token_2022_program: *accounts.token_2022_program.key,
+            system_program: *accounts.system_program.key,
+        }
+    }
+}
+
+impl From<LockPositionKeys> for [AccountMeta; LOCK_POSITION_IX_ACCOUNTS_LEN] {
+    fn from(keys: LockPositionKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.funder,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.position,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.position_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.position_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.lock_config,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.whirlpool,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_2022_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; LOCK_POSITION_IX_ACCOUNTS_LEN]> for LockPositionKeys {
+    fn from(pubkeys: [Pubkey; LOCK_POSITION_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            funder: pubkeys[0],
+            position_authority: pubkeys[1],
+            position: pubkeys[2],
+            position_mint: pubkeys[3],
+            position_token_account: pubkeys[4],
+            lock_config: pubkeys[5],
+            whirlpool: pubkeys[6],
+            token_2022_program: pubkeys[7],
+            system_program: pubkeys[8],
+        }
+    }
+}
+
+impl<'info> From<LockPositionAccounts<'_, 'info>>
+    for [AccountInfo<'info>; LOCK_POSITION_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: LockPositionAccounts<'_, 'info>) -> Self {
+        [
+            accounts.funder.clone(),
+            accounts.position_authority.clone(),
+            accounts.position.clone(),
+            accounts.position_mint.clone(),
+            accounts.position_token_account.clone(),
+            accounts.lock_config.clone(),
+            accounts.whirlpool.clone(),
+            accounts.token_2022_program.clone(),
+            accounts.system_program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; LOCK_POSITION_IX_ACCOUNTS_LEN]>
+    for LockPositionAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; LOCK_POSITION_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            funder: &arr[0],
+            position_authority: &arr[1],
+            position: &arr[2],
+            position_mint: &arr[3],
+            position_token_account: &arr[4],
+            lock_config: &arr[5],
+            whirlpool: &arr[6],
+            token_2022_program: &arr[7],
+            system_program: &arr[8],
+        }
+    }
+}
+
+pub const LOCK_POSITION_IX_DISCM: [u8; 8] = [83, 131, 161, 255, 83, 2, 13, 209];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum LockType {
+    Timestamp(i64),
+    Duration(i64),
+}
+
+impl Default for LockType {
+    fn default() -> Self {
+        LockType::Timestamp(0)
+    }
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LockPositionIxArgs {
+    pub lock_type: LockType,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LockPositionIxData(pub LockPositionIxArgs);
+
+impl From<LockPositionIxArgs> for LockPositionIxData {
+    fn from(args: LockPositionIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl LockPositionIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != LOCK_POSITION_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    LOCK_POSITION_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(LockPositionIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&LOCK_POSITION_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn lock_position_ix_with_program_id(
+    program_id: Pubkey,
+    keys: LockPositionKeys,
+    args: LockPositionIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; LOCK_POSITION_IX_ACCOUNTS_LEN] = keys.into();
+    let data: LockPositionIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn lock_position_ix(
+    keys: LockPositionKeys,
+    args: LockPositionIxArgs,
+) -> std::io::Result<Instruction> {
+    lock_position_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn lock_position_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: LockPositionAccounts<'_, '_>,
+    args: LockPositionIxArgs,
+) -> ProgramResult {
+    let keys: LockPositionKeys = accounts.into();
+    let ix = lock_position_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn lock_position_invoke(
+    accounts: LockPositionAccounts<'_, '_>,
+    args: LockPositionIxArgs,
+) -> ProgramResult {
+    lock_position_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn lock_position_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: LockPositionAccounts<'_, '_>,
+    args: LockPositionIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: LockPositionKeys = accounts.into();
+    let ix = lock_position_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn lock_position_invoke_signed(
+    accounts: LockPositionAccounts<'_, '_>,
+    args: LockPositionIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    lock_position_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn lock_position_verify_account_keys(
+    accounts: LockPositionAccounts<'_, '_>,
+    keys: LockPositionKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.funder.key, keys.funder),
+        (*accounts.position_authority.key, keys.position_authority),
+        (*accounts.position.key, keys.position),
+        (*accounts.position_mint.key, keys.position_mint),
+        (*accounts.position_token_account.key, keys.position_token_account),
+        (*accounts.lock_config.key, keys.lock_config),
+        (*accounts.whirlpool.key, keys.whirlpool),
+        (*accounts.token_2022_program.key, keys.token_2022_program),
+        (*accounts.system_program.key, keys.system_program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn lock_position_verify_writable_privileges<'me, 'info>(
+    accounts: LockPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.funder, accounts.position_token_account, accounts.lock_config] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn lock_position_verify_signer_privileges<'me, 'info>(
+    accounts: LockPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.funder, accounts.position_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn lock_position_verify_account_privileges<'me, 'info>(
+    accounts: LockPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    lock_position_verify_writable_privileges(accounts)?;
+    lock_position_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const RESET_POSITION_RANGE_IX_ACCOUNTS_LEN: usize = 6;
+
+#[derive(Copy, Clone, Debug)]
+pub struct ResetPositionRangeAccounts<'me, 'info> {
+    pub funder: &'me AccountInfo<'info>,
+    pub position_authority: &'me AccountInfo<'info>,
+    pub whirlpool: &'me AccountInfo<'info>,
+    pub position: &'me AccountInfo<'info>,
+    pub position_token_account: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ResetPositionRangeKeys {
+    pub funder: Pubkey,
+    pub position_authority: Pubkey,
+    pub whirlpool: Pubkey,
+    pub position: Pubkey,
+    pub position_token_account: Pubkey,
+    pub system_program: Pubkey,
+}
+
+impl From<ResetPositionRangeAccounts<'_, '_>> for ResetPositionRangeKeys {
+    fn from(accounts: ResetPositionRangeAccounts) -> Self {
+        Self {
+            funder: *accounts.funder.key,
+            position_authority: *accounts.position_authority.key,
+            whirlpool: *accounts.whirlpool.key,
+            position: *accounts.position.key,
+            position_token_account: *accounts.position_token_account.key,
+            system_program: *accounts.system_program.key,
+        }
+    }
+}
+
+impl From<ResetPositionRangeKeys> for [AccountMeta; RESET_POSITION_RANGE_IX_ACCOUNTS_LEN] {
+    fn from(keys: ResetPositionRangeKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.funder,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.whirlpool,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.position,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position_token_account,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; RESET_POSITION_RANGE_IX_ACCOUNTS_LEN]> for ResetPositionRangeKeys {
+    fn from(pubkeys: [Pubkey; RESET_POSITION_RANGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            funder: pubkeys[0],
+            position_authority: pubkeys[1],
+            whirlpool: pubkeys[2],
+            position: pubkeys[3],
+            position_token_account: pubkeys[4],
+            system_program: pubkeys[5],
+        }
+    }
+}
+
+impl<'info> From<ResetPositionRangeAccounts<'_, 'info>>
+    for [AccountInfo<'info>; RESET_POSITION_RANGE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: ResetPositionRangeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.funder.clone(),
+            accounts.position_authority.clone(),
+            accounts.whirlpool.clone(),
+            accounts.position.clone(),
+            accounts.position_token_account.clone(),
+            accounts.system_program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; RESET_POSITION_RANGE_IX_ACCOUNTS_LEN]>
+    for ResetPositionRangeAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; RESET_POSITION_RANGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            funder: &arr[0],
+            position_authority: &arr[1],
+            whirlpool: &arr[2],
+            position: &arr[3],
+            position_token_account: &arr[4],
+            system_program: &arr[5],
+        }
+    }
+}
+
+pub const RESET_POSITION_RANGE_IX_DISCM: [u8; 8] = [149, 43, 132, 194, 64, 206, 60, 109];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ResetPositionRangeIxArgs {
+    pub new_tick_lower_index: i32,
+    pub new_tick_upper_index: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ResetPositionRangeIxData(pub ResetPositionRangeIxArgs);
+
+impl From<ResetPositionRangeIxArgs> for ResetPositionRangeIxData {
+    fn from(args: ResetPositionRangeIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl ResetPositionRangeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != RESET_POSITION_RANGE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    RESET_POSITION_RANGE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(ResetPositionRangeIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&RESET_POSITION_RANGE_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn reset_position_range_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ResetPositionRangeKeys,
+    args: ResetPositionRangeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; RESET_POSITION_RANGE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: ResetPositionRangeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn reset_position_range_ix(
+    keys: ResetPositionRangeKeys,
+    args: ResetPositionRangeIxArgs,
+) -> std::io::Result<Instruction> {
+    reset_position_range_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn reset_position_range_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ResetPositionRangeAccounts<'_, '_>,
+    args: ResetPositionRangeIxArgs,
+) -> ProgramResult {
+    let keys: ResetPositionRangeKeys = accounts.into();
+    let ix = reset_position_range_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn reset_position_range_invoke(
+    accounts: ResetPositionRangeAccounts<'_, '_>,
+    args: ResetPositionRangeIxArgs,
+) -> ProgramResult {
+    reset_position_range_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn reset_position_range_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ResetPositionRangeAccounts<'_, '_>,
+    args: ResetPositionRangeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: ResetPositionRangeKeys = accounts.into();
+    let ix = reset_position_range_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn reset_position_range_invoke_signed(
+    accounts: ResetPositionRangeAccounts<'_, '_>,
+    args: ResetPositionRangeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    reset_position_range_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn reset_position_range_verify_account_keys(
+    accounts: ResetPositionRangeAccounts<'_, '_>,
+    keys: ResetPositionRangeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.funder.key, keys.funder),
+        (*accounts.position_authority.key, keys.position_authority),
+        (*accounts.whirlpool.key, keys.whirlpool),
+        (*accounts.position.key, keys.position),
+        (*accounts.position_token_account.key, keys.position_token_account),
+        (*accounts.system_program.key, keys.system_program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn reset_position_range_verify_writable_privileges<'me, 'info>(
+    accounts: ResetPositionRangeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.funder, accounts.position] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn reset_position_range_verify_signer_privileges<'me, 'info>(
+    accounts: ResetPositionRangeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.funder, accounts.position_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn reset_position_range_verify_account_privileges<'me, 'info>(
+    accounts: ResetPositionRangeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    reset_position_range_verify_writable_privileges(accounts)?;
+    reset_position_range_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const TRANSFER_LOCKED_POSITION_IX_ACCOUNTS_LEN: usize = 8;
+
+#[derive(Copy, Clone, Debug)]
+pub struct TransferLockedPositionAccounts<'me, 'info> {
+    pub position_authority: &'me AccountInfo<'info>,
+    pub receiver: &'me AccountInfo<'info>,
+    pub position: &'me AccountInfo<'info>,
+    pub position_mint: &'me AccountInfo<'info>,
+    pub position_token_account: &'me AccountInfo<'info>,
+    pub destination_token_account: &'me AccountInfo<'info>,
+    pub lock_config: &'me AccountInfo<'info>,
+    pub token_2022_program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct TransferLockedPositionKeys {
+    pub position_authority: Pubkey,
+    pub receiver: Pubkey,
+    pub position: Pubkey,
+    pub position_mint: Pubkey,
+    pub position_token_account: Pubkey,
+    pub destination_token_account: Pubkey,
+    pub lock_config: Pubkey,
+    pub token_2022_program: Pubkey,
+}
+
+impl From<TransferLockedPositionAccounts<'_, '_>> for TransferLockedPositionKeys {
+    fn from(accounts: TransferLockedPositionAccounts) -> Self {
+        Self {
+            position_authority: *accounts.position_authority.key,
+            receiver: *accounts.receiver.key,
+            position: *accounts.position.key,
+            position_mint: *accounts.position_mint.key,
+            position_token_account: *accounts.position_token_account.key,
+            destination_token_account: *accounts.destination_token_account.key,
+            lock_config: *accounts.lock_config.key,
+            token_2022_program: *accounts.token_2022_program.key,
+        }
+    }
+}
+
+impl From<TransferLockedPositionKeys> for [AccountMeta; TRANSFER_LOCKED_POSITION_IX_ACCOUNTS_LEN] {
+    fn from(keys: TransferLockedPositionKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.position_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.receiver,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.position,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.position_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.position_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.destination_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.lock_config,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.token_2022_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; TRANSFER_LOCKED_POSITION_IX_ACCOUNTS_LEN]> for TransferLockedPositionKeys {
+    fn from(pubkeys: [Pubkey; TRANSFER_LOCKED_POSITION_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            position_authority: pubkeys[0],
+            receiver: pubkeys[1],
+            position: pubkeys[2],
+            position_mint: pubkeys[3],
+            position_token_account: pubkeys[4],
+            destination_token_account: pubkeys[5],
+            lock_config: pubkeys[6],
+            token_2022_program: pubkeys[7],
+        }
+    }
+}
+
+impl<'info> From<TransferLockedPositionAccounts<'_, 'info>>
+    for [AccountInfo<'info>; TRANSFER_LOCKED_POSITION_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: TransferLockedPositionAccounts<'_, 'info>) -> Self {
+        [
+            accounts.position_authority.clone(),
+            accounts.receiver.clone(),
+            accounts.position.clone(),
+            accounts.position_mint.clone(),
+            accounts.position_token_account.clone(),
+            accounts.destination_token_account.clone(),
+            accounts.lock_config.clone(),
+            accounts.token_2022_program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; TRANSFER_LOCKED_POSITION_IX_ACCOUNTS_LEN]>
+    for TransferLockedPositionAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; TRANSFER_LOCKED_POSITION_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            position_authority: &arr[0],
+            receiver: &arr[1],
+            position: &arr[2],
+            position_mint: &arr[3],
+            position_token_account: &arr[4],
+            destination_token_account: &arr[5],
+            lock_config: &arr[6],
+            token_2022_program: &arr[7],
+        }
+    }
+}
+
+pub const TRANSFER_LOCKED_POSITION_IX_DISCM: [u8; 8] = [93, 3, 125, 77, 42, 29, 234, 1];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TransferLockedPositionIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TransferLockedPositionIxData(pub TransferLockedPositionIxArgs);
+
+impl From<TransferLockedPositionIxArgs> for TransferLockedPositionIxData {
+    fn from(args: TransferLockedPositionIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl TransferLockedPositionIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != TRANSFER_LOCKED_POSITION_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    TRANSFER_LOCKED_POSITION_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(TransferLockedPositionIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&TRANSFER_LOCKED_POSITION_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn transfer_locked_position_ix_with_program_id(
+    program_id: Pubkey,
+    keys: TransferLockedPositionKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; TRANSFER_LOCKED_POSITION_IX_ACCOUNTS_LEN] = keys.into();
+    let data: TransferLockedPositionIxData = TransferLockedPositionIxArgs::default().into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn transfer_locked_position_ix(
+    keys: TransferLockedPositionKeys,
+) -> std::io::Result<Instruction> {
+    transfer_locked_position_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn transfer_locked_position_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: TransferLockedPositionAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: TransferLockedPositionKeys = accounts.into();
+    let ix = transfer_locked_position_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn transfer_locked_position_invoke(
+    accounts: TransferLockedPositionAccounts<'_, '_>,
+) -> ProgramResult {
+    transfer_locked_position_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn transfer_locked_position_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: TransferLockedPositionAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: TransferLockedPositionKeys = accounts.into();
+    let ix = transfer_locked_position_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn transfer_locked_position_invoke_signed(
+    accounts: TransferLockedPositionAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    transfer_locked_position_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn transfer_locked_position_verify_account_keys(
+    accounts: TransferLockedPositionAccounts<'_, '_>,
+    keys: TransferLockedPositionKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.position_authority.key, keys.position_authority),
+        (*accounts.receiver.key, keys.receiver),
+        (*accounts.position.key, keys.position),
+        (*accounts.position_mint.key, keys.position_mint),
+        (*accounts.position_token_account.key, keys.position_token_account),
+        (*accounts.destination_token_account.key, keys.destination_token_account),
+        (*accounts.lock_config.key, keys.lock_config),
+        (*accounts.token_2022_program.key, keys.token_2022_program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn transfer_locked_position_verify_writable_privileges<'me, 'info>(
+    accounts: TransferLockedPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.receiver,
+        accounts.position_token_account,
+        accounts.destination_token_account,
+        accounts.lock_config,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn transfer_locked_position_verify_signer_privileges<'me, 'info>(
+    accounts: TransferLockedPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.position_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn transfer_locked_position_verify_account_privileges<'me, 'info>(
+    accounts: TransferLockedPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    transfer_locked_position_verify_writable_privileges(accounts)?;
+    transfer_locked_position_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const INITIALIZE_ADAPTIVE_FEE_TIER_IX_ACCOUNTS_LEN: usize = 5;
+
+#[derive(Copy, Clone, Debug)]
+pub struct InitializeAdaptiveFeeTierAccounts<'me, 'info> {
+    pub whirlpools_config: &'me AccountInfo<'info>,
+    pub adaptive_fee_tier: &'me AccountInfo<'info>,
+    pub funder: &'me AccountInfo<'info>,
+    pub fee_authority: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct InitializeAdaptiveFeeTierKeys {
+    pub whirlpools_config: Pubkey,
+    pub adaptive_fee_tier: Pubkey,
+    pub funder: Pubkey,
+    pub fee_authority: Pubkey,
+    pub system_program: Pubkey,
+}
+
+impl From<InitializeAdaptiveFeeTierAccounts<'_, '_>> for InitializeAdaptiveFeeTierKeys {
+    fn from(accounts: InitializeAdaptiveFeeTierAccounts) -> Self {
+        Self {
+            whirlpools_config: *accounts.whirlpools_config.key,
+            adaptive_fee_tier: *accounts.adaptive_fee_tier.key,
+            funder: *accounts.funder.key,
+            fee_authority: *accounts.fee_authority.key,
+            system_program: *accounts.system_program.key,
+        }
+    }
+}
+
+impl From<InitializeAdaptiveFeeTierKeys> for [AccountMeta; INITIALIZE_ADAPTIVE_FEE_TIER_IX_ACCOUNTS_LEN] {
+    fn from(keys: InitializeAdaptiveFeeTierKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.whirlpools_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.adaptive_fee_tier,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.funder,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.fee_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; INITIALIZE_ADAPTIVE_FEE_TIER_IX_ACCOUNTS_LEN]> for InitializeAdaptiveFeeTierKeys {
+    fn from(pubkeys: [Pubkey; INITIALIZE_ADAPTIVE_FEE_TIER_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: pubkeys[0],
+            adaptive_fee_tier: pubkeys[1],
+            funder: pubkeys[2],
+            fee_authority: pubkeys[3],
+            system_program: pubkeys[4],
+        }
+    }
+}
+
+impl<'info> From<InitializeAdaptiveFeeTierAccounts<'_, 'info>>
+    for [AccountInfo<'info>; INITIALIZE_ADAPTIVE_FEE_TIER_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: InitializeAdaptiveFeeTierAccounts<'_, 'info>) -> Self {
+        [
+            accounts.whirlpools_config.clone(),
+            accounts.adaptive_fee_tier.clone(),
+            accounts.funder.clone(),
+            accounts.fee_authority.clone(),
+            accounts.system_program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_ADAPTIVE_FEE_TIER_IX_ACCOUNTS_LEN]>
+    for InitializeAdaptiveFeeTierAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; INITIALIZE_ADAPTIVE_FEE_TIER_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: &arr[0],
+            adaptive_fee_tier: &arr[1],
+            funder: &arr[2],
+            fee_authority: &arr[3],
+            system_program: &arr[4],
+        }
+    }
+}
+
+pub const INITIALIZE_ADAPTIVE_FEE_TIER_IX_DISCM: [u8; 8] = [128, 132, 100, 148, 43, 13, 129, 121];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct InitializeAdaptiveFeeTierIxArgs {
+    pub fee_tier_index: u16,
+    pub tick_spacing: u16,
+    pub initialize_pool_authority: Pubkey,
+    pub delegated_fee_authority: Pubkey,
+    pub default_base_fee_rate: u16,
+    pub filter_period: u16,
+    pub decay_period: u16,
+    pub reduction_factor: u16,
+    pub adaptive_fee_control_factor: u32,
+    pub max_volatility_accumulator: u32,
+    pub tick_group_size: u16,
+    pub major_swap_threshold_ticks: u16,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InitializeAdaptiveFeeTierIxData(pub InitializeAdaptiveFeeTierIxArgs);
+
+impl From<InitializeAdaptiveFeeTierIxArgs> for InitializeAdaptiveFeeTierIxData {
+    fn from(args: InitializeAdaptiveFeeTierIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl InitializeAdaptiveFeeTierIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != INITIALIZE_ADAPTIVE_FEE_TIER_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    INITIALIZE_ADAPTIVE_FEE_TIER_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(InitializeAdaptiveFeeTierIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&INITIALIZE_ADAPTIVE_FEE_TIER_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn initialize_adaptive_fee_tier_ix_with_program_id(
+    program_id: Pubkey,
+    keys: InitializeAdaptiveFeeTierKeys,
+    args: InitializeAdaptiveFeeTierIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; INITIALIZE_ADAPTIVE_FEE_TIER_IX_ACCOUNTS_LEN] = keys.into();
+    let data: InitializeAdaptiveFeeTierIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn initialize_adaptive_fee_tier_ix(
+    keys: InitializeAdaptiveFeeTierKeys,
+    args: InitializeAdaptiveFeeTierIxArgs,
+) -> std::io::Result<Instruction> {
+    initialize_adaptive_fee_tier_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn initialize_adaptive_fee_tier_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: InitializeAdaptiveFeeTierAccounts<'_, '_>,
+    args: InitializeAdaptiveFeeTierIxArgs,
+) -> ProgramResult {
+    let keys: InitializeAdaptiveFeeTierKeys = accounts.into();
+    let ix = initialize_adaptive_fee_tier_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn initialize_adaptive_fee_tier_invoke(
+    accounts: InitializeAdaptiveFeeTierAccounts<'_, '_>,
+    args: InitializeAdaptiveFeeTierIxArgs,
+) -> ProgramResult {
+    initialize_adaptive_fee_tier_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn initialize_adaptive_fee_tier_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: InitializeAdaptiveFeeTierAccounts<'_, '_>,
+    args: InitializeAdaptiveFeeTierIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: InitializeAdaptiveFeeTierKeys = accounts.into();
+    let ix = initialize_adaptive_fee_tier_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn initialize_adaptive_fee_tier_invoke_signed(
+    accounts: InitializeAdaptiveFeeTierAccounts<'_, '_>,
+    args: InitializeAdaptiveFeeTierIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    initialize_adaptive_fee_tier_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn initialize_adaptive_fee_tier_verify_account_keys(
+    accounts: InitializeAdaptiveFeeTierAccounts<'_, '_>,
+    keys: InitializeAdaptiveFeeTierKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.whirlpools_config.key, keys.whirlpools_config),
+        (*accounts.adaptive_fee_tier.key, keys.adaptive_fee_tier),
+        (*accounts.funder.key, keys.funder),
+        (*accounts.fee_authority.key, keys.fee_authority),
+        (*accounts.system_program.key, keys.system_program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn initialize_adaptive_fee_tier_verify_writable_privileges<'me, 'info>(
+    accounts: InitializeAdaptiveFeeTierAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.adaptive_fee_tier, accounts.funder] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn initialize_adaptive_fee_tier_verify_signer_privileges<'me, 'info>(
+    accounts: InitializeAdaptiveFeeTierAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.funder, accounts.fee_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn initialize_adaptive_fee_tier_verify_account_privileges<'me, 'info>(
+    accounts: InitializeAdaptiveFeeTierAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    initialize_adaptive_fee_tier_verify_writable_privileges(accounts)?;
+    initialize_adaptive_fee_tier_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const SET_DEFAULT_BASE_FEE_RATE_IX_ACCOUNTS_LEN: usize = 3;
+
+#[derive(Copy, Clone, Debug)]
+pub struct SetDefaultBaseFeeRateAccounts<'me, 'info> {
+    pub whirlpools_config: &'me AccountInfo<'info>,
+    pub adaptive_fee_tier: &'me AccountInfo<'info>,
+    pub fee_authority: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SetDefaultBaseFeeRateKeys {
+    pub whirlpools_config: Pubkey,
+    pub adaptive_fee_tier: Pubkey,
+    pub fee_authority: Pubkey,
+}
+
+impl From<SetDefaultBaseFeeRateAccounts<'_, '_>> for SetDefaultBaseFeeRateKeys {
+    fn from(accounts: SetDefaultBaseFeeRateAccounts) -> Self {
+        Self {
+            whirlpools_config: *accounts.whirlpools_config.key,
+            adaptive_fee_tier: *accounts.adaptive_fee_tier.key,
+            fee_authority: *accounts.fee_authority.key,
+        }
+    }
+}
+
+impl From<SetDefaultBaseFeeRateKeys> for [AccountMeta; SET_DEFAULT_BASE_FEE_RATE_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetDefaultBaseFeeRateKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.whirlpools_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.adaptive_fee_tier,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.fee_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; SET_DEFAULT_BASE_FEE_RATE_IX_ACCOUNTS_LEN]> for SetDefaultBaseFeeRateKeys {
+    fn from(pubkeys: [Pubkey; SET_DEFAULT_BASE_FEE_RATE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: pubkeys[0],
+            adaptive_fee_tier: pubkeys[1],
+            fee_authority: pubkeys[2],
+        }
+    }
+}
+
+impl<'info> From<SetDefaultBaseFeeRateAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_DEFAULT_BASE_FEE_RATE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetDefaultBaseFeeRateAccounts<'_, 'info>) -> Self {
+        [
+            accounts.whirlpools_config.clone(),
+            accounts.adaptive_fee_tier.clone(),
+            accounts.fee_authority.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_DEFAULT_BASE_FEE_RATE_IX_ACCOUNTS_LEN]>
+    for SetDefaultBaseFeeRateAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_DEFAULT_BASE_FEE_RATE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: &arr[0],
+            adaptive_fee_tier: &arr[1],
+            fee_authority: &arr[2],
+        }
+    }
+}
+
+pub const SET_DEFAULT_BASE_FEE_RATE_IX_DISCM: [u8; 8] = [121, 102, 10, 18, 3, 10, 19, 102];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetDefaultBaseFeeRateIxArgs {
+    pub default_base_fee_rate: u16,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetDefaultBaseFeeRateIxData(pub SetDefaultBaseFeeRateIxArgs);
+
+impl From<SetDefaultBaseFeeRateIxArgs> for SetDefaultBaseFeeRateIxData {
+    fn from(args: SetDefaultBaseFeeRateIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl SetDefaultBaseFeeRateIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SET_DEFAULT_BASE_FEE_RATE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_DEFAULT_BASE_FEE_RATE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(SetDefaultBaseFeeRateIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SET_DEFAULT_BASE_FEE_RATE_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn set_default_base_fee_rate_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetDefaultBaseFeeRateKeys,
+    args: SetDefaultBaseFeeRateIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_DEFAULT_BASE_FEE_RATE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SetDefaultBaseFeeRateIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn set_default_base_fee_rate_ix(
+    keys: SetDefaultBaseFeeRateKeys,
+    args: SetDefaultBaseFeeRateIxArgs,
+) -> std::io::Result<Instruction> {
+    set_default_base_fee_rate_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn set_default_base_fee_rate_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetDefaultBaseFeeRateAccounts<'_, '_>,
+    args: SetDefaultBaseFeeRateIxArgs,
+) -> ProgramResult {
+    let keys: SetDefaultBaseFeeRateKeys = accounts.into();
+    let ix = set_default_base_fee_rate_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn set_default_base_fee_rate_invoke(
+    accounts: SetDefaultBaseFeeRateAccounts<'_, '_>,
+    args: SetDefaultBaseFeeRateIxArgs,
+) -> ProgramResult {
+    set_default_base_fee_rate_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn set_default_base_fee_rate_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetDefaultBaseFeeRateAccounts<'_, '_>,
+    args: SetDefaultBaseFeeRateIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetDefaultBaseFeeRateKeys = accounts.into();
+    let ix = set_default_base_fee_rate_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn set_default_base_fee_rate_invoke_signed(
+    accounts: SetDefaultBaseFeeRateAccounts<'_, '_>,
+    args: SetDefaultBaseFeeRateIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_default_base_fee_rate_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn set_default_base_fee_rate_verify_account_keys(
+    accounts: SetDefaultBaseFeeRateAccounts<'_, '_>,
+    keys: SetDefaultBaseFeeRateKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.whirlpools_config.key, keys.whirlpools_config),
+        (*accounts.adaptive_fee_tier.key, keys.adaptive_fee_tier),
+        (*accounts.fee_authority.key, keys.fee_authority),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_default_base_fee_rate_verify_writable_privileges<'me, 'info>(
+    accounts: SetDefaultBaseFeeRateAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.adaptive_fee_tier] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_default_base_fee_rate_verify_signer_privileges<'me, 'info>(
+    accounts: SetDefaultBaseFeeRateAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.fee_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_default_base_fee_rate_verify_account_privileges<'me, 'info>(
+    accounts: SetDefaultBaseFeeRateAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_default_base_fee_rate_verify_writable_privileges(accounts)?;
+    set_default_base_fee_rate_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const SET_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN: usize = 4;
+
+#[derive(Copy, Clone, Debug)]
+pub struct SetDelegatedFeeAuthorityAccounts<'me, 'info> {
+    pub whirlpools_config: &'me AccountInfo<'info>,
+    pub adaptive_fee_tier: &'me AccountInfo<'info>,
+    pub fee_authority: &'me AccountInfo<'info>,
+    pub new_delegated_fee_authority: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SetDelegatedFeeAuthorityKeys {
+    pub whirlpools_config: Pubkey,
+    pub adaptive_fee_tier: Pubkey,
+    pub fee_authority: Pubkey,
+    pub new_delegated_fee_authority: Pubkey,
+}
+
+impl From<SetDelegatedFeeAuthorityAccounts<'_, '_>> for SetDelegatedFeeAuthorityKeys {
+    fn from(accounts: SetDelegatedFeeAuthorityAccounts) -> Self {
+        Self {
+            whirlpools_config: *accounts.whirlpools_config.key,
+            adaptive_fee_tier: *accounts.adaptive_fee_tier.key,
+            fee_authority: *accounts.fee_authority.key,
+            new_delegated_fee_authority: *accounts.new_delegated_fee_authority.key,
+        }
+    }
+}
+
+impl From<SetDelegatedFeeAuthorityKeys> for [AccountMeta; SET_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetDelegatedFeeAuthorityKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.whirlpools_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.adaptive_fee_tier,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.fee_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.new_delegated_fee_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; SET_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]> for SetDelegatedFeeAuthorityKeys {
+    fn from(pubkeys: [Pubkey; SET_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: pubkeys[0],
+            adaptive_fee_tier: pubkeys[1],
+            fee_authority: pubkeys[2],
+            new_delegated_fee_authority: pubkeys[3],
+        }
+    }
+}
+
+impl<'info> From<SetDelegatedFeeAuthorityAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetDelegatedFeeAuthorityAccounts<'_, 'info>) -> Self {
+        [
+            accounts.whirlpools_config.clone(),
+            accounts.adaptive_fee_tier.clone(),
+            accounts.fee_authority.clone(),
+            accounts.new_delegated_fee_authority.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]>
+    for SetDelegatedFeeAuthorityAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: &arr[0],
+            adaptive_fee_tier: &arr[1],
+            fee_authority: &arr[2],
+            new_delegated_fee_authority: &arr[3],
+        }
+    }
+}
+
+pub const SET_DELEGATED_FEE_AUTHORITY_IX_DISCM: [u8; 8] = [128, 112, 123, 18, 13, 13, 9, 11];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetDelegatedFeeAuthorityIxArgs;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetDelegatedFeeAuthorityIxData;
+
+impl From<SetDelegatedFeeAuthorityIxArgs> for SetDelegatedFeeAuthorityIxData {
+    fn from(_args: SetDelegatedFeeAuthorityIxArgs) -> Self {
+        Self
+    }
+}
+
+impl SetDelegatedFeeAuthorityIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SET_DELEGATED_FEE_AUTHORITY_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_DELEGATED_FEE_AUTHORITY_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SET_DELEGATED_FEE_AUTHORITY_IX_DISCM)
+    }
+    
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn set_delegated_fee_authority_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetDelegatedFeeAuthorityKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN] = keys.into();
+    let data = SetDelegatedFeeAuthorityIxData;
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn set_delegated_fee_authority_ix(
+    keys: SetDelegatedFeeAuthorityKeys,
+) -> std::io::Result<Instruction> {
+    set_delegated_fee_authority_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn set_delegated_fee_authority_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetDelegatedFeeAuthorityAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: SetDelegatedFeeAuthorityKeys = accounts.into();
+    let ix = set_delegated_fee_authority_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn set_delegated_fee_authority_invoke(
+    accounts: SetDelegatedFeeAuthorityAccounts<'_, '_>,
+) -> ProgramResult {
+    set_delegated_fee_authority_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn set_delegated_fee_authority_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetDelegatedFeeAuthorityAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetDelegatedFeeAuthorityKeys = accounts.into();
+    let ix = set_delegated_fee_authority_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn set_delegated_fee_authority_invoke_signed(
+    accounts: SetDelegatedFeeAuthorityAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_delegated_fee_authority_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn set_delegated_fee_authority_verify_account_keys(
+    accounts: SetDelegatedFeeAuthorityAccounts<'_, '_>,
+    keys: SetDelegatedFeeAuthorityKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.whirlpools_config.key, keys.whirlpools_config),
+        (*accounts.adaptive_fee_tier.key, keys.adaptive_fee_tier),
+        (*accounts.fee_authority.key, keys.fee_authority),
+        (*accounts.new_delegated_fee_authority.key, keys.new_delegated_fee_authority),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_delegated_fee_authority_verify_writable_privileges<'me, 'info>(
+    accounts: SetDelegatedFeeAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.adaptive_fee_tier] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_delegated_fee_authority_verify_signer_privileges<'me, 'info>(
+    accounts: SetDelegatedFeeAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.fee_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_delegated_fee_authority_verify_account_privileges<'me, 'info>(
+    accounts: SetDelegatedFeeAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_delegated_fee_authority_verify_writable_privileges(accounts)?;
+    set_delegated_fee_authority_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const SET_INITIALIZE_POOL_AUTHORITY_IX_ACCOUNTS_LEN: usize = 4;
+
+#[derive(Copy, Clone, Debug)]
+pub struct SetInitializePoolAuthorityAccounts<'me, 'info> {
+    pub whirlpools_config: &'me AccountInfo<'info>,
+    pub adaptive_fee_tier: &'me AccountInfo<'info>,
+    pub fee_authority: &'me AccountInfo<'info>,
+    pub new_initialize_pool_authority: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SetInitializePoolAuthorityKeys {
+    pub whirlpools_config: Pubkey,
+    pub adaptive_fee_tier: Pubkey,
+    pub fee_authority: Pubkey,
+    pub new_initialize_pool_authority: Pubkey,
+}
+
+impl From<SetInitializePoolAuthorityAccounts<'_, '_>> for SetInitializePoolAuthorityKeys {
+    fn from(accounts: SetInitializePoolAuthorityAccounts) -> Self {
+        Self {
+            whirlpools_config: *accounts.whirlpools_config.key,
+            adaptive_fee_tier: *accounts.adaptive_fee_tier.key,
+            fee_authority: *accounts.fee_authority.key,
+            new_initialize_pool_authority: *accounts.new_initialize_pool_authority.key,
+        }
+    }
+}
+
+impl From<SetInitializePoolAuthorityKeys> for [AccountMeta; SET_INITIALIZE_POOL_AUTHORITY_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetInitializePoolAuthorityKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.whirlpools_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.adaptive_fee_tier,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.fee_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.new_initialize_pool_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; SET_INITIALIZE_POOL_AUTHORITY_IX_ACCOUNTS_LEN]> for SetInitializePoolAuthorityKeys {
+    fn from(pubkeys: [Pubkey; SET_INITIALIZE_POOL_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: pubkeys[0],
+            adaptive_fee_tier: pubkeys[1],
+            fee_authority: pubkeys[2],
+            new_initialize_pool_authority: pubkeys[3],
+        }
+    }
+}
+
+impl<'info> From<SetInitializePoolAuthorityAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_INITIALIZE_POOL_AUTHORITY_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetInitializePoolAuthorityAccounts<'_, 'info>) -> Self {
+        [
+            accounts.whirlpools_config.clone(),
+            accounts.adaptive_fee_tier.clone(),
+            accounts.fee_authority.clone(),
+            accounts.new_initialize_pool_authority.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_INITIALIZE_POOL_AUTHORITY_IX_ACCOUNTS_LEN]>
+    for SetInitializePoolAuthorityAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_INITIALIZE_POOL_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: &arr[0],
+            adaptive_fee_tier: &arr[1],
+            fee_authority: &arr[2],
+            new_initialize_pool_authority: &arr[3],
+        }
+    }
+}
+
+pub const SET_INITIALIZE_POOL_AUTHORITY_IX_DISCM: [u8; 8] = [88, 238, 175, 208, 164, 221, 189, 41];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetInitializePoolAuthorityIxArgs;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetInitializePoolAuthorityIxData;
+
+impl From<SetInitializePoolAuthorityIxArgs> for SetInitializePoolAuthorityIxData {
+    fn from(_args: SetInitializePoolAuthorityIxArgs) -> Self {
+        Self
+    }
+}
+
+impl SetInitializePoolAuthorityIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SET_INITIALIZE_POOL_AUTHORITY_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_INITIALIZE_POOL_AUTHORITY_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SET_INITIALIZE_POOL_AUTHORITY_IX_DISCM)
+    }
+    
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn set_initialize_pool_authority_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetInitializePoolAuthorityKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_INITIALIZE_POOL_AUTHORITY_IX_ACCOUNTS_LEN] = keys.into();
+    let data = SetInitializePoolAuthorityIxData;
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn set_initialize_pool_authority_ix(
+    keys: SetInitializePoolAuthorityKeys,
+) -> std::io::Result<Instruction> {
+    set_initialize_pool_authority_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn set_initialize_pool_authority_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetInitializePoolAuthorityAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: SetInitializePoolAuthorityKeys = accounts.into();
+    let ix = set_initialize_pool_authority_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn set_initialize_pool_authority_invoke(
+    accounts: SetInitializePoolAuthorityAccounts<'_, '_>,
+) -> ProgramResult {
+    set_initialize_pool_authority_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn set_initialize_pool_authority_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetInitializePoolAuthorityAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetInitializePoolAuthorityKeys = accounts.into();
+    let ix = set_initialize_pool_authority_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn set_initialize_pool_authority_invoke_signed(
+    accounts: SetInitializePoolAuthorityAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_initialize_pool_authority_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn set_initialize_pool_authority_verify_account_keys(
+    accounts: SetInitializePoolAuthorityAccounts<'_, '_>,
+    keys: SetInitializePoolAuthorityKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.whirlpools_config.key, keys.whirlpools_config),
+        (*accounts.adaptive_fee_tier.key, keys.adaptive_fee_tier),
+        (*accounts.fee_authority.key, keys.fee_authority),
+        (*accounts.new_initialize_pool_authority.key, keys.new_initialize_pool_authority),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_initialize_pool_authority_verify_writable_privileges<'me, 'info>(
+    accounts: SetInitializePoolAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.adaptive_fee_tier] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_initialize_pool_authority_verify_signer_privileges<'me, 'info>(
+    accounts: SetInitializePoolAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.fee_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_initialize_pool_authority_verify_account_privileges<'me, 'info>(
+    accounts: SetInitializePoolAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_initialize_pool_authority_verify_writable_privileges(accounts)?;
+    set_initialize_pool_authority_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_ACCOUNTS_LEN: usize = 3;
+
+#[derive(Copy, Clone, Debug)]
+pub struct SetPresetAdaptiveFeeConstantsAccounts<'me, 'info> {
+    pub whirlpools_config: &'me AccountInfo<'info>,
+    pub adaptive_fee_tier: &'me AccountInfo<'info>,
+    pub fee_authority: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SetPresetAdaptiveFeeConstantsKeys {
+    pub whirlpools_config: Pubkey,
+    pub adaptive_fee_tier: Pubkey,
+    pub fee_authority: Pubkey,
+}
+
+impl From<SetPresetAdaptiveFeeConstantsAccounts<'_, '_>> for SetPresetAdaptiveFeeConstantsKeys {
+    fn from(accounts: SetPresetAdaptiveFeeConstantsAccounts) -> Self {
+        Self {
+            whirlpools_config: *accounts.whirlpools_config.key,
+            adaptive_fee_tier: *accounts.adaptive_fee_tier.key,
+            fee_authority: *accounts.fee_authority.key,
+        }
+    }
+}
+
+impl From<SetPresetAdaptiveFeeConstantsKeys> for [AccountMeta; SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetPresetAdaptiveFeeConstantsKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.whirlpools_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.adaptive_fee_tier,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.fee_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_ACCOUNTS_LEN]> for SetPresetAdaptiveFeeConstantsKeys {
+    fn from(pubkeys: [Pubkey; SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: pubkeys[0],
+            adaptive_fee_tier: pubkeys[1],
+            fee_authority: pubkeys[2],
+        }
+    }
+}
+
+impl<'info> From<SetPresetAdaptiveFeeConstantsAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetPresetAdaptiveFeeConstantsAccounts<'_, 'info>) -> Self {
+        [
+            accounts.whirlpools_config.clone(),
+            accounts.adaptive_fee_tier.clone(),
+            accounts.fee_authority.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_ACCOUNTS_LEN]>
+    for SetPresetAdaptiveFeeConstantsAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: &arr[0],
+            adaptive_fee_tier: &arr[1],
+            fee_authority: &arr[2],
+        }
+    }
+}
+
+pub const SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_DISCM: [u8; 8] = [138, 65, 70, 69, 22, 103, 122, 72];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetPresetAdaptiveFeeConstantsIxArgs {
+    pub filter_period: u16,
+    pub decay_period: u16,
+    pub reduction_factor: u16,
+    pub adaptive_fee_control_factor: u32,
+    pub max_volatility_accumulator: u32,
+    pub tick_group_size: u16,
+    pub major_swap_threshold_ticks: u16,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetPresetAdaptiveFeeConstantsIxData(pub SetPresetAdaptiveFeeConstantsIxArgs);
+
+impl From<SetPresetAdaptiveFeeConstantsIxArgs> for SetPresetAdaptiveFeeConstantsIxData {
+    fn from(args: SetPresetAdaptiveFeeConstantsIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl SetPresetAdaptiveFeeConstantsIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(SetPresetAdaptiveFeeConstantsIxArgs::deserialize(&mut reader)?))
+    }
+    
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn set_preset_adaptive_fee_constants_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetPresetAdaptiveFeeConstantsKeys,
+    args: SetPresetAdaptiveFeeConstantsIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_PRESET_ADAPTIVE_FEE_CONSTANTS_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SetPresetAdaptiveFeeConstantsIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn set_preset_adaptive_fee_constants_ix(
+    keys: SetPresetAdaptiveFeeConstantsKeys,
+    args: SetPresetAdaptiveFeeConstantsIxArgs,
+) -> std::io::Result<Instruction> {
+    set_preset_adaptive_fee_constants_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn set_preset_adaptive_fee_constants_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetPresetAdaptiveFeeConstantsAccounts<'_, '_>,
+    args: SetPresetAdaptiveFeeConstantsIxArgs,
+) -> ProgramResult {
+    let keys: SetPresetAdaptiveFeeConstantsKeys = accounts.into();
+    let ix = set_preset_adaptive_fee_constants_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn set_preset_adaptive_fee_constants_invoke(
+    accounts: SetPresetAdaptiveFeeConstantsAccounts<'_, '_>,
+    args: SetPresetAdaptiveFeeConstantsIxArgs,
+) -> ProgramResult {
+    set_preset_adaptive_fee_constants_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn set_preset_adaptive_fee_constants_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetPresetAdaptiveFeeConstantsAccounts<'_, '_>,
+    args: SetPresetAdaptiveFeeConstantsIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetPresetAdaptiveFeeConstantsKeys = accounts.into();
+    let ix = set_preset_adaptive_fee_constants_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn set_preset_adaptive_fee_constants_invoke_signed(
+    accounts: SetPresetAdaptiveFeeConstantsAccounts<'_, '_>,
+    args: SetPresetAdaptiveFeeConstantsIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_preset_adaptive_fee_constants_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn set_preset_adaptive_fee_constants_verify_account_keys(
+    accounts: SetPresetAdaptiveFeeConstantsAccounts<'_, '_>,
+    keys: SetPresetAdaptiveFeeConstantsKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.whirlpools_config.key, keys.whirlpools_config),
+        (*accounts.adaptive_fee_tier.key, keys.adaptive_fee_tier),
+        (*accounts.fee_authority.key, keys.fee_authority),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_preset_adaptive_fee_constants_verify_writable_privileges<'me, 'info>(
+    accounts: SetPresetAdaptiveFeeConstantsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.adaptive_fee_tier] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_preset_adaptive_fee_constants_verify_signer_privileges<'me, 'info>(
+    accounts: SetPresetAdaptiveFeeConstantsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.fee_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_preset_adaptive_fee_constants_verify_account_privileges<'me, 'info>(
+    accounts: SetPresetAdaptiveFeeConstantsAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_preset_adaptive_fee_constants_verify_writable_privileges(accounts)?;
+    set_preset_adaptive_fee_constants_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_ACCOUNTS_LEN: usize = 16;
+
+#[derive(Copy, Clone, Debug)]
+pub struct InitializePoolWithAdaptiveFeeAccounts<'me, 'info> {
+    pub whirlpools_config: &'me AccountInfo<'info>,
+    pub token_mint_a: &'me AccountInfo<'info>,
+    pub token_mint_b: &'me AccountInfo<'info>,
+    pub token_badge_a: &'me AccountInfo<'info>,
+    pub token_badge_b: &'me AccountInfo<'info>,
+    pub funder: &'me AccountInfo<'info>,
+    pub initialize_pool_authority: &'me AccountInfo<'info>,
+    pub whirlpool: &'me AccountInfo<'info>,
+    pub oracle: &'me AccountInfo<'info>,
+    pub token_vault_a: &'me AccountInfo<'info>,
+    pub token_vault_b: &'me AccountInfo<'info>,
+    pub adaptive_fee_tier: &'me AccountInfo<'info>,
+    pub token_program_a: &'me AccountInfo<'info>,
+    pub token_program_b: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub rent: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct InitializePoolWithAdaptiveFeeKeys {
+    pub whirlpools_config: Pubkey,
+    pub token_mint_a: Pubkey,
+    pub token_mint_b: Pubkey,
+    pub token_badge_a: Pubkey,
+    pub token_badge_b: Pubkey,
+    pub funder: Pubkey,
+    pub initialize_pool_authority: Pubkey,
+    pub whirlpool: Pubkey,
+    pub oracle: Pubkey,
+    pub token_vault_a: Pubkey,
+    pub token_vault_b: Pubkey,
+    pub adaptive_fee_tier: Pubkey,
+    pub token_program_a: Pubkey,
+    pub token_program_b: Pubkey,
+    pub system_program: Pubkey,
+    pub rent: Pubkey,
+}
+
+impl From<InitializePoolWithAdaptiveFeeAccounts<'_, '_>> for InitializePoolWithAdaptiveFeeKeys {
+    fn from(accounts: InitializePoolWithAdaptiveFeeAccounts) -> Self {
+        Self {
+            whirlpools_config: *accounts.whirlpools_config.key,
+            token_mint_a: *accounts.token_mint_a.key,
+            token_mint_b: *accounts.token_mint_b.key,
+            token_badge_a: *accounts.token_badge_a.key,
+            token_badge_b: *accounts.token_badge_b.key,
+            funder: *accounts.funder.key,
+            initialize_pool_authority: *accounts.initialize_pool_authority.key,
+            whirlpool: *accounts.whirlpool.key,
+            oracle: *accounts.oracle.key,
+            token_vault_a: *accounts.token_vault_a.key,
+            token_vault_b: *accounts.token_vault_b.key,
+            adaptive_fee_tier: *accounts.adaptive_fee_tier.key,
+            token_program_a: *accounts.token_program_a.key,
+            token_program_b: *accounts.token_program_b.key,
+            system_program: *accounts.system_program.key,
+            rent: *accounts.rent.key,
+        }
+    }
+}
+
+impl From<InitializePoolWithAdaptiveFeeKeys> for [AccountMeta; INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_ACCOUNTS_LEN] {
+    fn from(keys: InitializePoolWithAdaptiveFeeKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.whirlpools_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_mint_a,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_mint_b,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_badge_a,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_badge_b,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.funder,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.initialize_pool_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.whirlpool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.oracle,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.token_vault_a,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.token_vault_b,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.adaptive_fee_tier,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program_a,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program_b,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.rent,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_ACCOUNTS_LEN]> for InitializePoolWithAdaptiveFeeKeys {
+    fn from(pubkeys: [Pubkey; INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: pubkeys[0],
+            token_mint_a: pubkeys[1],
+            token_mint_b: pubkeys[2],
+            token_badge_a: pubkeys[3],
+            token_badge_b: pubkeys[4],
+            funder: pubkeys[5],
+            initialize_pool_authority: pubkeys[6],
+            whirlpool: pubkeys[7],
+            oracle: pubkeys[8],
+            token_vault_a: pubkeys[9],
+            token_vault_b: pubkeys[10],
+            adaptive_fee_tier: pubkeys[11],
+            token_program_a: pubkeys[12],
+            token_program_b: pubkeys[13],
+            system_program: pubkeys[14],
+            rent: pubkeys[15],
+        }
+    }
+}
+
+impl<'info> From<InitializePoolWithAdaptiveFeeAccounts<'_, 'info>>
+    for [AccountInfo<'info>; INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: InitializePoolWithAdaptiveFeeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.whirlpools_config.clone(),
+            accounts.token_mint_a.clone(),
+            accounts.token_mint_b.clone(),
+            accounts.token_badge_a.clone(),
+            accounts.token_badge_b.clone(),
+            accounts.funder.clone(),
+            accounts.initialize_pool_authority.clone(),
+            accounts.whirlpool.clone(),
+            accounts.oracle.clone(),
+            accounts.token_vault_a.clone(),
+            accounts.token_vault_b.clone(),
+            accounts.adaptive_fee_tier.clone(),
+            accounts.token_program_a.clone(),
+            accounts.token_program_b.clone(),
+            accounts.system_program.clone(),
+            accounts.rent.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_ACCOUNTS_LEN]>
+    for InitializePoolWithAdaptiveFeeAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpools_config: &arr[0],
+            token_mint_a: &arr[1],
+            token_mint_b: &arr[2],
+            token_badge_a: &arr[3],
+            token_badge_b: &arr[4],
+            funder: &arr[5],
+            initialize_pool_authority: &arr[6],
+            whirlpool: &arr[7],
+            oracle: &arr[8],
+            token_vault_a: &arr[9],
+            token_vault_b: &arr[10],
+            adaptive_fee_tier: &arr[11],
+            token_program_a: &arr[12],
+            token_program_b: &arr[13],
+            system_program: &arr[14],
+            rent: &arr[15],
+        }
+    }
+}
+
+pub const INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_DISCM: [u8; 8] = [12, 72, 211, 74, 83, 134, 13, 214];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct InitializePoolWithAdaptiveFeeIxArgs {
+    pub initial_sqrt_price: u128,
+    pub trade_enable_timestamp: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InitializePoolWithAdaptiveFeeIxData(pub InitializePoolWithAdaptiveFeeIxArgs);
+
+impl From<InitializePoolWithAdaptiveFeeIxArgs> for InitializePoolWithAdaptiveFeeIxData {
+    fn from(args: InitializePoolWithAdaptiveFeeIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl InitializePoolWithAdaptiveFeeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(InitializePoolWithAdaptiveFeeIxArgs::deserialize(&mut reader)?))
+    }
+    
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn initialize_pool_with_adaptive_fee_ix_with_program_id(
+    program_id: Pubkey,
+    keys: InitializePoolWithAdaptiveFeeKeys,
+    args: InitializePoolWithAdaptiveFeeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; INITIALIZE_POOL_WITH_ADAPTIVE_FEE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: InitializePoolWithAdaptiveFeeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn initialize_pool_with_adaptive_fee_ix(
+    keys: InitializePoolWithAdaptiveFeeKeys,
+    args: InitializePoolWithAdaptiveFeeIxArgs,
+) -> std::io::Result<Instruction> {
+    initialize_pool_with_adaptive_fee_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn initialize_pool_with_adaptive_fee_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: InitializePoolWithAdaptiveFeeAccounts<'_, '_>,
+    args: InitializePoolWithAdaptiveFeeIxArgs,
+) -> ProgramResult {
+    let keys: InitializePoolWithAdaptiveFeeKeys = accounts.into();
+    let ix = initialize_pool_with_adaptive_fee_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn initialize_pool_with_adaptive_fee_invoke(
+    accounts: InitializePoolWithAdaptiveFeeAccounts<'_, '_>,
+    args: InitializePoolWithAdaptiveFeeIxArgs,
+) -> ProgramResult {
+    initialize_pool_with_adaptive_fee_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn initialize_pool_with_adaptive_fee_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: InitializePoolWithAdaptiveFeeAccounts<'_, '_>,
+    args: InitializePoolWithAdaptiveFeeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: InitializePoolWithAdaptiveFeeKeys = accounts.into();
+    let ix = initialize_pool_with_adaptive_fee_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn initialize_pool_with_adaptive_fee_invoke_signed(
+    accounts: InitializePoolWithAdaptiveFeeAccounts<'_, '_>,
+    args: InitializePoolWithAdaptiveFeeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    initialize_pool_with_adaptive_fee_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn initialize_pool_with_adaptive_fee_verify_account_keys(
+    accounts: InitializePoolWithAdaptiveFeeAccounts<'_, '_>,
+    keys: InitializePoolWithAdaptiveFeeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.whirlpools_config.key, keys.whirlpools_config),
+        (*accounts.token_mint_a.key, keys.token_mint_a),
+        (*accounts.token_mint_b.key, keys.token_mint_b),
+        (*accounts.token_badge_a.key, keys.token_badge_a),
+        (*accounts.token_badge_b.key, keys.token_badge_b),
+        (*accounts.funder.key, keys.funder),
+        (*accounts.initialize_pool_authority.key, keys.initialize_pool_authority),
+        (*accounts.whirlpool.key, keys.whirlpool),
+        (*accounts.oracle.key, keys.oracle),
+        (*accounts.token_vault_a.key, keys.token_vault_a),
+        (*accounts.token_vault_b.key, keys.token_vault_b),
+        (*accounts.adaptive_fee_tier.key, keys.adaptive_fee_tier),
+        (*accounts.token_program_a.key, keys.token_program_a),
+        (*accounts.token_program_b.key, keys.token_program_b),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.rent.key, keys.rent),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn initialize_pool_with_adaptive_fee_verify_writable_privileges<'me, 'info>(
+    accounts: InitializePoolWithAdaptiveFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.funder,
+        accounts.whirlpool,
+        accounts.oracle,
+        accounts.token_vault_a,
+        accounts.token_vault_b,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn initialize_pool_with_adaptive_fee_verify_signer_privileges<'me, 'info>(
+    accounts: InitializePoolWithAdaptiveFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [
+        accounts.funder,
+        accounts.initialize_pool_authority,
+        accounts.token_vault_a,
+        accounts.token_vault_b,
+    ] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn initialize_pool_with_adaptive_fee_verify_account_privileges<'me, 'info>(
+    accounts: InitializePoolWithAdaptiveFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    initialize_pool_with_adaptive_fee_verify_writable_privileges(accounts)?;
+    initialize_pool_with_adaptive_fee_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN: usize = 3;
+
+#[derive(Copy, Clone, Debug)]
+pub struct SetFeeRateByDelegatedFeeAuthorityAccounts<'me, 'info> {
+    pub whirlpool: &'me AccountInfo<'info>,
+    pub adaptive_fee_tier: &'me AccountInfo<'info>,
+    pub delegated_fee_authority: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SetFeeRateByDelegatedFeeAuthorityKeys {
+    pub whirlpool: Pubkey,
+    pub adaptive_fee_tier: Pubkey,
+    pub delegated_fee_authority: Pubkey,
+}
+
+impl From<SetFeeRateByDelegatedFeeAuthorityAccounts<'_, '_>> for SetFeeRateByDelegatedFeeAuthorityKeys {
+    fn from(accounts: SetFeeRateByDelegatedFeeAuthorityAccounts) -> Self {
+        Self {
+            whirlpool: *accounts.whirlpool.key,
+            adaptive_fee_tier: *accounts.adaptive_fee_tier.key,
+            delegated_fee_authority: *accounts.delegated_fee_authority.key,
+        }
+    }
+}
+
+impl From<SetFeeRateByDelegatedFeeAuthorityKeys> for [AccountMeta; SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetFeeRateByDelegatedFeeAuthorityKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.whirlpool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.adaptive_fee_tier,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.delegated_fee_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]> for SetFeeRateByDelegatedFeeAuthorityKeys {
+    fn from(pubkeys: [Pubkey; SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpool: pubkeys[0],
+            adaptive_fee_tier: pubkeys[1],
+            delegated_fee_authority: pubkeys[2],
+        }
+    }
+}
+
+impl<'info> From<SetFeeRateByDelegatedFeeAuthorityAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'_, 'info>) -> Self {
+        [
+            accounts.whirlpool.clone(),
+            accounts.adaptive_fee_tier.clone(),
+            accounts.delegated_fee_authority.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]>
+    for SetFeeRateByDelegatedFeeAuthorityAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            whirlpool: &arr[0],
+            adaptive_fee_tier: &arr[1],
+            delegated_fee_authority: &arr[2],
+        }
+    }
+}
+
+pub const SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_DISCM: [u8; 8] = [121, 72, 231, 54, 3, 124, 132, 21];
+
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetFeeRateByDelegatedFeeAuthorityIxArgs {
+    pub fee_rate: u16,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetFeeRateByDelegatedFeeAuthorityIxData(pub SetFeeRateByDelegatedFeeAuthorityIxArgs);
+
+impl From<SetFeeRateByDelegatedFeeAuthorityIxArgs> for SetFeeRateByDelegatedFeeAuthorityIxData {
+    fn from(args: SetFeeRateByDelegatedFeeAuthorityIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl SetFeeRateByDelegatedFeeAuthorityIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(SetFeeRateByDelegatedFeeAuthorityIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetFeeRateByDelegatedFeeAuthorityKeys,
+    args: SetFeeRateByDelegatedFeeAuthorityIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_FEE_RATE_BY_DELEGATED_FEE_AUTHORITY_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SetFeeRateByDelegatedFeeAuthorityIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_ix(
+    keys: SetFeeRateByDelegatedFeeAuthorityKeys,
+    args: SetFeeRateByDelegatedFeeAuthorityIxArgs,
+) -> std::io::Result<Instruction> {
+    set_fee_rate_by_delegated_fee_authority_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'_, '_>,
+    args: SetFeeRateByDelegatedFeeAuthorityIxArgs,
+) -> ProgramResult {
+    let keys: SetFeeRateByDelegatedFeeAuthorityKeys = accounts.into();
+    let ix = set_fee_rate_by_delegated_fee_authority_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_invoke(
+    accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'_, '_>,
+    args: SetFeeRateByDelegatedFeeAuthorityIxArgs,
+) -> ProgramResult {
+    set_fee_rate_by_delegated_fee_authority_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'_, '_>,
+    args: SetFeeRateByDelegatedFeeAuthorityIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetFeeRateByDelegatedFeeAuthorityKeys = accounts.into();
+    let ix = set_fee_rate_by_delegated_fee_authority_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_invoke_signed(
+    accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'_, '_>,
+    args: SetFeeRateByDelegatedFeeAuthorityIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_fee_rate_by_delegated_fee_authority_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_verify_account_keys(
+    accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'_, '_>,
+    keys: SetFeeRateByDelegatedFeeAuthorityKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.whirlpool.key, keys.whirlpool),
+        (*accounts.adaptive_fee_tier.key, keys.adaptive_fee_tier),
+        (*accounts.delegated_fee_authority.key, keys.delegated_fee_authority),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_verify_writable_privileges<'me, 'info>(
+    accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.whirlpool] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_verify_signer_privileges<'me, 'info>(
+    accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.delegated_fee_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn set_fee_rate_by_delegated_fee_authority_verify_account_privileges<'me, 'info>(
+    accounts: SetFeeRateByDelegatedFeeAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_fee_rate_by_delegated_fee_authority_verify_writable_privileges(accounts)?;
+    set_fee_rate_by_delegated_fee_authority_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
 pub const COLLECT_FEES_V2_IX_ACCOUNTS_LEN: usize = 13;
 #[derive(Copy, Clone, Debug)]
 pub struct CollectFeesV2Accounts<'me, 'info> {
@@ -8536,7 +11907,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; COLLECT_FEES_V2_IX_ACCOUNTS_LEN]
         }
     }
 }
-pub const COLLECT_FEES_V2_IX_DISCM: [u8; 8] = [207, 117, 95, 191, 229, 180, 226, 15];
+pub const COLLECT_FEES_V2_IX_DISCM: [u8; 8] = [124, 210, 25, 190, 84, 50, 27, 228];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CollectFeesV2IxArgs {
@@ -8866,7 +12237,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; COLLECT_PROTOCOL_FEES_V2_IX_ACCO
         }
     }
 }
-pub const COLLECT_PROTOCOL_FEES_V2_IX_DISCM: [u8; 8] = [103, 128, 222, 134, 114, 200, 22, 200];
+pub const COLLECT_PROTOCOL_FEES_V2_IX_DISCM: [u8; 8] = [136, 9, 212, 151, 159, 148, 203, 218];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CollectProtocolFeesV2IxArgs {
@@ -9156,7 +12527,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; COLLECT_REWARD_V2_IX_ACCOUNTS_LE
         }
     }
 }
-pub const COLLECT_REWARD_V2_IX_DISCM: [u8; 8] = [177, 107, 37, 180, 160, 19, 49, 209];
+pub const COLLECT_REWARD_V2_IX_DISCM: [u8; 8] = [253, 181, 213, 132, 6, 224, 198, 220];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CollectRewardV2IxArgs {
@@ -9514,7 +12885,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; DECREASE_LIQUIDITY_V2_IX_ACCOUNT
         }
     }
 }
-pub const DECREASE_LIQUIDITY_V2_IX_DISCM: [u8; 8] = [58, 127, 188, 62, 79, 82, 196, 96];
+pub const DECREASE_LIQUIDITY_V2_IX_DISCM: [u8; 8] = [74, 94, 117, 173, 57, 246, 238, 34];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DecreaseLiquidityV2IxArgs {
@@ -9892,7 +13263,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; INCREASE_LIQUIDITY_V2_IX_ACCOUNT
         }
     }
 }
-pub const INCREASE_LIQUIDITY_V2_IX_DISCM: [u8; 8] = [133, 29, 89, 223, 69, 238, 176, 10];
+pub const INCREASE_LIQUIDITY_V2_IX_DISCM: [u8; 8] =  [41, 212, 200, 76, 9, 4, 183, 212];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct IncreaseLiquidityV2IxArgs {
@@ -10259,7 +13630,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_POOL_V2_IX_ACCOUNTS_L
         }
     }
 }
-pub const INITIALIZE_POOL_V2_IX_DISCM: [u8; 8] = [207, 45, 87, 242, 27, 63, 204, 67];
+pub const INITIALIZE_POOL_V2_IX_DISCM: [u8; 8] = [236, 76, 205, 249, 41, 145, 209, 147];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializePoolV2IxArgs {
@@ -10559,7 +13930,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_REWARD_V2_IX_ACCOUNTS
         }
     }
 }
-pub const INITIALIZE_REWARD_V2_IX_DISCM: [u8; 8] = [91, 1, 77, 50, 235, 229, 133, 49];
+pub const INITIALIZE_REWARD_V2_IX_DISCM: [u8; 8] = [69, 74, 74, 102, 81, 243, 91, 73];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeRewardV2IxArgs {
@@ -10778,7 +14149,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_REWARD_EMISSIONS_V2_IX_ACCOU
         }
     }
 }
-pub const SET_REWARD_EMISSIONS_V2_IX_DISCM: [u8; 8] = [114, 228, 72, 32, 193, 48, 160, 102];
+pub const SET_REWARD_EMISSIONS_V2_IX_DISCM: [u8; 8] = [236, 112, 183, 142, 134, 14, 214, 161];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SetRewardEmissionsV2IxArgs {
@@ -11122,7 +14493,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; SWAP_V2_IX_ACCOUNTS_LEN]>
         }
     }
 }
-pub const SWAP_V2_IX_DISCM: [u8; 8] = [43, 4, 237, 11, 26, 201, 30, 98];
+pub const SWAP_V2_IX_DISCM: [u8; 8] =  [43, 4, 237, 11, 26, 201, 30, 98];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SwapV2IxArgs {
@@ -11593,7 +14964,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; TWO_HOP_SWAP_V2_IX_ACCOUNTS_LEN]
         }
     }
 }
-pub const TWO_HOP_SWAP_V2_IX_DISCM: [u8; 8] = [186, 143, 209, 29, 254, 2, 194, 117];
+pub const TWO_HOP_SWAP_V2_IX_DISCM: [u8; 8] = [221, 43, 60, 25, 246, 180, 40, 192];
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TwoHopSwapV2IxArgs {
@@ -12567,7 +15938,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_TOKEN_BADGE_IX_ACCOUN
         }
     }
 }
-pub const INITIALIZE_TOKEN_BADGE_IX_DISCM: [u8; 8] = [253, 77, 205, 95, 27, 224, 89, 223];
+pub const INITIALIZE_TOKEN_BADGE_IX_DISCM: [u8; 8] = [216, 138, 214, 223, 132, 178, 103, 62];
 #[derive(Clone, Debug, PartialEq)]
 pub struct InitializeTokenBadgeIxData;
 impl InitializeTokenBadgeIxData {

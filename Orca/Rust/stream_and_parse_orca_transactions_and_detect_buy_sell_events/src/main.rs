@@ -1,6 +1,7 @@
 mod serialization;
 mod instruction_account_mapper;
 mod token_serializable;
+mod event_account_parser;
 
 use {
     backoff::{future::retry, ExponentialBackoff}, clap::Parser as ClapParser, futures::{
@@ -27,6 +28,9 @@ use crate::token_serializable::convert_to_serializable;
 use solana_transaction_status::Rewards;
 use::solana_sdk::transaction::Result as TransactionResult;
 type TxnFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
+use crate::event_account_parser::AccountEventError;
+use crate::event_account_parser::DecodedEvent;
+use crate::event_account_parser::decode_event_data;
 
 const WHIRLPOOL_PROGRAM_ID: &str = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc";
 const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -96,6 +100,7 @@ pub struct DecodedInstruction {
     pub name: String,
     pub accounts: Vec<AccountMetadata>,
     pub data: serde_json::Value,
+    pub event: Option<DecodedEvent>,
     #[serde(serialize_with = "serialize_pubkey")]
     pub program_id: Pubkey,
     #[serde(serialize_with = "serialize_option_pubkey")]
@@ -106,8 +111,9 @@ struct TransactionEvent {
     event_type: String,
     user: Option<String>,
     mint: Option<String>,
-    amount: Option<u64>,
-    sqrt_price: Option<String>,
+    amount_in: Option<u64>,
+    amount_out: Option<u64>,
+    pool: Option<String>,
 }
 
 #[derive(Debug)]
@@ -257,7 +263,6 @@ async fn geyser_subscribe(
                     > = update.transaction;
                     if let Some(txn) = update {
                         let raw_signature = txn.signature.clone();
-                        info!("signature: {}", bs58::encode(&raw_signature).into_string());
                         let raw_transaction = txn.transaction.expect("transaction empty");
                         let raw_message = raw_transaction.message.expect("message empty").clone();
                         let header = raw_message.header.expect("header empty");
@@ -467,6 +472,8 @@ async fn geyser_subscribe(
                             ),
                             block_time: Some(block_time),
                         };
+                        let mut decoded_event_json = None;
+
                         let compiled_instructions: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
                                 flatten_compiled_instructions(versioned_tx_with_meta)
@@ -493,6 +500,29 @@ async fn geyser_subscribe(
 
                         let mut decoded_compiled_instructions: Vec<DecodedInstruction> = Vec::new();
                         let mut decoded_inner_instructions: Vec<DecodedInstruction> = Vec::new();
+                         
+                        if let TransactionWithStatusMeta::Complete(versioned_meta) = &confirmed_txn_with_meta.tx_with_meta {
+                      if let Some(logs) = &versioned_meta.meta.log_messages {
+                      if let Some(data_msg) = event_account_parser::extract_log_message(logs) {
+                         match base64::decode(&data_msg) {
+                        Ok(decoded_bytes) => {
+                        match decode_event_data(&decoded_bytes) {
+                            Ok(event) => {
+                            decoded_event_json = Some(event);
+                            }
+                            Err(err) => {
+                            // eprintln!("❌ Failed to decode account data: {}", err.message);
+                             decoded_event_json = None; 
+                            }
+                        }
+                    }
+                        Err(err) => {
+                        eprintln!("❌ Failed to decode base64 log message: {}", err);
+                                }
+                            }
+                        }
+                            }
+                        }   
 
                         let idl_json = fs::read_to_string("idls/whirlpool_idl.json")
                         .expect("Unable to read IDL JSON file");
@@ -526,6 +556,7 @@ async fn geyser_subscribe(
                                                             return;
                                                         }
                                                     },
+                                                    event: decoded_event_json.clone(),                                                    
                                                     program_id: instruction.instruction.program_id,
                                                     parent_program_id: instruction.parent_program_id,
                                                 };
@@ -542,7 +573,6 @@ async fn geyser_subscribe(
                                         }
                                     }
                                     Err(e) => {
-                                        error!("Failed to decode instruction: {:?}\n", e);
                                     }
                                 }}
                                 else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
@@ -574,6 +604,7 @@ async fn geyser_subscribe(
                                                                 return;
                                                             }
                                                         },
+                                                        event: None,
                                                         program_id: instruction.instruction.program_id,
                                                         parent_program_id: instruction.parent_program_id,
                                                     };
@@ -621,6 +652,7 @@ async fn geyser_subscribe(
                                                             return;
                                                         }
                                                     },
+                                                    event: decoded_event_json.clone(),
                                                     program_id: instruction.instruction.program_id,
                                                     parent_program_id: instruction.parent_program_id,
                                                 };
@@ -637,7 +669,6 @@ async fn geyser_subscribe(
                                         }
                                     }
                                     Err(e) => {
-                                        error!("Failed to decode instruction: {:?}\n", e);
                                     }
                                 }}
                                 else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
@@ -669,6 +700,7 @@ async fn geyser_subscribe(
                                                                 return;
                                                             }
                                                         },
+                                                        event: None,
                                                         program_id: instruction.instruction.program_id,
                                                         parent_program_id: instruction.parent_program_id,
                                                     };
@@ -730,7 +762,7 @@ async fn geyser_subscribe(
                                 fee: versioned_tx_with_meta.meta.fee,
                                 pre_balances: versioned_tx_with_meta.meta.pre_balances.clone(),
                                 post_balances: versioned_tx_with_meta.meta.post_balances.clone(),
-                                inner_instructions: decoded_inner_instructions.clone(), // Replacing inner_instructions
+                                inner_instructions: decoded_inner_instructions.clone(), 
                                 log_messages: versioned_tx_with_meta.meta.log_messages.clone(),
                                 pre_token_balances: versioned_tx_with_meta.meta.pre_token_balances.clone(),
                                 post_token_balances: versioned_tx_with_meta.meta.post_token_balances.clone(),
@@ -745,11 +777,8 @@ async fn geyser_subscribe(
                     };
 
                      let event_parser = if let Some(parsed_transaction) = orca_formatter(parsed_confirmed_txn_with_meta) {  
-                     println!("Decoded Inner Instructions:\n{:?}\n", parsed_transaction);
-                     }else {
-                        println!("No Buy or Sell Event found in the transaction");  
-
-                    };
+                     println!("Decoded Inner Instructions:\n{:#?}\n", parsed_transaction);
+                     };
                  }
                 }
                 Some(UpdateOneof::Ping(_)) => {
@@ -986,19 +1015,30 @@ pub fn parse_transaction_accounts(
 fn format_sqrt_price(sqrt_price: u64) -> String {
     format!("{:.2e}", sqrt_price as f64)
 }
+
 pub fn orca_formatter(
     original: ParsedConfirmedTransactionWithStatusMeta,
 ) -> Option<ParsedEventTransaction> {
     let meta = &original.meta;
     let tx = &original.transaction;
+    
+    // Find the swap instruction
+    let swap_instruction = meta.inner_instructions.iter().find(|instr| 
+        instr.name == "swapV2" || instr.name == "swap"
+    )?;
 
-    let swap_instruction = meta.inner_instructions.iter().find(|instr| instr.name == "swapV2")?;
-
-    let amount_in = swap_instruction
-        .data
-        .get("SwapV2")?
-        .get("amount")?
-        .as_u64();
+    // Extract data from the TradedEvent using proper enum matching
+    let traded_event = swap_instruction.event.as_ref()?;
+    
+    let (amount_in, amount_out, a_to_b, whirlpool) = match traded_event {
+        DecodedEvent::TradedEvent(event) => (
+            event.input_amount,
+            event.output_amount,
+            event.a_to_b,
+            event.whirlpool.to_string()
+        ),
+        _ => return None,
+    };
 
     let signer_pubkey = swap_instruction
         .accounts
@@ -1008,7 +1048,7 @@ pub fn orca_formatter(
 
     let sqrt_price_limit = swap_instruction
         .data
-        .get("SwapV2")?
+        .get("Swap")?
         .get("sqrt_price_limit")?
         .as_str()
         .map(|s| s.to_string());
@@ -1024,80 +1064,70 @@ pub fn orca_formatter(
         .iter()
         .find(|acc| acc.name == "tokenMintB")
         .map(|acc| acc.pubkey.to_string());
-
+    
     const SOL_MINT: &str = "So11111111111111111111111111111111111111112";
     const USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    
+    let needs_alternate_mint = input_mint.as_ref().map_or(true, |mint| mint.is_empty()) 
+        || output_mint.as_ref().map_or(true, |mint| mint.is_empty());
+    
+    let event_type = if a_to_b {
+        "Sell" // Someone sold token A
+    } else {
+        "Buy"  // Someone bought token A
+    };
 
-    let event_type = if let Some(amount) = amount_in {
-        meta.inner_instructions.iter().any(|instr| {
-            instr.name == "transferChecked"
-                && instr
-                    .data
-                    .get("TransferChecked")
-                    .and_then(|obj| obj.get("amount"))
-                    .and_then(|val| val.as_u64()) == Some(amount)
-                && instr.accounts.iter().any(|acc| {
-                    acc.name == "mint"
-                        && (acc.pubkey.to_string() == SOL_MINT
-                            || acc.pubkey.to_string() == USDC_MINT)
+    let alternate_mint = if needs_alternate_mint {
+        meta.inner_instructions.iter().find_map(|instr| {
+            if instr.name == "transferChecked" {
+                instr.accounts.iter().find_map(|acc| {
+                    if acc.name == "mint" {
+                        let mint_str = acc.pubkey.to_string();
+                        if mint_str != SOL_MINT && mint_str != USDC_MINT {
+                            Some(mint_str)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 })
+            } else {
+                None
+            }
         })
     } else {
-        false
+        None
     };
-    let event = TransactionEvent {
-        event_type: if event_type { "Buy" } else { "Sell" }.to_string(),
-        user: signer_pubkey,
-        mint: match (&input_mint, &output_mint) {
-            (Some(input), Some(output)) => {
-                if input == SOL_MINT {
-                    Some(output.clone())
-                } else {
-                    Some(input.clone())
-                }
-            }
-            _ => None,
-        },
-        amount: amount_in,
-        sqrt_price: sqrt_price_limit,
-    };
-    let output = ParsedEventTransaction {
-        parsed_transaction: ParsedConfirmedTransactionWithStatusMeta {
-            slot: original.slot,
-            transaction: ParsedTransaction {
-                signatures: tx.signatures.clone(),
-                message: ParsedMessage {
-                    header: tx.message.header.clone(),
-                    account_keys: tx.message.account_keys.clone(),
-                    recent_blockhash: tx.message.recent_blockhash.clone(),
-                    instructions: tx.message.instructions.clone(),
-                    address_table_lookups: tx.message.address_table_lookups.clone(),
-                },
-            },
-            meta: ParsedTransactionStatusMeta {
-                status: meta.status.clone(),
-                fee: meta.fee,
-                pre_balances: meta.pre_balances.clone(),
-                post_balances: meta.post_balances.clone(),
-                inner_instructions: meta.inner_instructions.clone(),
-                log_messages: meta.log_messages.clone(),
-                pre_token_balances: meta.pre_token_balances.clone(),
-                post_token_balances: meta.post_token_balances.clone(),
-                rewards: meta.rewards.clone(),
-                loaded_addresses: meta.loaded_addresses.clone(),
-                return_data: meta.return_data.clone(),
-                compute_units_consumed: meta.compute_units_consumed,
-            },
-            block_time: original.block_time,
 
-        },
-        event : TransactionEvent {
-            event_type: event.event_type,
-            user: event.user,
-            mint: event.mint,
-            amount: event.amount,
-            sqrt_price: event.sqrt_price,
-        },
+    let event = TransactionEvent {
+        event_type: event_type.to_string(),
+        user: signer_pubkey,
+         mint: match (&input_mint, &output_mint, &alternate_mint) {
+        // Case 1: Both input and output mints are available
+        (Some(input), Some(output), _) => {
+            if input == SOL_MINT {
+                Some(output.clone())
+            } else {
+                Some(input.clone())
+            }
+        }
+        // Case 2: Input mint is missing but output mint exists
+        (None, Some(output), _) => Some(output.clone()),
+        // Case 3: Output mint is missing but input mint exists
+        (Some(input), None, _) => Some(input.clone()),
+        // Case 4: Both are missing, use alternate mint if available
+        (None, None, Some(alt_mint)) => Some(alt_mint.clone()),
+        // Case 5: Everything is missing
+        (None, None, None) => None,
+      },
+        amount_in: Some(amount_in),
+        amount_out: Some(amount_out),
+        pool: Some(whirlpool), // Added pool information
     };
-    Some(output)
+
+    Some(ParsedEventTransaction {
+        parsed_transaction: original.clone(),
+        event,
+    })
 }
