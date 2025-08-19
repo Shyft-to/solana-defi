@@ -1,3 +1,0 @@
-[submodule "Shredstream/stream_and_parse_raydium_launchpad_transactions/jito_protos/protos/mev-protos"]
-	path = Shredstream/stream_and_parse_raydium_launchpad_transactions/jito_protos/protos/mev-protos
-	url = https://github.com/jito-labs/mev-protos.git
