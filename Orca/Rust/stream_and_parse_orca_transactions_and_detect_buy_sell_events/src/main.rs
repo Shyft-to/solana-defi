@@ -659,7 +659,6 @@ async fn geyser_subscribe(
                                 
                                                 match serde_json::to_string_pretty(&decoded_instruction) {
                                                     Ok(json_string) => {
-                                                        //info!("Decoded Instruction:\n{}", json_string);
                                                         decoded_inner_instructions.push(decoded_instruction);
                                                     },
                                                     Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
@@ -675,10 +674,8 @@ async fn geyser_subscribe(
                                     
                                     match TokenInstruction::unpack(&instruction.instruction.data) {
                                         Ok(decoded_ix) => {
-                                            //println!("Decoded Token Instruction:\n{:?}\n", decoded_ix);
                                             
                                             let ix_name = get_instruction_name_with_typename(&decoded_ix);
-                                            //println!("Instruction name: {}", ix_name);
     
                                             let serializable_ix = convert_to_serializable(decoded_ix);
                                             
@@ -739,22 +736,22 @@ async fn geyser_subscribe(
                                 signatures: versioned_tx_with_meta.transaction.signatures.clone(),
                                 message: match &versioned_tx_with_meta.transaction.message {
                                     VersionedMessage::V0(msg) => ParsedMessage {
-                                        header: msg.header.clone(), // Now correctly extracting the header
+                                        header: msg.header.clone(), 
                                         account_keys: msg.account_keys.clone(),
                                         recent_blockhash: msg.recent_blockhash.clone(),
-                                        instructions: decoded_compiled_instructions.clone(), // Replacing instructions
+                                        instructions: decoded_compiled_instructions.clone(), 
                                         address_table_lookups: msg.address_table_lookups.clone(),
                                     },
                                     VersionedMessage::Legacy(msg) => ParsedMessage {
                                         header: msg.header.clone(),
                                         account_keys: msg.account_keys.clone(),
                                         recent_blockhash: msg.recent_blockhash.clone(),
-                                        instructions: decoded_compiled_instructions.clone(), // Replacing instructions
-                                        address_table_lookups: vec![], // Legacy messages don't have address table lookups
+                                        instructions: decoded_compiled_instructions.clone(), 
+                                        address_table_lookups: vec![],  
                                     },
                                 },
                             },
-                            _ => panic!("Expected Complete variant"), // Ensure we only handle Complete
+                            _ => panic!("Expected Complete variant"), 
                         },
                         meta: match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => ParsedTransactionStatusMeta {
@@ -771,7 +768,7 @@ async fn geyser_subscribe(
                                 return_data: versioned_tx_with_meta.meta.return_data.clone(),
                                 compute_units_consumed: versioned_tx_with_meta.meta.compute_units_consumed,
                             },
-                            _ => panic!("Expected Complete variant"), // Ensure we only handle Complete
+                            _ => panic!("Expected Complete variant"), 
                         },
                         block_time: confirmed_txn_with_meta.block_time,
                     };
@@ -1022,12 +1019,10 @@ pub fn orca_formatter(
     let meta = &original.meta;
     let tx = &original.transaction;
     
-    // Find the swap instruction
     let swap_instruction = meta.inner_instructions.iter().find(|instr| 
         instr.name == "swapV2" || instr.name == "swap"
     )?;
 
-    // Extract data from the TradedEvent using proper enum matching
     let traded_event = swap_instruction.event.as_ref()?;
     
     let (amount_in, amount_out, a_to_b, whirlpool) = match traded_event {
@@ -1072,9 +1067,9 @@ pub fn orca_formatter(
         || output_mint.as_ref().map_or(true, |mint| mint.is_empty());
     
     let event_type = if a_to_b {
-        "Sell" // Someone sold token A
+        "Sell" 
     } else {
-        "Buy"  // Someone bought token A
+        "Buy"  
     };
 
     let alternate_mint = if needs_alternate_mint {
@@ -1112,18 +1107,14 @@ pub fn orca_formatter(
                 Some(input.clone())
             }
         }
-        // Case 2: Input mint is missing but output mint exists
         (None, Some(output), _) => Some(output.clone()),
-        // Case 3: Output mint is missing but input mint exists
         (Some(input), None, _) => Some(input.clone()),
-        // Case 4: Both are missing, use alternate mint if available
         (None, None, Some(alt_mint)) => Some(alt_mint.clone()),
-        // Case 5: Everything is missing
         (None, None, None) => None,
       },
         amount_in: Some(amount_in),
         amount_out: Some(amount_out),
-        pool: Some(whirlpool), // Added pool information
+        pool: Some(whirlpool), 
     };
 
     Some(ParsedEventTransaction {
