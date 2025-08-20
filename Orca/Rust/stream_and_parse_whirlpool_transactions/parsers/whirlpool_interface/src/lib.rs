@@ -7,4 +7,6 @@ pub mod instructions;
 pub use instructions::*;
 pub mod errors;
 pub use errors::*;
+pub mod events;
+pub use events::*;
 pub mod serializer;

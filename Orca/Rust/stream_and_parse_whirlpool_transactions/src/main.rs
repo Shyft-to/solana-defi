@@ -1,6 +1,7 @@
 mod serialization;
 mod instruction_account_mapper;
 mod token_serializable;
+mod event_account_parser;
 
 use {
     backoff::{future::retry, ExponentialBackoff}, clap::Parser as ClapParser, futures::{
@@ -26,8 +27,10 @@ use {
 use crate::token_serializable::convert_to_serializable;
 use solana_transaction_status::Rewards;
 use::solana_sdk::transaction::Result as TransactionResult;
-
 type TxnFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
+use crate::event_account_parser::AccountEventError;
+use crate::event_account_parser::DecodedEvent;
+use crate::event_account_parser::decode_event_data;
 
 const WHIRLPOOL_PROGRAM_ID: &str = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc";
 const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -97,10 +100,20 @@ pub struct DecodedInstruction {
     pub name: String,
     pub accounts: Vec<AccountMetadata>,
     pub data: serde_json::Value,
+    pub event: Option<DecodedEvent>,
     #[serde(serialize_with = "serialize_pubkey")]
     pub program_id: Pubkey,
     #[serde(serialize_with = "serialize_option_pubkey")]
     pub parent_program_id: Option<Pubkey>,
+}
+#[derive(Clone,Debug)]
+struct TransactionEvent {
+    event_type: String,
+    user: Option<String>,
+    mint: Option<String>,
+    amount_in: Option<u64>,
+    amount_out: Option<u64>,
+    pool: Option<String>,
 }
 
 #[derive(Debug)]
@@ -151,12 +164,17 @@ pub struct ParsedConfirmedTransaction {
     pub meta: ParsedTransactionStatusMeta,
     pub block_time: Option<i64>,
 }
-#[derive(Debug)]
-pub struct ParsedConfirmedTransactionWithStatusMeta {
+#[derive(Clone,Debug)]
+ struct ParsedConfirmedTransactionWithStatusMeta {
     pub slot: u64,
     pub transaction: ParsedTransaction,
     pub meta: ParsedTransactionStatusMeta,
     pub block_time: Option<i64>,
+}
+#[derive(Clone,Debug)]
+struct ParsedEventTransaction {
+    pub parsed_transaction: ParsedConfirmedTransactionWithStatusMeta,
+    pub event: TransactionEvent
 }
 
 #[tokio::main]
@@ -245,7 +263,6 @@ async fn geyser_subscribe(
                     > = update.transaction;
                     if let Some(txn) = update {
                         let raw_signature = txn.signature.clone();
-                        info!("signature: {}", bs58::encode(&raw_signature).into_string());
                         let raw_transaction = txn.transaction.expect("transaction empty");
                         let raw_message = raw_transaction.message.expect("message empty").clone();
                         let header = raw_message.header.expect("header empty");
@@ -455,15 +472,8 @@ async fn geyser_subscribe(
                             ),
                             block_time: Some(block_time),
                         };
+                        let mut decoded_event_json = None;
 
-                        // let dedoced_txn: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
-                        //     TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
-                        //         flatten_transaction_response(versioned_tx_with_meta)
-                        //     }
-                        //     TransactionWithStatusMeta::MissingMetadata(_) => {
-                        //         vec![]
-                        //     }
-                        // };
                         let compiled_instructions: Vec<TransactionInstructionWithParent> = match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
                                 flatten_compiled_instructions(versioned_tx_with_meta)
@@ -490,6 +500,29 @@ async fn geyser_subscribe(
 
                         let mut decoded_compiled_instructions: Vec<DecodedInstruction> = Vec::new();
                         let mut decoded_inner_instructions: Vec<DecodedInstruction> = Vec::new();
+                         
+                        if let TransactionWithStatusMeta::Complete(versioned_meta) = &confirmed_txn_with_meta.tx_with_meta {
+                      if let Some(logs) = &versioned_meta.meta.log_messages {
+                      if let Some(data_msg) = event_account_parser::extract_log_message(logs) {
+                         match base64::decode(&data_msg) {
+                        Ok(decoded_bytes) => {
+                        match decode_event_data(&decoded_bytes) {
+                            Ok(event) => {
+                            decoded_event_json = Some(event);
+                            }
+                            Err(err) => {
+                            // eprintln!("❌ Failed to decode account data: {}", err.message);
+                             decoded_event_json = None; 
+                            }
+                        }
+                    }
+                        Err(err) => {
+                        eprintln!("❌ Failed to decode base64 log message: {}", err);
+                                }
+                            }
+                        }
+                            }
+                        }   
 
                         let idl_json = fs::read_to_string("idls/whirlpool_idl.json")
                         .expect("Unable to read IDL JSON file");
@@ -523,6 +556,7 @@ async fn geyser_subscribe(
                                                             return;
                                                         }
                                                     },
+                                                    event: decoded_event_json.clone(),                                                    
                                                     program_id: instruction.instruction.program_id,
                                                     parent_program_id: instruction.parent_program_id,
                                                 };
@@ -539,7 +573,6 @@ async fn geyser_subscribe(
                                         }
                                     }
                                     Err(e) => {
-                                        error!("Failed to decode instruction: {:?}\n", e);
                                     }
                                 }}
                                 else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
@@ -571,6 +604,7 @@ async fn geyser_subscribe(
                                                                 return;
                                                             }
                                                         },
+                                                        event: None,
                                                         program_id: instruction.instruction.program_id,
                                                         parent_program_id: instruction.parent_program_id,
                                                     };
@@ -618,13 +652,13 @@ async fn geyser_subscribe(
                                                             return;
                                                         }
                                                     },
+                                                    event: decoded_event_json.clone(),
                                                     program_id: instruction.instruction.program_id,
                                                     parent_program_id: instruction.parent_program_id,
                                                 };
                                 
                                                 match serde_json::to_string_pretty(&decoded_instruction) {
                                                     Ok(json_string) => {
-                                                        //info!("Decoded Instruction:\n{}", json_string);
                                                         decoded_inner_instructions.push(decoded_instruction);
                                                     },
                                                     Err(e) => error!("Failed to serialize ix data for instruction: {:?}", e),
@@ -634,17 +668,14 @@ async fn geyser_subscribe(
                                         }
                                     }
                                     Err(e) => {
-                                        error!("Failed to decode instruction: {:?}\n", e);
                                     }
                                 }}
                                 else if instruction.instruction.program_id == Pubkey::from_str(TOKEN_PROGRAM_ID).expect("Failed to parse TOKEN_PROGRAM_ID") {
                                     
                                     match TokenInstruction::unpack(&instruction.instruction.data) {
                                         Ok(decoded_ix) => {
-                                            //println!("Decoded Token Instruction:\n{:?}\n", decoded_ix);
                                             
                                             let ix_name = get_instruction_name_with_typename(&decoded_ix);
-                                            //println!("Instruction name: {}", ix_name);
     
                                             let serializable_ix = convert_to_serializable(decoded_ix);
                                             
@@ -666,6 +697,7 @@ async fn geyser_subscribe(
                                                                 return;
                                                             }
                                                         },
+                                                        event: None,
                                                         program_id: instruction.instruction.program_id,
                                                         parent_program_id: instruction.parent_program_id,
                                                     };
@@ -693,9 +725,8 @@ async fn geyser_subscribe(
                             if you want to interate through the decoded instructions,please use the following variables: 
                             decoded_inner_instructions, decoded_compiled_instructions
                         */
-    
-                        // println!("Decoded Inner Instructions:\n{:?}\n", decoded_inner_instructions);
-                        // println!("Decoded Compiled Instructions:\n{:?}\n", decoded_compiled_instructions); 
+                    
+                         //println!("Decoded Compiled Instructions:\n{:?}\n", decoded_compiled_instructions); 
 
 
                     let parsed_confirmed_txn_with_meta = ParsedConfirmedTransactionWithStatusMeta {
@@ -705,22 +736,22 @@ async fn geyser_subscribe(
                                 signatures: versioned_tx_with_meta.transaction.signatures.clone(),
                                 message: match &versioned_tx_with_meta.transaction.message {
                                     VersionedMessage::V0(msg) => ParsedMessage {
-                                        header: msg.header.clone(), // Now correctly extracting the header
+                                        header: msg.header.clone(), 
                                         account_keys: msg.account_keys.clone(),
                                         recent_blockhash: msg.recent_blockhash.clone(),
-                                        instructions: decoded_compiled_instructions.clone(), // Replacing instructions
+                                        instructions: decoded_compiled_instructions.clone(), 
                                         address_table_lookups: msg.address_table_lookups.clone(),
                                     },
                                     VersionedMessage::Legacy(msg) => ParsedMessage {
                                         header: msg.header.clone(),
                                         account_keys: msg.account_keys.clone(),
                                         recent_blockhash: msg.recent_blockhash.clone(),
-                                        instructions: decoded_compiled_instructions.clone(), // Replacing instructions
-                                        address_table_lookups: vec![], // Legacy messages don't have address table lookups
+                                        instructions: decoded_compiled_instructions.clone(), 
+                                        address_table_lookups: vec![],  
                                     },
                                 },
                             },
-                            _ => panic!("Expected Complete variant"), // Ensure we only handle Complete
+                            _ => panic!("Expected Complete variant"), 
                         },
                         meta: match &confirmed_txn_with_meta.tx_with_meta {
                             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => ParsedTransactionStatusMeta {
@@ -728,7 +759,7 @@ async fn geyser_subscribe(
                                 fee: versioned_tx_with_meta.meta.fee,
                                 pre_balances: versioned_tx_with_meta.meta.pre_balances.clone(),
                                 post_balances: versioned_tx_with_meta.meta.post_balances.clone(),
-                                inner_instructions: decoded_inner_instructions.clone(), // Replacing inner_instructions
+                                inner_instructions: decoded_inner_instructions.clone(), 
                                 log_messages: versioned_tx_with_meta.meta.log_messages.clone(),
                                 pre_token_balances: versioned_tx_with_meta.meta.pre_token_balances.clone(),
                                 post_token_balances: versioned_tx_with_meta.meta.post_token_balances.clone(),
@@ -737,15 +768,12 @@ async fn geyser_subscribe(
                                 return_data: versioned_tx_with_meta.meta.return_data.clone(),
                                 compute_units_consumed: versioned_tx_with_meta.meta.compute_units_consumed,
                             },
-                            _ => panic!("Expected Complete variant"), // Ensure we only handle Complete
+                            _ => panic!("Expected Complete variant"), 
                         },
                         block_time: confirmed_txn_with_meta.block_time,
                     };
-
-                    println!("Decoded Transaction:\n{:#?}", parsed_confirmed_txn_with_meta);
-
-                    }
-                    
+                    println!("Decoded Inner Instructions:\n{:#?}\n", parsed_confirmed_txn_with_meta);                     
+                  }
                 }
                 Some(UpdateOneof::Ping(_)) => {
                     subscribe_tx
