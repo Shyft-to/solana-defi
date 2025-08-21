@@ -25,9 +25,6 @@ pub struct BuyEvent {
     pub user_quote_token_account: Pubkey,
     pub protocol_fee_recipient: Pubkey,
     pub protocol_fee_recipient_token_account: Pubkey,
-    pub coin_creator: Pubkey,
-    pub coin_creator_fee_basis_points: u64,
-    pub coin_creator_fee: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -55,56 +52,11 @@ impl BuyEventEvent {
         Ok(Self(BuyEvent::deserialize(buf)?))
     }
 }
-
-pub const COLLECT_COIN_CREATOR_FEE_EVENT_DISCM: [u8;8] = [232,245,194,238,234,218,58,89];
-
-#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
-pub struct CollectCoinCreatorFeeEvent {
-    pub timestamp : i64,
-    pub coin_creator: Pubkey,
-    pub coin_creator_fee: u64,
-    pub coin_creator_vault_ata : Pubkey,
-    pub coin_creator_token_account: Pubkey,
-}
-
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct CollectCoinCreatorFeeEventEvent(pub CollectCoinCreatorFeeEvent);
-
-impl BorshSerialize for CollectCoinCreatorFeeEventEvent {
-    fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
-        COLLECT_COIN_CREATOR_FEE_EVENT_DISCM.serialize(writer)?;
-        self.0.serialize(writer)
-    }
-}
-
-impl CollectCoinCreatorFeeEventEvent {
-    pub fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let maybe_discm = <[u8; 8]>::deserialize(buf)?;
-        if maybe_discm != COLLECT_COIN_CREATOR_FEE_EVENT_DISCM {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "discm does not match. Expected: {:?}. Received: {:?}",
-                    COLLECT_COIN_CREATOR_FEE_EVENT_DISCM, maybe_discm
-                ),
-            ));
-        }
-        Ok(Self(CollectCoinCreatorFeeEvent::deserialize(buf)?))
-    }
-}
-
-
 pub const CREATE_CONFIG_EVENT_EVENT_DISCM: [u8; 8] = [107, 52, 89, 129, 55, 226, 81, 22];
-
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
 pub struct CreateConfigEvent {
-    pub timestamp: i64,
     pub admin: Pubkey,
-    pub lp_fee_basis_points: u64,
-    pub protocol_fee_basis_points: u64,
-    pub protocol_fee_recipients : [Pubkey; 8],
-    pub coin_creator_fee_basis_points : u64,
+    pub config: u64, // You can replace this with the actual config fields
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -136,26 +88,12 @@ pub const CREATE_POOL_EVENT_EVENT_DISCM: [u8; 8] = [177, 49, 12, 210, 160, 118, 
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
 pub struct CreatePoolEvent {
-    pub timestamp: i64,
-    pub index: u16,
     pub creator: Pubkey,
-    pub base_mint: Pubkey,
-    pub quote_mint: Pubkey,
-    pub base_mint_decimals: u8,
-    pub quote_mint_decimals: u8,
-    pub base_amount_in: u64,
-    pub quote_amount_in: u64,
-    pub pool_base_amount: u64,
-    pub pool_quote_amount: u64,
-    pub minimum_liquidity: u64,
-    pub initial_liquidity: u64,
-    pub lp_token_amount_out: u64,
-    pub pool_bump: u8,
-    pub pool : Pubkey,
-    pub lp_mint: Pubkey,
-    pub user_base_token_account: Pubkey,
-    pub user_quote_token_account: Pubkey,
-    pub coin_creator : Pubkey,
+    pub base_token: Pubkey,
+    pub quote_token: Pubkey,
+    pub pool_id: Pubkey,
+    pub initial_base_amount: u64,
+    pub initial_quote_amount: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -328,9 +266,6 @@ pub struct SellEvent {
     pub user_quote_token_account: Pubkey,
     pub protocol_fee_recipient: Pubkey,
     pub protocol_fee_recipient_token_account: Pubkey,
-    pub coin_creator : Pubkey,
-    pub coin_creator_fee_basis_points : u64,
-    pub coin_creator_fee: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -358,87 +293,13 @@ impl SellEventEvent {
         Ok(Self(SellEvent::deserialize(buf)?))
     }
 }
-
-pub const SET_BONDING_CURVE_COIN_CREATOR_EVENT_DISCM: [u8; 8] = [242,231,235,102,65,99,189,211];
-
-#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
-pub struct SetBondingCurveCoinCreatorEvent {
-    pub timestamp: i64,
-    pub base_mint: Pubkey,
-    pub pool: Pubkey,
-    pub bonding_curve: Pubkey,
-    pub coin_creator: Pubkey
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct SetBondingCurveCoinCreatorEventEvent(pub SetBondingCurveCoinCreatorEvent);
-
-impl BorshSerialize for SetBondingCurveCoinCreatorEventEvent {
-    fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
-        SET_BONDING_CURVE_COIN_CREATOR_EVENT_DISCM.serialize(writer)?;
-        self.0.serialize(writer)
-    }
-}
-
-impl SetBondingCurveCoinCreatorEventEvent {
-    pub fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let maybe_discm = <[u8; 8]>::deserialize(buf)?;
-        if maybe_discm != SET_BONDING_CURVE_COIN_CREATOR_EVENT_DISCM {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "discm does not match. Expected: {:?}. Received: {:?}",
-                    SET_BONDING_CURVE_COIN_CREATOR_EVENT_DISCM, maybe_discm
-                ),
-            ));
-        }
-        Ok(Self(SetBondingCurveCoinCreatorEvent::deserialize(buf)?))
-    }
-}
-
-pub const SET_METAPLEX_COIN_CREATOR_EVENT_DISCM: [u8; 8] = [150,107,199,123,124,207,102,228];
-
-#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
-pub struct SetMetaplexCoinCreatorEvent {
-    pub timestamp: i64,
-    pub base_mint: Pubkey,
-    pub pool: Pubkey,
-    pub meta_data: Pubkey,
-    pub coin_creator: Pubkey
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct SetMetaplexCoinCreatorEventEvent(pub SetMetaplexCoinCreatorEvent);
-
-impl BorshSerialize for SetMetaplexCoinCreatorEventEvent {
-    fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
-        SET_METAPLEX_COIN_CREATOR_EVENT_DISCM.serialize(writer)?;
-        self.0.serialize(writer)
-    }
-}
-
-impl SetMetaplexCoinCreatorEventEvent {
-    pub fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let maybe_discm = <[u8; 8]>::deserialize(buf)?;
-        if maybe_discm != SET_METAPLEX_COIN_CREATOR_EVENT_DISCM {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "discm does not match. Expected: {:?}. Received: {:?}",
-                    SET_METAPLEX_COIN_CREATOR_EVENT_DISCM, maybe_discm
-                ),
-            ));
-        }
-        Ok(Self(SetMetaplexCoinCreatorEvent::deserialize(buf)?))
-    }
-}
 pub const UPDATE_ADMIN_EVENT_EVENT_DISCM: [u8; 8] = [225, 152, 171, 87, 246, 63, 66, 234];
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
 pub struct UpdateAdminEvent {
-    pub timestamp: i64,
-    pub admin: Pubkey,
     pub new_admin: Pubkey,
+    pub old_admin: Pubkey,
+    pub timestamp: i64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -470,12 +331,10 @@ pub const UPDATE_FEE_CONFIG_EVENT_EVENT_DISCM: [u8; 8] = [90, 23, 65, 35, 62, 24
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
 pub struct UpdateFeeConfigEvent {
-   pub timestamp: i64,
+    pub timestamp: i64,
+    pub new_fee: u64,
+    pub old_fee: u64,
     pub admin: Pubkey,
-    pub lp_fee_basis_points: u64,
-    pub protocol_fee_basis_points: u64,
-    pub protocol_fee_recipients: [Pubkey; 8],
-    pub coin_creator_fee_basis_points: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -504,26 +363,17 @@ impl UpdateFeeConfigEventEvent {
     }
 }
 
+
 pub const WITHDRAW_EVENT_EVENT_DISCM: [u8; 8] = [22, 9, 133, 26, 160, 44, 71, 192];
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
 pub struct WithdrawEvent {
-    pub timestamp: i64,
-    pub lp_token_amount_in: u64,
-    pub min_base_amount_out: u64,
-    pub min_quote_amount_out: u64,
-    pub user_base_token_reserves: u64,
-    pub user_quote_token_reserves: u64,
-    pub pool_base_token_reserves: u64,
-    pub pool_quote_token_reserves: u64,
-    pub base_amount_out: u64,
-    pub quote_amount_out: u64,
-    pub lp_mint_supply: u64,
-    pub pool: Pubkey,
-    pub user: Pubkey,
-    pub user_base_token_account: Pubkey,
-    pub user_quote_token_account: Pubkey,
-    pub user_pool_token_account: Pubkey,
+    pub pool_id: Pubkey,
+    pub lp_amount_burned: u64,
+    pub token0_amount: u64,
+    pub token1_amount: u64,
+    pub token0_transfer_fee: u64,
+    pub token1_transfer_fee: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]

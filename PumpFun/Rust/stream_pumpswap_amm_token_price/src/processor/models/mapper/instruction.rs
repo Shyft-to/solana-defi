@@ -1,4 +1,4 @@
-use crate::serialization::serialize_pubkey;
+use crate::processor::models::serialize::serialization::serialize_pubkey;
 use serde::{Deserialize, Serialize};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use solana_sdk::instruction::AccountMeta;
@@ -14,7 +14,7 @@ struct IdlInstruction {
 struct IdlAccount {
     name: String,
     #[serde(default, rename = "is_writable")]
-    is_writable: Option<bool>, 
+    is_writable: Option<bool>,
     #[serde(default, rename = "is_signer")]
     is_signer: Option<bool>, 
 }
