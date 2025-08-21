@@ -772,8 +772,11 @@ async fn geyser_subscribe(
                         },
                         block_time: confirmed_txn_with_meta.block_time,
                     };
-                    println!("Decoded Inner Instructions:\n{:#?}\n", parsed_confirmed_txn_with_meta);                     
-                  }
+
+                     let event_parser = if let Some(parsed_transaction) = orca_formatter(parsed_confirmed_txn_with_meta) {  
+                     println!("Decoded Inner Instructions:\n{:#?}\n", parsed_transaction);
+                     };
+                 }
                 }
                 Some(UpdateOneof::Ping(_)) => {
                     subscribe_tx
@@ -1004,4 +1007,118 @@ pub fn parse_transaction_accounts(
     }));
 
     parsed_accounts
+}
+
+fn format_sqrt_price(sqrt_price: u64) -> String {
+    format!("{:.2e}", sqrt_price as f64)
+}
+
+pub fn orca_formatter(
+    original: ParsedConfirmedTransactionWithStatusMeta,
+) -> Option<ParsedEventTransaction> {
+    let meta = &original.meta;
+    let tx = &original.transaction;
+    
+    let swap_instruction = meta.inner_instructions.iter().find(|instr| 
+        instr.name == "swapV2" || instr.name == "swap"
+    )?;
+
+    let traded_event = swap_instruction.event.as_ref()?;
+    
+    let (amount_in, amount_out, a_to_b, whirlpool) = match traded_event {
+        DecodedEvent::TradedEvent(event) => (
+            event.input_amount,
+            event.output_amount,
+            event.a_to_b,
+            event.whirlpool.to_string()
+        ),
+        _ => return None,
+    };
+
+    let signer_pubkey = swap_instruction
+        .accounts
+        .iter()
+        .find(|acc| acc.name == "tokenAuthority")
+        .map(|acc| acc.pubkey.to_string());
+
+    let sqrt_price_limit = swap_instruction
+        .data
+        .get("Swap")?
+        .get("sqrt_price_limit")?
+        .as_str()
+        .map(|s| s.to_string());
+
+    let input_mint = swap_instruction
+        .accounts
+        .iter()
+        .find(|acc| acc.name == "tokenMintA")
+        .map(|acc| acc.pubkey.to_string());
+
+    let output_mint = swap_instruction
+        .accounts
+        .iter()
+        .find(|acc| acc.name == "tokenMintB")
+        .map(|acc| acc.pubkey.to_string());
+    
+    const SOL_MINT: &str = "So11111111111111111111111111111111111111112";
+    const USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    
+    let needs_alternate_mint = input_mint.as_ref().map_or(true, |mint| mint.is_empty()) 
+        || output_mint.as_ref().map_or(true, |mint| mint.is_empty());
+    
+    let event_type = if a_to_b {
+        "Sell" 
+    } else {
+        "Buy"  
+    };
+
+    let alternate_mint = if needs_alternate_mint {
+        meta.inner_instructions.iter().find_map(|instr| {
+            if instr.name == "transferChecked" {
+                instr.accounts.iter().find_map(|acc| {
+                    if acc.name == "mint" {
+                        let mint_str = acc.pubkey.to_string();
+                        if mint_str != SOL_MINT && mint_str != USDC_MINT {
+                            Some(mint_str)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    };
+
+    let event = TransactionEvent {
+        event_type: event_type.to_string(),
+        user: signer_pubkey,
+         mint: match (&input_mint, &output_mint, &alternate_mint) {
+        // Case 1: Both input and output mints are available
+        (Some(input), Some(output), _) => {
+            if input == SOL_MINT {
+                Some(output.clone())
+            } else {
+                Some(input.clone())
+            }
+        }
+        (None, Some(output), _) => Some(output.clone()),
+        (Some(input), None, _) => Some(input.clone()),
+        (None, None, Some(alt_mint)) => Some(alt_mint.clone()),
+        (None, None, None) => None,
+      },
+        amount_in: Some(amount_in),
+        amount_out: Some(amount_out),
+        pool: Some(whirlpool), 
+    };
+
+    Some(ParsedEventTransaction {
+        parsed_transaction: original.clone(),
+        event,
+    })
 }

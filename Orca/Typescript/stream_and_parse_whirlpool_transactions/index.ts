@@ -113,10 +113,16 @@ async function handleStream(client: Client, args: SubscribeRequest) {
           }
         }
       }
-
-      console.log("parsed Transaction: ");
-      console.log(JSON.stringify(rpcTxnWithParsed));
-    }
+        console.log(
+        new Date(),
+        ":",
+        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+        JSON.stringify(rpcTxnWithParsed, null, 2) + "\n"
+      );
+      console.log(
+        "--------------------------------------------------------------------------------------------------"
+      );
+     }
   });
 
   // Send subscribe request
