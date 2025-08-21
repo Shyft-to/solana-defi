@@ -141,7 +141,7 @@ impl LatencyChecker {
         }
     }
 
-    fn get_report(&self,all_endpoints: &[Arc<String>]) {
+    fn get_report(&self, all_endpoints: &[Arc<String>]) {
         let mut txns_compare: HashMap<Arc<String>, LatencyReportLag> = HashMap::new(); // map of node vs (fastest,slowest) between others
         for v in self.txns.values() {
             let mut values: Vec<_> = v.into_iter().collect();
