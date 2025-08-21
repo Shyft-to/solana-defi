@@ -141,7 +141,7 @@ impl LatencyChecker {
         }
     }
 
-    fn get_report(&self) {
+    fn get_report(&self, all_endpoints: &[Arc<String>]) {
         let mut txns_compare: HashMap<Arc<String>, LatencyReportLag> = HashMap::new(); // map of node vs (fastest,slowest) between others
         for v in self.txns.values() {
             let mut values: Vec<_> = v.into_iter().collect();
@@ -171,6 +171,8 @@ impl LatencyChecker {
             }
         }
 
+        let mut printed: Vec<Arc<String>> = Vec::new();
+        
         info!("Final results:");
         info!("----------  Transactions --------");
         for (k, v) in txns_compare {
@@ -180,7 +182,23 @@ impl LatencyChecker {
                 v.count,
                 v.time_taken / v.count
             );
+            printed.push(k);
         }
+
+
+        if printed.is_empty() {
+            info!("Error: Data not received from one endpoint");
+        } else {
+            for endpoint in all_endpoints {
+                if !printed.contains(endpoint) {
+                    info!(
+                        "{:?}, count: 0, avg_gain: N/A (always slower or equal)",
+                        endpoint
+                    );
+                }
+            }
+        }
+
     }
 }
 
@@ -195,9 +213,14 @@ async fn main() {
     let mut shutdown_sig = Vec::new();
     let (m_tx, m_rx) = mpsc::channel(100_000);
 
+    let mut all_endpoints: Vec<Arc<String>> = Vec::new();
+
     match args.yellowstone_stream_configs {
         Some(yellowstone_stream_configs) => {
             for yellowstone_stream_config in yellowstone_stream_configs {
+                let endpoint = Arc::new(yellowstone_stream_config.uri.clone());
+                all_endpoints.push(endpoint.clone()); 
+
                 let token = yellowstone_stream_config.x_token.clone();
                 let (tx, rx) = oneshot::channel();
                 shutdown_sig.push(tx);
@@ -218,6 +241,10 @@ async fn main() {
     match args.shred_stream_configs {
         Some(shred_stream_configs) => {
             for shred_stream_config in shred_stream_configs {
+                let endpoint = Arc::new(shred_stream_config.uri.clone());
+                all_endpoints.push(endpoint.clone()); 
+
+
                 let token = shred_stream_config.x_token.clone();
                 let (tx, rx) = oneshot::channel();
                 shutdown_sig.push(tx);
@@ -238,7 +265,7 @@ async fn main() {
             for sig in shutdown_sig {
                 _ = sig.send(true);
             }
-            latency_checker.get_report();
+            latency_checker.get_report(&all_endpoints);
         }
     }
 }
