@@ -1,0 +1,26 @@
+[package]
+name = "grpc-throughput-compare"
+version = "0.1.0"
+authors = ["impin2rex"]
+edition = "2021"
+homepage = "https://impin2rex.github.io"
+repository = "https://github.com/impin2rex/rust-grpc-client-and-server"
+license = "ISC"
+keywords = ["solana"]
+publish = false
+
+[[bin]]
+name = "grpc-throughput-compare"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.3.0", features = ["derive"] }
+tonic = { version = "0.12.1", features = ["tls", "tls-native-roots"] }
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1.17"
+chrono = "0.4.41"
+futures = "0.3.31"
+prost = "0.13.1"
+prost-types = "0.13.3"
+yellowstone-grpc-proto = "=8.0.0"
+
