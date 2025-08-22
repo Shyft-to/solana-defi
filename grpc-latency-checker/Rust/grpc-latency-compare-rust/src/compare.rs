@@ -172,14 +172,23 @@ impl LatencyChecker {
         }
 
         let mut printed: Vec<Arc<String>> = Vec::new();
+        let total_count: u64 = txns_compare.values().map(|v| v.count).sum();
+
         
         info!("Final results:");
-        info!("----------  Transactions --------");
+        info!("----------  Total Transactions: {} --------", total_count);
         for (k, v) in txns_compare {
+            let percentage = if total_count > 0 {
+                (v.count as f64 / total_count as f64) * 100.0
+            } else {
+                0.0
+            };
+
             info!(
-                "{:?}, count: {}, avg_gain: {}",
+                "{:?}, count: {} (faster in {:.2}% cases), avg_gain: {} ms",
                 k,
                 v.count,
+                percentage,
                 v.time_taken / v.count
             );
             printed.push(k);
@@ -192,7 +201,7 @@ impl LatencyChecker {
             for endpoint in all_endpoints {
                 if !printed.contains(endpoint) {
                     info!(
-                        "{:?}, count: 0, avg_gain: N/A (always slower or equal)",
+                        "{:?}, count: 0 (faster in 0% cases), avg_gain: 0 ms (always slower or equal)",
                         endpoint
                     );
                 }
