@@ -105,6 +105,7 @@ impl TransactionProcessor{
                 }))
             }
             Err(_) => {
+                log::error!("Failed to decode token instruction");
                 Ok(None)
             }
         }

@@ -73,6 +73,7 @@ impl TransactionProcessor{
                 }))
             }
             Err(e) => {
+                log::error!("Failed to decode PumpFun instruction: {:?}", e);
                 Ok(None)
             }
         }
@@ -105,6 +106,7 @@ impl TransactionProcessor{
                 }))
             }
             Err(_) => {
+                log::error!("Failed to decode token instruction");
                 Ok(None)
             }
         }
