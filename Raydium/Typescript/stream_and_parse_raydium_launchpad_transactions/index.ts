@@ -40,7 +40,7 @@ const RAYDIUM_LAUNCHPAD_PROGRAM_ID = new PublicKey(
 const RAYDIUM_LAUNCHPAD_IX_PARSER = new SolanaParser([]);
 RAYDIUM_LAUNCHPAD_IX_PARSER.addParserFromIdl(
   RAYDIUM_LAUNCHPAD_PROGRAM_ID.toBase58(),
-  raydiumLaunchpadIdl as Idl
+  raydiumLaunchpadIdl as unknown as Idl
 );
 const RAYDIUM_LAUNCHPAD_EVENT_PARSER = new SolanaEventParser([], console);
 RAYDIUM_LAUNCHPAD_EVENT_PARSER.addParserFromIdl(
@@ -214,9 +214,9 @@ function decodeRaydiumLaunchpad(tx: VersionedTransactionResponse) {
     const cleanedInnerInstructions = decodeAndCleanUnknownFields(raydium_launchpad_inner_ixs);
 
     const events = RAYDIUM_LAUNCHPAD_EVENT_PARSER.parseEvent(tx);
-
+   // console.log("Events: ", events);
     const result = events.length > 0
-      ? { instructions: cleanedInstructions, inner_ixs: cleanedInnerInstructions, events }
+      ? { instructions: cleanedInstructions, inner_ixs:{ cleanedInnerInstructions, events} }
       : { instructions: cleanedInstructions, inner_ixs: cleanedInnerInstructions };
 
     bnLayoutFormatter(result);
