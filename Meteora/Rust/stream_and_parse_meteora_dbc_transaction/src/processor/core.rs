@@ -34,7 +34,7 @@ impl TransactionProcessor {
         let token_idl_json = fs::read_to_string("idls/token_program_idl.json")
             .context("Unable to read Token IDL JSON file")?;
         let meteora_dbc_idl = fs::read_to_string("idls/meteora_dbc.json")
-            .context("Unable to read Pump IDL JSON file")?;
+            .context("Unable to read Meteora DBC IDL JSON file")?;
 
         Ok(Self {
             meteora_dbc_idl: serde_json::from_str(&meteora_dbc_idl)?,

@@ -7,7 +7,7 @@ use thiserror::Error;
 use num_derive::FromPrimitive;
 
 #[derive(Clone, Copy, Debug, Eq, Error, num_derive::FromPrimitive, PartialEq)]
-pub enum PumpfunAmmSwapError {
+pub enum Meteora DBCfunAmmSwapError {
     #[error("Fee basis points exceed the maximum allowed.")]
     FeeBasisPointsExceedsMaximum = 6000,
     
@@ -93,19 +93,19 @@ pub enum PumpfunAmmSwapError {
     AccountTypeNotSupported = 6027,
 }
 
-impl From<PumpfunAmmSwapError> for ProgramError {
-    fn from(e: PumpfunAmmSwapError) -> Self {
+impl From<Meteora DBCfunAmmSwapError> for ProgramError {
+    fn from(e: Meteora DBCfunAmmSwapError) -> Self {
         ProgramError::Custom(e as u32)
     }
 }
 
-impl<T> DecodeError<T> for PumpfunAmmSwapError {
+impl<T> DecodeError<T> for Meteora DBCfunAmmSwapError {
     fn type_of() -> &'static str {
-        "PumpfunAmmSwapError"
+        "Meteora DBCfunAmmSwapError"
     }
 }
 
-impl PrintProgramError for PumpfunAmmSwapError {
+impl PrintProgramError for Meteora DBCfunAmmSwapError {
     fn print<E>(&self)
     where
         E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + num_traits::FromPrimitive,
