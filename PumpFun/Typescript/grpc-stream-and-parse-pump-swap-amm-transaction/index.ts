@@ -118,7 +118,7 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 }
 
 const client = new Client(
-  process.env.ENDPOINT!,
+  process.env.GRPC_URL!,
   process.env.X_TOKEN,
   undefined
 );
