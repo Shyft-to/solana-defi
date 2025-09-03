@@ -1,5 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
+use crate::*;
+
 pub const GLOBAL_ACCOUNT_DISCM: [u8; 8] = [167, 232, 232, 177, 200, 108, 114, 127];
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -12,15 +14,18 @@ pub struct Global {
     pub initial_real_token_reserves: u64,
     pub token_total_supply: u64,
     pub fee_basis_points: u64,
-    pub withdraw_authority : Pubkey,
+    pub withdraw_authority: Pubkey,
     pub enable_migrate: bool,
     pub pool_migration_fee: u64,
     pub creator_fee_basis_points: u64,
-    pub fee_recipients : [Pubkey; 7],
+    pub fee_recipients: [Pubkey; 7],
     pub set_creator_authority: Pubkey,
+    pub admin_set_creator_authority: Pubkey,
 }
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlobalAccount(pub Global);
+
 impl GlobalAccount {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
         use std::io::Read;
@@ -40,16 +45,19 @@ impl GlobalAccount {
         }
         Ok(Self(Global::deserialize(&mut reader)?))
     }
+
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         writer.write_all(&GLOBAL_ACCOUNT_DISCM)?;
         self.0.serialize(&mut writer)
     }
+
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
         let mut data = Vec::new();
         self.serialize(&mut data)?;
         Ok(data)
     }
 }
+
 pub const BONDING_CURVE_ACCOUNT_DISCM: [u8; 8] = [23, 183, 248, 55, 96, 216, 172, 96];
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -62,8 +70,10 @@ pub struct BondingCurve {
     pub complete: bool,
     pub creator: Pubkey,
 }
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct BondingCurveAccount(pub BondingCurve);
+
 impl BondingCurveAccount {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
         use std::io::Read;
@@ -83,10 +93,57 @@ impl BondingCurveAccount {
         }
         Ok(Self(BondingCurve::deserialize(&mut reader)?))
     }
+
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         writer.write_all(&BONDING_CURVE_ACCOUNT_DISCM)?;
         self.0.serialize(&mut writer)
     }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub const FEE_CONFIG_DISCM: [u8; 8] = [143, 52, 146, 187, 219, 123, 76, 155];
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct FeeConfig {
+    pub bump: u8,
+    pub admin: Pubkey,
+    pub flat_fees: Fees,
+    pub fee_tiers: Vec<FeeTier>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FeeConfigAccount(pub FeeConfig);
+
+impl FeeConfigAccount {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        use std::io::Read;
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != FEE_CONFIG_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        FEE_CONFIG_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(FeeConfig::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&FEE_CONFIG_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
         let mut data = Vec::new();
         self.serialize(&mut data)?;
@@ -102,11 +159,13 @@ pub struct GlobalVolumeAccumulator {
     pub end_time: i64,
     pub seconds_in_a_day: i64,
     pub mint: Pubkey,
-    pub total_token_supply: [u64;30],
-    pub sol_volumes: [u64;30],
+    pub total_token_supply: [u64; 30],
+    pub sol_volumes: [u64; 30],
 }
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlobalVolumeAccumulatorAccount(pub GlobalVolumeAccumulator);
+
 impl GlobalVolumeAccumulatorAccount {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
         use std::io::Read;
@@ -126,10 +185,12 @@ impl GlobalVolumeAccumulatorAccount {
         }
         Ok(Self(GlobalVolumeAccumulator::deserialize(&mut reader)?))
     }
+
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         writer.write_all(&GLOBAL_VOLUME_ACCUMULATOR_DISCM)?;
         self.0.serialize(&mut writer)
     }
+
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
         let mut data = Vec::new();
         self.serialize(&mut data)?;
@@ -144,13 +205,15 @@ pub struct UserVolumeAccumulator {
     pub user: Pubkey,
     pub needs_claim: bool,
     pub total_unclaimed_tokens: u64,
-    pub total_claimed_tokens: Pubkey,
+    pub total_claimed_tokens: u64,
     pub current_sol_volume: u64,
     pub last_update_timestamp: i64,
     pub has_total_claimed_tokens: bool,
 }
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct UserVolumeAccumulatorAccount(pub UserVolumeAccumulator);
+
 impl UserVolumeAccumulatorAccount {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
         use std::io::Read;
@@ -170,10 +233,12 @@ impl UserVolumeAccumulatorAccount {
         }
         Ok(Self(UserVolumeAccumulator::deserialize(&mut reader)?))
     }
+
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         writer.write_all(&USER_VOLUME_ACCUMULATOR_DISCM)?;
         self.0.serialize(&mut writer)
     }
+
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
         let mut data = Vec::new();
         self.serialize(&mut data)?;

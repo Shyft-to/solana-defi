@@ -10,6 +10,9 @@ use {
         GlobalAccount, 
         BONDING_CURVE_ACCOUNT_DISCM, 
         GLOBAL_ACCOUNT_DISCM,
+        FeeConfig,
+        FeeConfigAccount,
+        FEE_CONFIG_DISCM,
         GlobalVolumeAccumulator,
         GlobalVolumeAccumulatorAccount,
         GLOBAL_VOLUME_ACCUMULATOR_DISCM,
@@ -122,6 +125,7 @@ impl AccountData for EmptyAccount {}
 pub enum DecodedAccount {
     BondingCurve(BondingCurve),
     Global(Global),
+    FeeConfig(FeeConfig),
     GlobalVolumeAccumulator(GlobalVolumeAccumulator),
     UserVolumeAccumulator(UserVolumeAccumulator),
 }
@@ -276,6 +280,13 @@ pub fn decode_account_data(buf: &[u8]) -> Result<DecodedAccount, AccountDecodeEr
                     message: format!("Failed to deserialize Global Structure: {}", e),
                 })?;
             Ok(DecodedAccount::Global(data.0)) 
+        }
+        FEE_CONFIG_DISCM => {
+            let data = FeeConfigAccount::deserialize(buf)
+                .map_err(|e| AccountDecodeError {
+                    message: format!("Failed to deserialize Fee Config Structure: {}", e),
+                })?;
+             Ok(DecodedAccount::FeeConfig(data.0))   
         }
         GLOBAL_VOLUME_ACCUMULATOR_DISCM => {
             let data = GlobalVolumeAccumulatorAccount::deserialize(buf)
