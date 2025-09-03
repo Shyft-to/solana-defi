@@ -961,7 +961,7 @@ pub fn admin_update_token_incentives_verify_account_privileges<'me, 'info>(
     Ok(())
 }
 
-pub const BUY_IX_ACCOUNTS_LEN: usize = 14;
+pub const BUY_IX_ACCOUNTS_LEN: usize = 16;
 #[derive(Copy, Clone, Debug)]
 pub struct BuyAccounts<'me, 'info> {
     pub global: &'me AccountInfo<'info>,
@@ -978,6 +978,8 @@ pub struct BuyAccounts<'me, 'info> {
     pub program: &'me AccountInfo<'info>,
     pub global_volume_accumulator :  &'me AccountInfo<'info>,
     pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub fee_config: &'me AccountInfo<'info>,
+    pub fee_program: &'me AccountInfo<'info>,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BuyKeys {
@@ -995,6 +997,8 @@ pub struct BuyKeys {
     pub program: Pubkey,
     pub global_volume_accumulator: Pubkey,
     pub user_volume_accumulator: Pubkey,
+    pub fee_config: Pubkey,
+    pub fee_program: Pubkey,
 }
 impl From<BuyAccounts<'_, '_>> for BuyKeys {
     fn from(accounts: BuyAccounts) -> Self {
@@ -1013,6 +1017,8 @@ impl From<BuyAccounts<'_, '_>> for BuyKeys {
             program: *accounts.program.key,
             global_volume_accumulator: *accounts.global_volume_accumulator.key,
             user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            fee_config: *accounts.fee_config.key,
+            fee_program: *accounts.fee_program.key,
         }
     }
 }
@@ -1089,6 +1095,16 @@ impl From<BuyKeys> for [AccountMeta; BUY_IX_ACCOUNTS_LEN] {
                 is_signer: false,
                 is_writable: true,
             }, 
+            AccountMeta {
+                pubkey: keys.fee_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.fee_program,
+                is_signer: false,
+                is_writable: false,
+            }
         ]
     }
 }
@@ -1109,6 +1125,8 @@ impl From<[Pubkey; BUY_IX_ACCOUNTS_LEN]> for BuyKeys {
             program: pubkeys[11],
             global_volume_accumulator: pubkeys[12],
             user_volume_accumulator: pubkeys[13],
+            fee_config: pubkeys[14],
+            fee_program: pubkeys[15],
         }
     }
 }
@@ -1129,6 +1147,8 @@ impl<'info> From<BuyAccounts<'_, 'info>> for [AccountInfo<'info>; BUY_IX_ACCOUNT
             accounts.program.clone(),
             accounts.global_volume_accumulator.clone(),
             accounts.user_volume_accumulator.clone(),
+            accounts.fee_config.clone(),
+            accounts.fee_program.clone(),
         ]
     }
 }
@@ -1149,7 +1169,9 @@ for BuyAccounts<'me, 'info> {
             event_authority: &arr[10],
             program: &arr[11],
             global_volume_accumulator: &arr[12],
-            user_volume_accumulator: &arr[13]
+            user_volume_accumulator: &arr[13],
+            fee_config: &arr[14],
+            fee_program: &arr[15],
         }
     }
 }
@@ -1260,6 +1282,8 @@ pub fn buy_verify_account_keys(
         (*accounts.program.key, keys.program),
         (*accounts.global_volume_accumulator.key, keys.global_volume_accumulator),
         (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.fee_config.key, keys.fee_config),
+        (*accounts.fee_program.key, keys.fee_program),
     ] {
         if actual != expected {
             return Err((actual, expected));
@@ -3569,7 +3593,7 @@ pub fn migrate_verify_account_privileges<'me, 'info>(
     Ok(())
 }
 
-pub const SELL_IX_ACCOUNTS_LEN: usize = 12;
+pub const SELL_IX_ACCOUNTS_LEN: usize = 14;
 
 #[derive(Copy, Clone, Debug)]
 pub struct SellAccounts<'me, 'info> {
@@ -3585,6 +3609,8 @@ pub struct SellAccounts<'me, 'info> {
     pub token_program: &'me AccountInfo<'info>,
     pub event_authority: &'me AccountInfo<'info>,
     pub program: &'me AccountInfo<'info>,
+    pub fee_config: &'me AccountInfo<'info>,
+    pub fee_program: &'me AccountInfo<'info>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -3601,6 +3627,8 @@ pub struct SellKeys {
     pub token_program: Pubkey,
     pub event_authority: Pubkey,
     pub program: Pubkey,
+    pub fee_config: Pubkey,
+    pub fee_program: Pubkey,
 }
 
 impl From<SellAccounts<'_, '_>> for SellKeys {
@@ -3618,6 +3646,8 @@ impl From<SellAccounts<'_, '_>> for SellKeys {
             token_program: *accounts.token_program.key,
             event_authority: *accounts.event_authority.key,
             program: *accounts.program.key,
+            fee_config: *accounts.fee_config.key,
+            fee_program: *accounts.fee_program.key,
         }
     }
 }
@@ -3685,6 +3715,16 @@ impl From<SellKeys> for [AccountMeta; SELL_IX_ACCOUNTS_LEN] {
                 is_signer: false,
                 is_writable: false,
             },
+            AccountMeta {
+                pubkey: keys.fee_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.fee_program,
+                is_signer: false,
+                is_writable: false,
+            }
         ]
     }
 }
@@ -3704,6 +3744,8 @@ impl From<[Pubkey; SELL_IX_ACCOUNTS_LEN]> for SellKeys {
             token_program: pubkeys[9],
             event_authority: pubkeys[10],
             program: pubkeys[11],
+            fee_config: pubkeys[12],
+            fee_program: pubkeys[13],
         }
     }
 }
@@ -3723,6 +3765,8 @@ impl<'info> From<SellAccounts<'_, 'info>> for [AccountInfo<'info>; SELL_IX_ACCOU
             accounts.token_program.clone(),
             accounts.event_authority.clone(),
             accounts.program.clone(),
+            accounts.fee_config.clone(),
+            accounts.fee_program.clone(),
         ]
     }
 }
@@ -3742,6 +3786,8 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; SELL_IX_ACCOUNTS_LEN]> for SellA
             token_program: &arr[9],
             event_authority: &arr[10],
             program: &arr[11],
+            fee_config: &arr[12],
+            fee_program: &arr[13],
         }
     }
 }
