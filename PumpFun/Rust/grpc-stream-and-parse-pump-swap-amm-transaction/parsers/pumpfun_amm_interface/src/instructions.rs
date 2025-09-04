@@ -803,7 +803,7 @@ pub fn admin_update_token_incentives_verify_account_privileges<'me, 'info>(
 }
 
 
-pub const BUY_IX_ACCOUNTS_LEN: usize = 21;
+pub const BUY_IX_ACCOUNTS_LEN: usize = 23;
 #[derive(Copy, Clone, Debug)]
 pub struct BuyAccounts<'me, 'info> {
     pub pool: &'me AccountInfo<'info>,
@@ -827,6 +827,8 @@ pub struct BuyAccounts<'me, 'info> {
     pub coin_creator_vault_authority: &'me AccountInfo<'info>,
     pub global_volume_accumulator: &'me AccountInfo<'info>,
     pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub fee_config: &'me AccountInfo<'info>,
+    pub fee_program: &'me AccountInfo<'info>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -852,6 +854,8 @@ pub struct BuyKeys {
     pub coin_creator_vault_authority: Pubkey,
     pub global_volume_accumulator: Pubkey,
     pub user_volume_accumulator: Pubkey,
+    pub fee_config: Pubkey,
+    pub fee_program: Pubkey,
 }
 
 impl From<BuyAccounts<'_, '_>> for BuyKeys {
@@ -878,6 +882,8 @@ impl From<BuyAccounts<'_, '_>> for BuyKeys {
             coin_creator_vault_authority: *accounts.coin_creator_vault_authority.key,
             global_volume_accumulator: *accounts.global_volume_accumulator.key,
             user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            fee_config: *accounts.fee_config.key,
+            fee_program: *accounts.fee_program.key,
         }
     }
 }
@@ -989,6 +995,16 @@ impl From<BuyKeys> for [AccountMeta; BUY_IX_ACCOUNTS_LEN] {
                 pubkey: keys.user_volume_accumulator,
                 is_signer: false,
                 is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.fee_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.fee_program,
+                is_signer: false,
+                is_writable: false,
             }
         ]
     }
@@ -1018,6 +1034,8 @@ impl From<[Pubkey; BUY_IX_ACCOUNTS_LEN]> for BuyKeys {
             coin_creator_vault_authority: pubkeys[18],
             global_volume_accumulator: pubkeys[19],
             user_volume_accumulator: pubkeys[20],
+            fee_config: pubkeys[21],
+            fee_program: pubkeys[22],
         }
     }
 }
@@ -1046,6 +1064,8 @@ impl<'info> From<BuyAccounts<'_, 'info>> for [AccountInfo<'info>; BUY_IX_ACCOUNT
             accounts.coin_creator_vault_authority.clone(),
             accounts.global_volume_accumulator.clone(),
             accounts.user_volume_accumulator.clone(),
+            accounts.fee_config.clone(),
+            accounts.fee_program.clone(),
         ]
     }
 }
@@ -1074,6 +1094,8 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; BUY_IX_ACCOUNTS_LEN]> for BuyAcc
             coin_creator_vault_authority: &arr[18],
             global_volume_accumulator: &arr[19],
             user_volume_accumulator: &arr[20],
+            fee_config: &arr[21],
+            fee_program: &arr[22],
         }
     }
 }
@@ -1197,6 +1219,8 @@ pub fn buy_verify_account_keys(
         (*accounts.coin_creator_vault_authority.key, keys.coin_creator_vault_authority),
         (*accounts.global_volume_accumulator.key, keys.global_volume_accumulator),
         (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.fee_config.key, keys.fee_config),
+        (*accounts.fee_program.key, keys.fee_program),
     ] {
         if actual != expected {
             return Err((actual, expected));
@@ -3807,7 +3831,7 @@ pub fn init_user_volume_accumulator_verify_account_privileges<'me, 'info>(
     Ok(())
 }
 
-pub const SELL_IX_ACCOUNTS_LEN: usize = 19;
+pub const SELL_IX_ACCOUNTS_LEN: usize = 21;
 #[derive(Copy, Clone, Debug)]
 pub struct SellAccounts<'me, 'info> {
     pub pool: &'me AccountInfo<'info>,
@@ -3829,6 +3853,8 @@ pub struct SellAccounts<'me, 'info> {
     pub program: &'me AccountInfo<'info>,
     pub coin_creator_vault_ata : &'me AccountInfo<'info>,
     pub coin_creator_vault_authority : &'me AccountInfo<'info>,
+    pub fee_config: &'me AccountInfo<'info>,
+    pub fee_program: &'me AccountInfo<'info>,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SellKeys {
@@ -3851,6 +3877,8 @@ pub struct SellKeys {
     pub program: Pubkey,
     pub coin_creator_vault_ata : Pubkey,
     pub coin_creator_vault_authority : Pubkey,
+    pub fee_config: Pubkey,
+    pub fee_program : Pubkey,
 }
 
 impl From<SellAccounts<'_, '_>> for SellKeys {
@@ -3875,6 +3903,8 @@ impl From<SellAccounts<'_, '_>> for SellKeys {
             program: *accounts.program.key,
             coin_creator_vault_ata : *accounts.coin_creator_vault_ata.key,
             coin_creator_vault_authority : *accounts.coin_creator_vault_authority.key,
+            fee_config: *accounts.fee_config.key,
+            fee_program: *accounts.fee_program.key,
         }
     }
 }
@@ -3976,6 +4006,16 @@ impl From<SellKeys> for [AccountMeta; SELL_IX_ACCOUNTS_LEN] {
                 is_signer: false,
                 is_writable: false,
             },
+            AccountMeta {
+                pubkey: keys.fee_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.fee_program,
+                is_signer: false,
+                is_writable: false
+            }
         ]
     }
 }
@@ -4001,6 +4041,8 @@ impl From<[Pubkey; SELL_IX_ACCOUNTS_LEN]> for SellKeys {
             program: pubkeys[16],
             coin_creator_vault_ata : pubkeys[17],
             coin_creator_vault_authority : pubkeys[18],
+            fee_config: pubkeys[19],
+            fee_program: pubkeys[20]
         }
     }
 }
@@ -4026,6 +4068,8 @@ impl<'info> From<SellAccounts<'_, 'info>> for [AccountInfo<'info>; SELL_IX_ACCOU
             accounts.program.clone(),
             accounts.coin_creator_vault_ata.clone(),
             accounts.coin_creator_vault_authority.clone(),
+            accounts.fee_config.clone(),
+            accounts.fee_program.clone(),
         ]
     }
 }
@@ -4052,6 +4096,8 @@ for SellAccounts<'me, 'info> {
             program: &arr[16],
             coin_creator_vault_ata : &arr[17],
             coin_creator_vault_authority : &arr[18],
+            fee_config: &arr[19],
+            fee_program: &arr[20],
         }
     }
 }
@@ -4175,6 +4221,8 @@ pub fn sell_verify_account_keys(
         (*accounts.program.key, keys.program),
         (*accounts.coin_creator_vault_ata.key, keys.coin_creator_vault_ata),
         (*accounts.coin_creator_vault_authority.key, keys.coin_creator_vault_authority),
+        (*accounts.fee_config.key, keys.fee_config),
+        (*accounts.fee_program.key, keys.fee_program),
     ] {
         if actual != expected {
             return Err((actual, expected));
