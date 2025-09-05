@@ -25,6 +25,14 @@ pub struct BuyEvent {
     pub user_quote_token_account: Pubkey,
     pub protocol_fee_recipient: Pubkey,
     pub protocol_fee_recipient_token_account: Pubkey,
+    pub coin_creator: Pubkey,
+    pub coin_creator_fee_basis_points: u64,
+    pub coin_creator_fee: u64,
+    pub track_volume: bool,
+    pub total_unclaimed_tokens: u64,
+    pub total_claimed_tokens: u64,
+    pub current_sol_volume: u64,
+    pub last_update_timestamp: i64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -53,7 +61,6 @@ impl BuyEventEvent {
     }
 }
 pub const CREATE_CONFIG_EVENT_EVENT_DISCM: [u8; 8] = [107, 52, 89, 129, 55, 226, 81, 22];
-
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
 pub struct CreateConfigEvent {
     pub admin: Pubkey,
@@ -267,6 +274,9 @@ pub struct SellEvent {
     pub user_quote_token_account: Pubkey,
     pub protocol_fee_recipient: Pubkey,
     pub protocol_fee_recipient_token_account: Pubkey,
+    pub coin_creator: Pubkey,
+    pub coin_creator_fee_basis_points: u64,
+    pub coin_creator_fee: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]

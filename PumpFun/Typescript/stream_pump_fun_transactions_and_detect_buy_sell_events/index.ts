@@ -19,6 +19,40 @@ import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import { parseSwapTransactionOutput } from "./utils/pumpfun_formatted_txn";
 
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.warn = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; // Suppress this specific warning
+  }
+  originalConsoleWarn(message, ...optionalParams); 
+};
+
+console.log = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleLog(message, ...optionalParams); 
+};
+
+console.error = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; // Suppress this specific error
+  }
+  originalConsoleError(message, ...optionalParams); // Allow other errors
+};
+
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
   slots: { [key: string]: SubscribeRequestFilterSlots };
@@ -150,11 +184,11 @@ subscribeCommand(client, req);
 function decodePumpFunTxn(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
    try{
-    const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
-    tx.transaction.message,
-    tx.meta.loadedAddresses,
-  );
-   const pumpFunIxs = paredIxs.filter((ix) =>
+      const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
+      tx.transaction.message,
+      tx.meta.loadedAddresses,
+    );
+    const pumpFunIxs = paredIxs.filter((ix) =>
      ix.programId.equals(PUMP_FUN_PROGRAM_ID) || 
     ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))   ,
     );
@@ -174,7 +208,6 @@ function decodePumpFunTxn(tx: VersionedTransactionResponse) {
   }catch(err){
   }
 }
-
 function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
   const loaded = tx.meta?.loadedAddresses;
   if (!loaded) return tx;
