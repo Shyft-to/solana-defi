@@ -28,7 +28,7 @@ console.warn = (message?: any, ...optionalParams: any[]) => {
     typeof message === "string" &&
     message.includes("Parser does not matching the instruction args")
   ) {
-    return; // Suppress this specific warning
+    return;
   }
   originalConsoleWarn(message, ...optionalParams); 
 };
@@ -48,9 +48,9 @@ console.error = (message?: any, ...optionalParams: any[]) => {
     typeof message === "string" &&
     message.includes("Parser does not matching the instruction args")
   ) {
-    return; // Suppress this specific error
+    return; 
   }
-  originalConsoleError(message, ...optionalParams); // Allow other errors
+  originalConsoleError(message, ...optionalParams); 
 };
 
 interface SubscribeRequest {
