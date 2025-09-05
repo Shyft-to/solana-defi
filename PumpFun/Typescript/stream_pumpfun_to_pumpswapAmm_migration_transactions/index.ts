@@ -19,6 +19,40 @@ import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import pumpFunAmmIdl from "./idls/pump_0.1.0.json";
 import { pumpFunParsedTransaction } from "./utils/pump-fun-parsed-transaction";
 
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.warn = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; // Suppress this specific warning
+  }
+  originalConsoleWarn(message, ...optionalParams); 
+};
+
+console.log = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleLog(message, ...optionalParams); 
+};
+
+console.error = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; // Suppress this specific error
+  }
+  originalConsoleError(message, ...optionalParams); // Allow other errors
+};
+
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
   slots: { [key: string]: SubscribeRequestFilterSlots };
