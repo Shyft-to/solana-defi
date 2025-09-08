@@ -2,17 +2,12 @@ import { PublicKey } from "@solana/web3.js";
 import { publicKey, u64, u128 } from "@solana/buffer-layout-utils";
 import { struct, u8, u8 as boolLayout } from "@solana/buffer-layout";
 
-//
-// --- Enums / constants ---
-//
+
 const TradeDirection = {
-  Buy: 0,
-  Sell: 1,
+  Sell: 0,
+  Buy: 1,
 };
 
-//
-// --- Interfaces ---
-//
 export interface SwapParameters {
   amountIn: bigint;
   minimumAmountOut: bigint;
@@ -58,7 +53,7 @@ export const EvtSwapLayout = struct<RawEvtSwap>([
   publicKey("pool"),
   publicKey("config"),
   u8("tradeDirection"),
-  boolLayout("hasReferral"), // bool is 1 byte (0 or 1)
+  boolLayout("hasReferral"), 
   SwapParametersLayout.replicate("params"),
   SwapResultLayout.replicate("swapResult"),
   u64("amountIn"),
