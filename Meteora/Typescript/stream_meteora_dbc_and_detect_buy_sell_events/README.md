@@ -1,16 +1,13 @@
 <a id="readme-top"></a>
 
-# Streaming Meteora DBC transaction using gRPC and parsing instructions in Typescript
+# Streaming Meteora DBC Buy Sell transaction with gRPC.
 
-This project streams Meteora Dynamic Bonding Curve (DBC) transactions via gRPC, 
-parsing both Meteora DBC and Token Program instructions in real time.
+This project provides real-time streaming and decoding of Meteora Dynamic Bonding Curve (DBC) transactions on the Solana blockchain via gRPC. By tracking live buy and sell events from both the Meteora DBC and Token Program, it offers deep insights into liquidity movements and market behavior.
 
-It powers transactions on Jup Studio Launchpad by decoding 
-dynamic bonding curve mechanics—where activity adjusts
-dynamically with demand—enabling transparent, efficient execution.
+ The system interprets dynamic bonding curve mechanics—where pricing adjusts based on demand and volume—enabling transparent, efficient trade execution.
 
-Parsed data is structured for seamless processing and analysis,
-unlocking real-time insights into Solana-based transaction flows.
+Parsed data is structured for seamless downstream processing and analysis, making it ideal for developers, traders, and analysts looking to understand real-time DeFi activity on Solana. Unlock actionable insights into user behavior, liquidity flow, and trading dynamics across the Meteora ecosystem.
+
 
 ![screenshot](assets/meteora-dbc.png?raw=true "Screenshot")
 
@@ -19,7 +16,7 @@ unlocking real-time insights into Solana-based transaction flows.
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd Meteora/Typescript/stream_and_parse_meteora_dbc_transactions
+   cd Meteora/Typescript/stream_meteora_dbc_and_detect_buy_sell_events
    ```
 
 2. **Install Dependencies:**
