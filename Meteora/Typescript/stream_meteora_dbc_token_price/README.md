@@ -1,13 +1,58 @@
 <a id="readme-top"></a>
 
-# Streaming Meteora DBC Buy Sell transaction with gRPC.
+# Stream token price update on Meteora DBC Token Price
 
-This project provides real-time streaming and decoding of Meteora Dynamic Bonding Curve (DBC) transactions on the Solana blockchain via gRPC. By tracking live buy and sell events from both the Meteora DBC and Token Program, it offers deep insights into liquidity movements and market behavior.
+This project streams **real-time token prices** from the **Meteora Dynamic Bonding Curve (DBC)** on Solana using gRpc, without relying on external RPC/API calls.
+It listens to swap events, extracts the `nextSqrtPrice` field, and converts it from **Q64.64 fixed-point format** into the actual token price.
 
- The system interprets dynamic bonding curve mechanics—where pricing adjusts based on demand and volume—enabling transparent, efficient trade execution.
+By monitoring these updates, the project provides insights into **market trends, token valuations, and potential investment opportunities before liquidity migration**.
 
-Parsed data is structured for seamless downstream processing and analysis, making it ideal for developers, traders, and analysts looking to understand real-time DeFi activity on Solana. Unlock actionable insights into user behavior, liquidity flow, and trading dynamics across the Meteora ecosystem.
+---
 
+## 🔎 How Price Conversion Works
+
+Meteora DBC uses a **concentrated liquidity AMM model**, where the pool price is stored as a **square root price** in Q64.64 fixed-point format.
+
+1. **Extract `nextSqrtPrice`** from the `swapResult` event.
+2. **Convert Q64.64 sqrtPrice → Price**:
+
+   $$
+   P = \left(\frac{\text{nextSqrtPrice}}{2^{64}}\right)^2
+   $$
+3. **Adjust for token decimals** to get the correct ratio between tokenA and tokenB.
+
+---
+
+## 📈 Why This Matters
+
+* **Real-Time Tracking** → Live token price updates as swaps occur.
+* **Market Cap & Trend Analysis** → Combine prices with supply data to estimate market capitalization and detect trend shifts.
+* **Pre-Migration Insights** → Price signals before liquidity migration can highlight profitable opportunities.
+
+---
+
+## 🚀 Use Cases
+
+* Automated **trading bots** reacting to price changes.
+* **Portfolio trackers** showing up-to-the-second valuations.
+* **Market analysis tools** monitoring liquidity shifts in Meteora pools. etc.
+
+## 🛠️ Core Function
+
+```ts
+function sqrtPriceX64ToPrice(nextSqrtPriceStr: string, decimalsA: number, decimalsB: number) {
+  const sqrtPriceX64 = BigInt(nextSqrtPriceStr);
+
+  const sqrtPrice = Number(sqrtPriceX64) / 2 ** 64; 
+  let price = sqrtPrice * sqrtPrice;               
+
+  const decimalAdjustment = 10 ** (decimalsA - decimalsB);
+  price = price * decimalAdjustment;
+
+  return price;
+}
+
+```
 
 ![screenshot](assets/meteora-dbc.png?raw=true "Screenshot")
 
@@ -16,7 +61,7 @@ Parsed data is structured for seamless downstream processing and analysis, makin
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd Meteora/Typescript/stream_meteora_dbc_and_detect_buy_sell_events
+   cd Meteora/Typescript/stream_meteora_dbc_token_price
    ```
 
 2. **Install Dependencies:**
@@ -33,7 +78,8 @@ Parsed data is structured for seamless downstream processing and analysis, makin
     npm run start
     ```
 
-*Note: Please open `.env` and input your env details before running the script.*
+---
+*Note: Please rename the `.env.sample` file to `.env` and input your env details before running the script.*
 
 ## Related Links
 

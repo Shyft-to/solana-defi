@@ -1,5 +1,5 @@
 {
-  "name": "stream_meteora_dbc_and_detect_buy_sell_events",
+  "name": "stream_meteora_dbc_token_price",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -16,8 +16,8 @@
     "dbc",
     "transaction",
     "events",
-    "buy",
-    "sell",
+    "token",
+    "price",
     "parser",
     "typescript",
     "blockchain",
