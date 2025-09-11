@@ -11,7 +11,7 @@ This project streams Meteora Damm v2 transactions via gRPC, parsing both Meteora
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_and_parse_meteora_damm_v2_transactions
+   cd Meteora/Typescript/stream_and_parse_meteora_damm_v2_transactions
    ```
 
 2. **Install Dependencies:**
