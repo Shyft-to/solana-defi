@@ -130,7 +130,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     }
   });
 
-  // Send subscribe request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
       if (err === null || err === undefined) {
@@ -199,8 +198,9 @@ function decodePumpAmmTxn(tx: VersionedTransactionResponse) {
   const pumpFunIxs = paredIxs.filter((ix) =>
     ix.programId.equals(PUMP_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
   );
+  const hydratedTx = hydrateLoadedAddresses(tx);
 
-  const parsedInnerIxs = PUMP_AMM_IX_PARSER.parseTransactionWithInnerInstructions(tx);
+  const parsedInnerIxs = PUMP_AMM_IX_PARSER.parseTransactionWithInnerInstructions(hydratedTx);
 
   const pump_amm_inner_ixs = parsedInnerIxs.filter((ix) =>
     ix.programId.equals(PUMP_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
@@ -213,5 +213,24 @@ function decodePumpAmmTxn(tx: VersionedTransactionResponse) {
   bnLayoutFormatter(result);
   return result;
   }catch(err){
+    console.log(err)
   }
+}
+
+function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
+  const loaded = tx.meta?.loadedAddresses;
+  if (!loaded) return tx;
+
+  function ensurePublicKey(arr: (Buffer | PublicKey)[]) {
+    return arr.map(item =>
+      item instanceof PublicKey ? item : new PublicKey(item)
+    );
+  }
+
+  tx.meta.loadedAddresses = {
+    writable: ensurePublicKey(loaded.writable),
+    readonly: ensurePublicKey(loaded.readonly),
+  };
+
+  return tx;
 }
