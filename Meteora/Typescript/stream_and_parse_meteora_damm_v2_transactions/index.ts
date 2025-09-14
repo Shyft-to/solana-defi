@@ -15,9 +15,45 @@ import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import meteoraDAMMIdl from "./idls/meteora_damm.json";
-import { SolanaEventParser } from "./utils/event-parser";
+import { SolanaEventParser } from "./utils/event/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import { meteoradammTransactionOutput } from "./utils/meteora_damm_transaction_output";
+
+
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.warn = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleWarn(message, ...optionalParams); 
+};
+
+console.log = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleLog(message, ...optionalParams); 
+};
+
+console.error = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleError(message, ...optionalParams); 
+};
+
 
 interface SubscribeRequest {
   accounts: { [key: string]: SubscribeRequestFilterAccounts };
@@ -175,7 +211,7 @@ function decodeMeteoraDAMM(tx: VersionedTransactionResponse) {
 
   if (meteora_DAMM_Ixs.length === 0) return;
   const events = METEORA_DAMM_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: meteora_DAMM_Ixs, inner_ixs:  meteroa_damm_inner_ixs, events };
+  const result = { instructions: meteora_DAMM_Ixs, inner_ixs: {meteroa_damm_inner_ixs, events} };
   bnLayoutFormatter(result);
   return result;
   }catch(err){
