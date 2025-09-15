@@ -8,6 +8,9 @@ import {
 } from "@solana/web3.js";
 import { BorshCoder, EventParser, Idl } from "@coral-xyz/anchor";
 import { intersection } from "lodash";
+import bs58 from 'bs58';
+import { decodeTradeEvent } from "./event-layout";
+
 
 export class SolanaEventParser {
   private eventDecoders: Map<PublicKey | string, BorshCoder>;
@@ -89,6 +92,36 @@ export class SolanaEventParser {
     } catch (e) {
       return [];
     }
+  }
+   parseCpiEvent(txn: VersionedTransactionResponse | ParsedTransactionWithMeta) {
+    const events: any[] = [];
+    const programData = txn.meta.innerInstructions.map((innerInstruction) => innerInstruction.instructions);
+    try {
+     if (!programData) return events;
+
+     const allProgramData = programData.flat().map(instr => instr.data)
+     const availableProgramIds = Array.from(this.eventDecoders.keys()).map(p => p.toString());
+
+     for (const programId of availableProgramIds) {
+      const eventCoder = this.eventDecoders.get(programId);
+      if (!eventCoder) continue;
+      for (const log of allProgramData) {
+        if (log.startsWith("3ck7szVsdFfRDqrKq3Y")) {
+          const buf = Buffer.from(bs58.decode(log)); 
+          let decoded: any = decodeTradeEvent(buf.toString("hex"))
+           if (decoded) {
+               events.push({ source: programId, kind: "account", name: "TradeEvent", data: decoded });
+               break;
+             }
+           }
+      }
+    }
+
+     return events;
+   } catch (e) {
+    this.logger.error({ message: "SolanaEventParser.parseEvent_error", error: e });
+    return events;
+   }
   }
 
   parseProgramLogMessages(programId: string, rawLogs: string[]) {
