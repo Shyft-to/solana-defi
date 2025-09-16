@@ -34,7 +34,7 @@ export interface Instruction {
 
 export interface PumpFunIDL {
   instructions: Instruction[];
-  events: any[],
+  events: any[];
 }
 
 export const PUMP_FUN_IDL: PumpFunIDL = {
@@ -95,80 +95,95 @@ export const PUMP_FUN_IDL: PumpFunIDL = {
   ],
   events: []
 };
+
 export const KNOWN_ADDRESSES = {
   SYSTEM_PROGRAM: '11111111111111111111111111111111',
   TOKEN_PROGRAM: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
   PUMP_FUN_PROGRAM: '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
   FEE_PROGRAM: 'pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ'
 };
+
 export interface ParsedInstruction {
   name: string;
   accounts: AccountMeta[]; 
   args?: any;
   discriminator: number[];
 }
-export function mapAccounts(raw: any[], _args: any): ParsedInstruction | null {
-  try {
-    const normalizedAccounts = raw.map(acc => ({
+
+export class PumpFunInstructionParser {
+  private static readonly IDL = PUMP_FUN_IDL;
+  private static readonly KNOWN_ADDRESSES = KNOWN_ADDRESSES;
+
+  public static parse(rawAccounts: any[], args: any): ParsedInstruction | null {
+    try {
+      const normalizedAccounts = this.normalizeAccounts(rawAccounts);
+      const instruction = this.identifyInstruction(normalizedAccounts);
+      
+      if (!instruction) {
+        return null;
+      }
+
+      const mappedAccounts = this.mapAccountsToInstruction(instruction, normalizedAccounts);
+      
+      if (!mappedAccounts) {
+        return null;
+      }
+
+      const decodedArgs = decodeInstructionArgs(args);
+
+      return {
+        name: instruction.name,
+        accounts: mappedAccounts, 
+        args: decodedArgs,
+        discriminator: instruction.discriminator
+      };
+
+    } catch (error) {
+      console.error("Error parsing instruction:", error);
+      return null;
+    }
+  }
+
+  private static normalizeAccounts(accounts: any[]): AccountMeta[] {
+    return accounts.map(acc => ({
+      name: acc.name,
       isSigner: acc.isSigner,
       isWritable: acc.isWritable,
       pubkey: typeof acc.pubkey === 'string' ? acc.pubkey : acc.pubkey.toString()
     }));
+  }
 
-    const instruction = identifyInstruction(normalizedAccounts);
-    
-    if (!instruction) {
-      return null;
+  private static identifyInstruction(accounts: AccountMeta[]): Instruction | null {
+    if (accounts.length === 16) {
+      if (accounts[7].pubkey === this.KNOWN_ADDRESSES.SYSTEM_PROGRAM && 
+          accounts[8].pubkey === this.KNOWN_ADDRESSES.TOKEN_PROGRAM) {
+        return this.IDL.instructions.find(ix => ix.name === "buy") || null;
+      }
+    } else if (accounts.length === 14) {
+      if (accounts[7].pubkey === this.KNOWN_ADDRESSES.SYSTEM_PROGRAM && 
+          accounts[9].pubkey === this.KNOWN_ADDRESSES.TOKEN_PROGRAM) {
+        return this.IDL.instructions.find(ix => ix.name === "sell") || null;
+      }
     }
-
-    const mappedAccounts = mapAccountsToInstruction(instruction, normalizedAccounts);
-    
-    if (!mappedAccounts) {
-      return null;
-    }
-    const decodedArgs = decodeInstructionArgs(_args)
-
-    return {
-      name: instruction.name,
-      accounts: mappedAccounts, 
-      args: decodedArgs,
-      discriminator: instruction.discriminator
-    };
-
-  } catch (error) {
-    console.error("Error mapping accounts:", error);
     return null;
   }
-}
-function identifyInstruction(accounts: any[]): Instruction | null {
-  if (accounts.length === 16) {
-    if (accounts[7].pubkey === KNOWN_ADDRESSES.SYSTEM_PROGRAM && 
-        accounts[8].pubkey === KNOWN_ADDRESSES.TOKEN_PROGRAM) {
-      return PUMP_FUN_IDL.instructions.find(ix => ix.name === "buy") || null;
-    }
-  } else if (accounts.length === 14) {
-    if (accounts[7].pubkey === KNOWN_ADDRESSES.SYSTEM_PROGRAM && 
-        accounts[9].pubkey === KNOWN_ADDRESSES.TOKEN_PROGRAM) {
-      return PUMP_FUN_IDL.instructions.find(ix => ix.name === "sell") || null;
-    }
-  }
-  return null;
-}
 
-function mapAccountsToInstruction(instruction: Instruction, accounts: any[]): AccountMeta[] | null {
-  const mapped: AccountMeta[] = [];
-  
-  instruction.accounts.forEach((accountDef, index) => {
-    if (index >= accounts.length) return;
+  private static mapAccountsToInstruction(instruction: Instruction, accounts: AccountMeta[]): AccountMeta[] | null {
+    const mapped: AccountMeta[] = [];
     
-    const accountData = accounts[index];
-    mapped.push({
-      name: accountDef.name,
-      isSigner: accountDef.isSigner || accountData.isSigner,
-      isWritable: accountDef.isWritable || accountData.isWritable,
-      pubkey: accountData.pubkey
+    instruction.accounts.forEach((accountDef, index) => {
+      if (index >= accounts.length) return;
+      
+      const accountData = accounts[index];
+      mapped.push({
+        name: accountDef.name,
+        isSigner: accountDef.isSigner || accountData.isSigner,
+        isWritable: accountDef.isWritable || accountData.isWritable,
+        pubkey: accountData.pubkey
+      });
     });
-  });
 
-  return mapped;
+    return mapped;
+  }
 }
+

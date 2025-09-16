@@ -11,7 +11,7 @@ import Client, {
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
-import { parseSwapTransactionOutput } from "./parser/formatted_txn";
+import { parseSwapTransactionOutput } from "./parser/formatted-txn";
 import { decodePumpFunTxn } from "./parser/decode";
 import { PUMP_FUN_PROGRAM_ID } from "./utils/type";
 

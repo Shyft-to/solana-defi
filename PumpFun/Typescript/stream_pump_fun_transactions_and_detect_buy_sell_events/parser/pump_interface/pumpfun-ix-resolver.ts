@@ -1,41 +1,42 @@
 import { PUMP_FUN_PROGRAM_ID } from "../../utils/type";
-import { mapAccounts } from "./src/instructions";
+import { PumpFunInstructionParser } from "./src/instructions";
 
-export function filtered_parsed_txn(parsedInnerIxs: any[]) {
-      const filteredParsedInnerIxs = (ixs: any[]) => 
-        ixs.filter((ix) => 
-            ix.name === "unknown" && 
-            ix.programId.equals(PUMP_FUN_PROGRAM_ID) &&
-            ix.accounts && 
-            (ix.accounts.length > 13 && ix.accounts.length < 17) 
+export function parseAndFilterPumpFunInstructions(parsedInnerInstructions: any[]) {
+    const filterPumpFunInstructions = (instructions: any[]) => 
+        instructions.filter((instruction) => 
+            instruction.name === "unknown" && 
+            instruction.programId.equals(PUMP_FUN_PROGRAM_ID) &&
+            instruction.accounts && 
+            (instruction.accounts.length > 13 && instruction.accounts.length < 17) 
         );
-    const filteredPumpfunInnerIx: any[] = filteredParsedInnerIxs(parsedInnerIxs);
+
+    const filteredPumpFunInstructions: any[] = filterPumpFunInstructions(parsedInnerInstructions);
     
-    if (filteredPumpfunInnerIx.length === 0){
-     return parsedInnerIxs;     
+    if (filteredPumpFunInstructions.length === 0) {
+        return parsedInnerInstructions;     
     } 
     
-    const firstIx = filteredPumpfunInnerIx.find((ix: any) => ix.accounts && ix.accounts.length > 0);
+    const firstPumpFunInstruction = filteredPumpFunInstructions.find(
+        (instruction: any) => instruction.accounts && instruction.accounts.length > 0
+    );
     
-    if (!firstIx) {
+    if (!firstPumpFunInstruction) {
         console.log("No valid Pump.fun instruction found");
-        return parsedInnerIxs;
+        return parsedInnerInstructions;
     }
 
-    
-    const accountsWithStringPubkeys = firstIx.accounts.map((acc: any) => ({
-        isSigner: acc.isSigner,
-        isWritable: acc.isWritable,
-        pubkey: acc.pubkey.toString() 
+    const accountsWithStringPubkeys = firstPumpFunInstruction.accounts.map((account: any) => ({
+        isSigner: account.isSigner,
+        isWritable: account.isWritable,
+        pubkey: account.pubkey.toString() 
     }));
-    const args = firstIx.args.unknown;   
-    const manual_parsing = mapAccounts(accountsWithStringPubkeys, args);
     
-    if (manual_parsing) {
-        
-        
-    return Array.isArray(manual_parsing) ? manual_parsing : [manual_parsing];
+    const instructionArgs = firstPumpFunInstruction.args.unknown;   
+    const parsedInstruction = PumpFunInstructionParser.parse(accountsWithStringPubkeys, instructionArgs); 
+    
+    if (parsedInstruction) {
+        return Array.isArray(parsedInstruction) ? parsedInstruction : [parsedInstruction];
     } else {
-        return parsedInnerIxs;
+        return parsedInnerInstructions;
     }
 }

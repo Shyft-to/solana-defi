@@ -4,7 +4,7 @@ import { SolanaEventParser } from "./pump_interface/src/event/event-parser";
 import pumpFunIdl from "../idls/pump_0.1.0.json";
 import { bnLayoutFormatter } from "../utils/bn-layout-formatter";
 import { Idl } from "@coral-xyz/anchor";
-import { filtered_parsed_txn } from "./pump_interface/pumpfun-ix-resolver";
+import { parseAndFilterPumpFunInstructions } from "./pump_interface/pumpfun-ix-resolver";
 import { PUMP_FUN_PROGRAM_ID } from "../utils/type";
 
 const PUMP_FUN_IX_PARSER = new SolanaParser([]);
@@ -39,7 +39,7 @@ export function decodePumpFunTxn(tx: VersionedTransactionResponse) {
    || ix.programId.equals(new PublicKey("11111111111111111111111111111111"))
       ,
      );
-   let pumpfun_inner_ixs = filtered_parsed_txn(pump_inner_ixs)
+   let pumpfun_inner_ixs = parseAndFilterPumpFunInstructions(pump_inner_ixs)
    let parseEvents = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
    let event = parseEvents.length === 0? PUMP_FUN_EVENT_PARSER.parseCpiEvent(tx): parseEvents;
    const result = { instructions: pumpFunIxs, inner_ixs: pumpfun_inner_ixs, event };
