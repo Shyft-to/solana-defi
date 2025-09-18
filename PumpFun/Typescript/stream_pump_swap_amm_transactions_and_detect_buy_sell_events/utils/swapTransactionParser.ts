@@ -1,19 +1,23 @@
 export function parseSwapTransactionOutput(parsedInstruction, transaction) {
     const SOL_MINT = 'So11111111111111111111111111111111111111112';
-    let output = {};
 
-    const swapInstruction = parsedInstruction.instructions.pumpAmmIxs.find(
-        (instruction) => instruction.name === 'buy' || instruction.name === 'sell'
-    );
+    let swapInstruction = 
+        parsedInstruction?.instructions?.pumpAmmIxs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        ) ||
+        parsedInstruction?.inner_ixs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        ) ||
+        parsedInstruction?.inner_ixs?.pump_amm_inner_ixs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        );
 
     if (!swapInstruction) {
         return;
     }
 
-    const signerPubkey = swapInstruction.accounts.find((account) => account.name === 'user')?.pubkey;
-    const user_quote_token_account = swapInstruction.accounts.find((account) => account.name === "user_quote_token_account")?.pubkey;
-    const pool_base_token_account = swapInstruction.accounts.find((account) => account.name === "pool_base_token_account")?.pubkey;
-
+    const signerPubkey = swapInstruction?.accounts.find((account) => account.name === 'user')?.pubkey;
+    
     const swapAmount = swapInstruction.name === 'sell'
         ? swapInstruction.args?.base_amount_in
         : swapInstruction.args?.base_amount_out;
@@ -60,7 +64,7 @@ export function parseSwapTransactionOutput(parsedInstruction, transaction) {
         ? determineOutAmount()
         : base_amount_in;
     const transactionEvent = {
-        type: buySellEvent.type,
+        type: swapInstruction.name,
         user: signerPubkey,
         mint: buySellEvent.mint,
         out_amount: amountOut,
@@ -68,20 +72,6 @@ export function parseSwapTransactionOutput(parsedInstruction, transaction) {
     };
 
 
-    output = {
-        ...transaction,
-        meta: {
-            ...transaction.meta,
-            innerInstructions: parsedInstruction.inner_ixs,
-        },
-        transaction: {
-            ...transaction.transaction,
-            message: {
-                ...transaction.transaction.message,
-                compiledInstructions: parsedInstruction.instructions,
-            },
-        }
-    };
 
-    return { output, transactionEvent };
+    return transactionEvent ;
 }
