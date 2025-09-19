@@ -1,9 +1,15 @@
 export function parseSwapTransactionOutput(parsedInstruction) {
-  const innerInstructions = parsedInstruction.inner_ixs ?? [];
-
-  const swapInstruction = innerInstructions.find(
-    (ix) => ix.name === 'buy' || ix.name === 'sell'
-  );
+  const innerInstructions = parsedInstruction.inner_ixs.pumpfun_inner_ixs ?? [];
+   let swapInstruction = 
+        parsedInstruction?.instructions?.pumpAmmIxs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        ) ||
+        parsedInstruction?.inner_ixs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        ) ||
+        parsedInstruction?.inner_ixs?.pump_amm_inner_ixs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        );
 
   if (!swapInstruction) return;
   const { name: type, accounts = [], args = {} } = swapInstruction;
@@ -13,23 +19,20 @@ export function parseSwapTransactionOutput(parsedInstruction) {
   const userPubkey = accounts.find(a => a.name === 'user')?.pubkey;
   const mint = accounts.find(a => a.name === 'mint')?.pubkey;
 
-  const transferInstruction = innerInstructions.find(
-    ix => ix.name === 'transfer' && ix.args.amount !== baseAmountIn
-  );
   const alternativeAmountOut = innerInstructions.find(
     ix =>
       ix.name === 'transfer' &&
       ix.args.amount !== baseAmountIn &&
       ix.accounts.some(acct => acct.pubkey === bondingCurve)
   )?.args?.lamports;
-  const solEventAmount = parsedInstruction?.events?.[0]?.data?.solAmount;
-  const outAmount = solEventAmount ?? alternativeAmountOut;
-
+  
+  const tradeEvent = parsedInstruction?.events?.find(e => e.name === 'TradeEvent');
+  const solEventAmount = tradeEvent?.data?.sol_amount;
+  const tokenEventAmount = tradeEvent?.data?.token_amount;
 
   const isBuy = type === 'buy';
-  const inAmount = isBuy ? outAmount : baseAmountIn;
-  const finalOutAmount = isBuy ? baseAmountIn : outAmount;
-
+  let inAmount = isBuy ? solEventAmount : tokenEventAmount;
+  let finalOutAmount = isBuy ? tokenEventAmount : (solEventAmount ?? alternativeAmountOut);
   return {
     type,
     user: userPubkey,
