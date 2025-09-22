@@ -1,21 +1,19 @@
 export function parseSwapTransactionOutput(parsedInstruction) {
-    const parsedEvent = parsedInstruction.instructions.events[0]?.data;
+    const parsedEvent = parsedInstruction?.events?.find(e => e.name === 'TradeEvent').data;
     const supply = 1_000_000_000_000_000;
 
-    let swapInstruction =
-        parsedInstruction.instructions.pumpFunIxs?.find(
-            (instruction) => instruction.name === 'buy' || instruction.name === 'sell'
+    let swapInstruction = 
+        parsedInstruction?.instructions?.pumpAmmIxs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        ) ||
+        parsedInstruction?.inner_ixs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        ) ||
+        parsedInstruction?.inner_ixs?.pump_amm_inner_ixs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
         );
 
-    if (!swapInstruction) {
-        swapInstruction = parsedInstruction.inner_ixs?.find(
-            (ix) => ix.name === 'buy' || ix.name === 'sell'
-        );
-    }
-
-    if (!swapInstruction) {
-        return;
-    }
+    if (!swapInstruction) return;
 
     const bonding_curve = swapInstruction.accounts.find(
         (account) => account.name === 'bonding_curve'

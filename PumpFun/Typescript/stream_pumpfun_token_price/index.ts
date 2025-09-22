@@ -17,8 +17,9 @@ import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import pumpFunAmmIdl from "./idls/pump_0.1.0.json";
-import { writeFileSync } from "fs";
 import { parseSwapTransactionOutput } from "./utils/pumpfun_formatted_txn";
+import { PUMP_FUN_PROGRAM_ID } from "./utils/type";
+import { PumpFunDecoder } from "./utils/decode-parser";
 
 
 const originalConsoleWarn = console.warn;
@@ -70,19 +71,7 @@ interface SubscribeRequest {
 }
 
 const TXN_FORMATTER = new TransactionFormatter();
-const PUMP_FUN_PROGRAM_ID = new PublicKey(
-  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
-);
-const PUMP_FUN_IX_PARSER = new SolanaParser([]);
-PUMP_FUN_IX_PARSER.addParserFromIdl(
-  PUMP_FUN_PROGRAM_ID.toBase58(),
-  pumpFunAmmIdl as Idl
-);
-const PUMP_FUN_EVENT_PARSER = new SolanaEventParser([], console);
-PUMP_FUN_EVENT_PARSER.addParserFromIdl(
-  PUMP_FUN_PROGRAM_ID.toBase58(),
-  pumpFunAmmIdl as Idl
-);
+const pumpFunDecoder = new PumpFunDecoder();
 
 async function handleStream(client: Client, args: SubscribeRequest) {
   // Subscribe for events
@@ -112,7 +101,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now()
       );
 
-      const parsedTxn = decodePumpFunTxn(txn);
+      const parsedTxn = pumpFunDecoder.decodePumpFunTxn(txn);
 
       if (!parsedTxn) return;
      const formattedSwapTxn = parseSwapTransactionOutput(parsedTxn);
@@ -186,49 +175,3 @@ const req: SubscribeRequest = {
 };
 
 subscribeCommand(client, req);
-
-function decodePumpFunTxn(tx: VersionedTransactionResponse) {
-  if (tx.meta?.err) return;
-   try{
-    const paredIxs = PUMP_FUN_IX_PARSER.parseTransactionData(
-    tx.transaction.message,
-    tx.meta.loadedAddresses,
-  );
-   const pumpFunIxs = paredIxs.filter((ix) =>
-     ix.programId.equals(PUMP_FUN_PROGRAM_ID) || 
-    ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))   ,
-    );
-    const hydratedTx = hydrateLoadedAddresses(tx);
-    const parsedInnerIxs = PUMP_FUN_IX_PARSER.parseTransactionWithInnerInstructions(hydratedTx);
-    const pumpfun_amm_inner_ixs = parsedInnerIxs.filter((ix) =>
-       ix.programId.equals(PUMP_FUN_PROGRAM_ID) || 
-      ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
-   || ix.programId.equals(new PublicKey("11111111111111111111111111111111"))
-      ,
-     );
-  if (pumpFunIxs.length === 0 && pumpfun_amm_inner_ixs.length === 0) return;
-   const events = PUMP_FUN_EVENT_PARSER.parseEvent(hydratedTx);
-  const result = { instructions: {pumpFunIxs,events}, inner_ixs:  pumpfun_amm_inner_ixs };
-   bnLayoutFormatter(result);
-  return result;
-  }catch(err){
-  }
-}
-
-function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
-  const loaded = tx.meta?.loadedAddresses;
-  if (!loaded) return tx;
-
-  function ensurePublicKey(arr: (Buffer | PublicKey)[]) {
-    return arr.map(item =>
-      item instanceof PublicKey ? item : new PublicKey(item)
-    );
-  }
-
-  tx.meta.loadedAddresses = {
-    writable: ensurePublicKey(loaded.writable),
-    readonly: ensurePublicKey(loaded.readonly),
-  };
-
-  return tx;
-}
