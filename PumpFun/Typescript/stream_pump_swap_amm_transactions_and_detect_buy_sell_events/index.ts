@@ -9,17 +9,13 @@ import Client, {
   SubscribeRequestFilterSlots,
   SubscribeRequestFilterTransactions,
 } from "@triton-one/yellowstone-grpc";
-import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { Idl } from "@coral-xyz/anchor";
-import { SolanaParser } from "@shyft-to/solana-transaction-parser";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
-import { SolanaEventParser } from "./utils/event-parser";
-import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import pumpSwapAmmIdl from "./idls/pump_amm_0.1.0.json";
 import { parseSwapTransactionOutput } from "./utils/swapTransactionParser";
+import { PUMP_AMM_PROGRAM_ID } from "./utils/type";
+import { PumpAmmDecoder } from "./utils/decode-parser";
 
-
+const pumpAmmDecoder = new PumpAmmDecoder();
 
 const originalConsoleWarn = console.warn;
 const originalConsoleLog = console.log;
@@ -70,26 +66,11 @@ interface SubscribeRequest {
 }
 
 const TXN_FORMATTER = new TransactionFormatter();
-const PUMP_AMM_PROGRAM_ID = new PublicKey(
-  "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
-);
-const PUMP_AMM_IX_PARSER = new SolanaParser([]);
-PUMP_AMM_IX_PARSER.addParserFromIdl(
-  PUMP_AMM_PROGRAM_ID.toBase58(),
-  pumpSwapAmmIdl as Idl
-);
-const PUMP_AMM_EVENT_PARSER = new SolanaEventParser([], console);
-PUMP_AMM_EVENT_PARSER.addParserFromIdl(
-  PUMP_AMM_PROGRAM_ID.toBase58(),
-  pumpSwapAmmIdl as Idl
-);
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
   console.log("Listening to Buy and Sell on Pumpfun Amm")
   const stream = await client.subscribe();
 
-  // Create `error` / `end` handler
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
       console.log("ERROR", error);
@@ -112,17 +93,14 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now()
       );
 
-      const parsedTxn = decodePumpAmmTxn(txn);
-
-      if (!parsedTxn) return;
+     const parsedTxn = pumpAmmDecoder.decodePumpAmmTxn(txn);
      const formattedSwapTxn = parseSwapTransactionOutput(parsedTxn,txn);
-     if(!formattedSwapTxn) return;
+      if(!formattedSwapTxn) return;
       console.log(
         new Date(),
         ":",
         `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
-        JSON.stringify(formattedSwapTxn.output, null, 2) + "\n",
-        formattedSwapTxn.transactionEvent
+        JSON.stringify(formattedSwapTxn, null, 2) + "\n",
       );
       console.log(
         "--------------------------------------------------------------------------------------------------"
@@ -130,7 +108,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     }
   });
 
-  // Send subscribe request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
       if (err === null || err === undefined) {
@@ -187,31 +164,3 @@ const req: SubscribeRequest = {
 };
 
 subscribeCommand(client, req);
-
-function decodePumpAmmTxn(tx: VersionedTransactionResponse) {
-  if (tx.meta?.err) return;
-  try{
-  const paredIxs = PUMP_AMM_IX_PARSER.parseTransactionData(
-    tx.transaction.message,
-    tx.meta.loadedAddresses,
-  );
-
-  const pumpAmmIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
-  );
-
-  const parsedInnerIxs = PUMP_AMM_IX_PARSER.parseTransactionWithInnerInstructions(tx);
-
-  const pump_amm_inner_ixs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(PUMP_AMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
-  );
-
-
-  if (pumpAmmIxs.length === 0) return;
-  const events = PUMP_AMM_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: {pumpAmmIxs,events}, inner_ixs:  pump_amm_inner_ixs };
-  bnLayoutFormatter(result);
-  return result;
-  }catch(err){
-  }
-}
