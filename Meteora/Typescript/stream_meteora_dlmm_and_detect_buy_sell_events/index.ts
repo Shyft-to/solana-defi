@@ -122,7 +122,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     }
   });
 
-  // Send subscribe request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
       if (err === null || err === undefined) {
