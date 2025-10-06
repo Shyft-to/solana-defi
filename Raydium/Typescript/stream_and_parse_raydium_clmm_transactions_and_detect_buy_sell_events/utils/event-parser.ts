@@ -6,7 +6,7 @@ import {
   PublicKey,
   VersionedTransactionResponse,
 } from "@solana/web3.js";
-import { BorshCoder, EventParser, Idl } from "@project-serum/anchor";
+import { BorshCoder, EventParser, Idl } from "@coral-xyz/anchor";
 import { intersection } from "lodash";
 
 export class SolanaEventParser {

@@ -6,7 +6,7 @@ import {
     VersionedMessage,
     VersionedTransactionResponse,
   } from "@solana/web3.js";
-  import { utils } from "@project-serum/anchor";
+  import { utils } from "@coral-xyz/anchor";
   
   export class TransactionFormatter {
     public formTransactionFromJson(
@@ -63,7 +63,7 @@ import {
               accounts: any;
             }) => ({
               programIdIndex: programIdIndex,
-              accounts: [...accounts] || [],
+              accounts: accounts ? [...accounts] : [],
               data: utils.bytes.bs58.encode(Buffer.from(data || "", "base64")),
             }),
           ),
@@ -93,7 +93,7 @@ import {
               data: any;
             }) => ({
               programIdIndex: programIdIndex,
-              accountKeyIndexes: [...accounts] || [],
+              accountKeyIndexes: accounts ? [...accounts] : [],
               data: Uint8Array.from(Buffer.from(data || "", "base64")),
             }),
           ),
@@ -147,7 +147,7 @@ import {
               index: i.index || 0,
               instructions: i.instructions.map((instruction: any) => ({
                 programIdIndex: instruction.programIdIndex,
-                accounts: [...instruction.accounts] || [],
+                accounts: instruction.accounts ? [...instruction.accounts] : [],
                 data: utils.bytes.bs58.encode(
                   Buffer.from(instruction.data || "", "base64"),
                 ),
