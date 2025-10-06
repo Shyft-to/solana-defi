@@ -165,7 +165,7 @@ const req: SubscribeRequest = {
   accounts: {},
   slots: {},
   transactions: {
-    pumpAMM: {
+    raydiumClmm: {
       vote: false,
       failed: false,
       signature: undefined,

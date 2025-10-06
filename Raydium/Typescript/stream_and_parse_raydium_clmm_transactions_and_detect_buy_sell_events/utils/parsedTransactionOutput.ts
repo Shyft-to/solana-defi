@@ -8,9 +8,9 @@ export function parsedTransactionOutput(parsedInstruction, transaction) {
   const token_A = swapInstruction.accounts.find((ix) => ix.name === 'output_vault_mint')?.pubkey;
   const token_B = swapInstruction.accounts.find((ix) => ix.name === 'input_vault_mint')?.pubkey;
   const payer = swapInstruction.accounts.find((ix) => ix.name === 'payer')?.pubkey;
-  const amount_A = swapEvent.amount_0;
-  const amount_B = swapEvent.amount_1;
   const swap_type = swapEvent.zero_for_one? "Buy" : "Sell";
+  const amount_A = swap_type === "Buy"? swapEvent.amount_0: swapEvent.amount_1;
+  const amount_B = swap_type==="Sell"? swapEvent.amount_0: swapEvent.amount_1;
   const transactionEvent = {
     type: swap_type,
     user: payer,
