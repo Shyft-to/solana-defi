@@ -1,9 +1,16 @@
 export function parseSwapTransactionOutput(parsedInstruction, txn) {
     const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-    const swapInstruction = parsedInstruction?.instructions?.pumpFunIxs?.find(
-        (instruction) => instruction.name === 'buy' || instruction.name === 'sell'
-    );
+      let swapInstruction = 
+        parsedInstruction?.instructions?.pumpAmmIxs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        ) ||
+        parsedInstruction?.inner_ixs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        ) ||
+        parsedInstruction?.inner_ixs?.pump_amm_inner_ixs?.find(
+            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        );
     if (!swapInstruction) return;
 
     let baseMintPubkey = swapInstruction?.accounts?.find((account) => account.name === 'base_mint')?.pubkey;
@@ -14,8 +21,7 @@ export function parseSwapTransactionOutput(parsedInstruction, txn) {
         quoteMintPubkey,
         txn?.meta?.preTokenBalances || [],
     );
-
-    const parsedEvent = parsedInstruction?.instructions?.events[0]?.data;
+    const parsedEvent = parsedInstruction?.events?.find(e => e.name === 'BuyEvent' || e.name === 'SellEvent').data;
     const pool_base_token_reserves = parsedEvent?.pool_base_token_reserves;
     const pool_quote_token_reserves = parsedEvent?.pool_quote_token_reserves;
 
@@ -46,6 +52,7 @@ function calculatePumpAmmPrice(
     pool_quote_reserve: number,
     decimal : number
 ): number {
+
     const base = pool_base_reserve/ 1_000_000_000;;
     const quote = pool_quote_reserve/ Math.pow(10, decimal);
     return base / quote;
