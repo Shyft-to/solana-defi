@@ -28,7 +28,6 @@ export function parseSwapTransactionOutput(parsedInstruction, txn) {
     const decimal = txn.meta?.preTokenBalances?.find(
             (b) => (b.mint === quoteMintPubkey || b.mint === baseMintPubkey) && b.mint !== SOL_MINT
     )?.uiTokenAmount?.decimals;
-    console.log(decimal)
     let price;
     if (baseMintPubkey === SOL_MINT) {
         price = calculatePumpAmmPrice(pool_base_token_reserves, pool_quote_token_reserves, decimal);
