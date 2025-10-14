@@ -1,50 +1,70 @@
-require('dotenv').config()
+import "dotenv/config";
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest,
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { Idl } from "@project-serum/anchor";
+import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
-
 import { TransactionFormatter } from "./utils/transaction-formatter";
-import cpmmIDL from "./idls/cpmm_idl.json";
-
+import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
+import raydiumCPIdl from "./idls/raydium_cp.json";
+import { raydiumCPFormatter } from "./utils/raydium-cp-transaction-formatter";
 
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
+
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.warn = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return;
+  }
+  originalConsoleWarn(message, ...optionalParams); 
+};
+
+console.log = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleLog(message, ...optionalParams); 
+};
+
+console.error = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleError(message, ...optionalParams); 
+};
+
 
 const TXN_FORMATTER = new TransactionFormatter();
-const CPMM_PROGRAM_ID = new PublicKey(
-  "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+const RAYDIUM_CP_PROGRAM_ID = new PublicKey(
+  "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"
 );
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-)
-const CPMM_IX_PARSER = new SolanaParser([]);
-CPMM_IX_PARSER.addParserFromIdl(
-  CPMM_PROGRAM_ID.toBase58(),
-  cpmmIDL as Idl,
 );
-
+const RAYDIUM_CP_IX_PARSER = new SolanaParser([]);
+RAYDIUM_CP_IX_PARSER.addParserFromIdl(
+  RAYDIUM_CP_PROGRAM_ID.toBase58(),
+  raydiumCPIdl as Idl
+);
+const RAYDIUM_CP_EVENT_PARSER = new SolanaEventParser([], console);
+RAYDIUM_CP_EVENT_PARSER.addParserFromIdl(
+  RAYDIUM_CP_PROGRAM_ID.toBase58(),
+  raydiumCPIdl as Idl
+);
 
 async function handleStream(client: Client, args: SubscribeRequest) {
   // Subscribe for events
@@ -70,56 +90,24 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     if (data?.transaction) {
       const txn = TXN_FORMATTER.formTransactionFromJson(
         data.transaction,
-        Date.now(),
+        Date.now()
       );
 
-      console.log("Txn Received: ", txn.transaction.signatures[0]);
-
-      const parsedTxn = decodeCpmmTxn(txn);
-
+      const parsedTxn = decodeRaydiumCPTxn(txn);
       if (!parsedTxn) return;
-
-      let rpcTxnWithParsed = {};
-
-      if(txn.version === 0){
-        rpcTxnWithParsed = {
-          ...txn,
-          meta: {
-            ...txn.meta,
-            innerInstructions: parsedTxn.innerInstructions,
-          },
-          transaction: {
-            ...txn.transaction,
-            message: {
-              ...txn.transaction.message,
-              compiledInstructions: parsedTxn.compiledInstructions,
-            },
-          }
-        }
-      }
-      else {
-        rpcTxnWithParsed = {
-          ...txn,
-          meta: {
-            ...txn.meta,
-            innerInstructions: parsedTxn.innerInstructions,
-          },
-          transaction: {
-            ...txn.transaction,
-            message: {
-              ...txn.transaction.message,
-              instructions: parsedTxn.compiledInstructions,
-            },
-          }
-        }
-      }
-
-      console.log("parsed Transaction: ");
-      console.log(JSON.stringify(rpcTxnWithParsed));
+      const raydiumCPTransactions = raydiumCPFormatter(parsedTxn, txn);
+      console.log(
+        new Date(),
+        ":",
+        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+        JSON.stringify(raydiumCPTransactions, null, 2) + "\n"
+      );
+      console.log(
+        "--------------------------------------------------------------------------------------------------"
+      );
     }
   });
 
-  // Send subscribe request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
       if (err === null || err === undefined) {
@@ -148,19 +136,20 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 }
 
 const client = new Client(
-  process.env.GRPC_URL,
+  process.env.GRPC_URL!,
   process.env.X_TOKEN,
-  undefined,
+  undefined
 );
+
 const req: SubscribeRequest = {
   accounts: {},
   slots: {},
   transactions: {
-    pumpFun: {
+    pumpAMM: {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [CPMM_PROGRAM_ID.toBase58()],
+      accountInclude: [RAYDIUM_CP_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },
@@ -176,27 +165,52 @@ const req: SubscribeRequest = {
 
 subscribeCommand(client, req);
 
-function decodeCpmmTxn(tx: VersionedTransactionResponse) {
+function decodeRaydiumCPTxn(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
+   const hydratedTx = hydrateLoadedAddresses(tx);
 
-  const paredIxs = CPMM_IX_PARSER.parseTransactionData(
-    tx.transaction.message,
-    tx.meta.loadedAddresses,
+  const paredIxs = RAYDIUM_CP_IX_PARSER.parseTransactionData(
+    hydratedTx.transaction.message,
+    hydratedTx.meta.loadedAddresses
   );
-
-  const parsedInnerIxs = CPMM_IX_PARSER.parseTransactionWithInnerInstructions(
-    tx
+  const raydiumCPIxs = paredIxs.filter((ix) =>
+    ix.programId.equals(RAYDIUM_CP_PROGRAM_ID)  || 
+        ix.programId.equals(TOKEN_PROGRAM_ID)
   );
+  const parsedInnerIxs = RAYDIUM_CP_IX_PARSER.parseTransactionWithInnerInstructions(hydratedTx);
 
-  const compiledIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(CPMM_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
-  );
+   let raydium_CP_inner_ixs = parsedInnerIxs.filter((ix) =>
+        ix.programId.equals(RAYDIUM_CP_PROGRAM_ID) || 
+        ix.programId.equals(TOKEN_PROGRAM_ID)
+   );
 
-  const parsedFilteredInnerIxs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(CPMM_PROGRAM_ID) || ix.programId.equals(TOKEN_PROGRAM_ID),
-  );
-
-  const result = { compiledInstructions: compiledIxs, innerInstructions: parsedFilteredInnerIxs };
+  if (raydiumCPIxs.length === 0 && raydium_CP_inner_ixs.length === 0) return;
+  const events = RAYDIUM_CP_EVENT_PARSER.parseEvent(tx);
+  const result = { 
+   instructions: raydiumCPIxs, 
+   innerInstructions: raydium_CP_inner_ixs,
+   events 
+ }; 
   bnLayoutFormatter(result);
   return result;
 }
+
+
+
+  function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
+    const loaded = tx.meta?.loadedAddresses;
+    if (!loaded) return tx;
+
+    function ensurePublicKey(arr: (Buffer | PublicKey)[]) {
+      return arr.map(item =>
+        item instanceof PublicKey ? item : new PublicKey(item)
+      );
+    }
+
+    tx.meta.loadedAddresses = {
+      writable: ensurePublicKey(loaded.writable),
+      readonly: ensurePublicKey(loaded.readonly),
+    };
+
+    return tx;
+  }
