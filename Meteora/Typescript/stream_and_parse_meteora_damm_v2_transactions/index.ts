@@ -1,15 +1,8 @@
-require('dotenv').config()
+import "dotenv/config";
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest,
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
@@ -54,20 +47,6 @@ console.error = (message?: any, ...optionalParams: any[]) => {
   originalConsoleError(message, ...optionalParams); 
 };
 
-
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
-
 const TXN_FORMATTER = new TransactionFormatter();
 const METEORA_DAMM_v2_PROGRAM_ID = new PublicKey(
   "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
@@ -87,7 +66,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
   // Subscribe for events
   const stream = await client.subscribe();
 
-  // Create `error` / `end` handler
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
       console.log("ERROR", error);
