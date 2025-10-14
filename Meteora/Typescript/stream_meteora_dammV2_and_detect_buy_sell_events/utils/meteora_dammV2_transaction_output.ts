@@ -30,39 +30,5 @@ export function meteoradammV2TransactionOutput(parsedInstruction, txn) {
     amount_out: outputTransfer.args.amount
   };
 
-  if (txn.version === 0) {
-    output = {
-      ...txn,
-      meta: {
-        ...txn.meta,
-        innerInstructions: parsedInstruction.inner_ixs,
-      },
-      transaction: {
-        ...txn.transaction,
-        message: {
-          ...txn.transaction.message,
-          compiledInstructions: parsedInstruction.instructions,
-        },
-      },
-      buy_sell_event: event_type
-    };
-  } else {
-    output = {
-      ...txn,
-      meta: {
-        ...txn.meta,
-        innerInstructions: parsedInstruction.inner_ixs,
-      },
-      transaction: {
-        ...txn.transaction,
-        message: {
-          ...txn.transaction.message,
-          instructions: parsedInstruction.instructions,
-        },
-      },
-      buy_sell_event: event_type
-    };
-  }
-
-  return output;
+  return event_type;
 }
