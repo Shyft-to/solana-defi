@@ -2,7 +2,6 @@
 
  This code streams all newly minted tokens on Pump.fun, ensuring you receive instant notifications as soon as a token is created. Stay ahead of the market by tracking new token launches in real time, giving you a competitive edge in early discovery and analysis.
 
-![screenshot](assets/screenshot-grpc.jpg?raw=true "Screenshot")
 
 ## Getting Started
 
@@ -10,7 +9,7 @@
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
    
-   cd PumpFun/Typescript/stream-pump-fun-transactions-and-detect-buy-sell-events
+   cd PumpFun/Typescript/stream_pump_fun_new_minted_tokens
    ```
 
 2. **Install Dependencies:**
