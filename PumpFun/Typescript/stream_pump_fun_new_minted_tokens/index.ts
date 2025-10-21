@@ -66,7 +66,7 @@ const TXN_FORMATTER = new TransactionFormatter();
 
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  console.log("Streaming Buy Sell on Pumpfun...")
+  console.log("Streaming Newly Minted Tokens on Pumpfun...")
   const stream = await client.subscribe();
 
   const streamClosed = new Promise<void>((resolve, reject) => {
