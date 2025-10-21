@@ -2,6 +2,8 @@
 
  This code streams all newly minted tokens on Pump.fun, ensuring you receive instant notifications as soon as a token is created. Stay ahead of the market by tracking new token launches in real time, giving you a competitive edge in early discovery and analysis.
 
+![screenshot](assets/newly-minted.png?raw=true "Screenshot")
+
 
 ## Getting Started
 
