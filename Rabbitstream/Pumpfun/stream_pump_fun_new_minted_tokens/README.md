@@ -28,6 +28,5 @@
 *Note: Please rename the `.env.sample` file to `.env` and input your env details before running the script.*
 
 ## Related Links
-
-
 Shyft gRPC Docs: [https://docs.shyft.to/solana-fast-grpc/grpc-docs]
+Rabbitstream vs gRPC comparison: [https://github.com/Shyft-to/yellowstone-grpc-vs-rabbitstream/tree/main/PumpFun/Typescript/stream-pump-fun-new-minted-tokens]
