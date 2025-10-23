@@ -1,5 +1,5 @@
 export function parseSwapTransactionOutput(parsedInstruction) {
-    const parsedEvent = parsedInstruction?.events?.find(e => e.name === 'TradeEvent').data;
+    const parsedEvent = parsedInstruction?.events?.find(e => e.name === 'TradeEvent')?.data;
     const supply = 1_000_000_000_000_000;
 
     let swapInstruction = 
