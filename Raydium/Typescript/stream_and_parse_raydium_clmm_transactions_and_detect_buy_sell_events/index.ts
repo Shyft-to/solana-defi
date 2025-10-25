@@ -1,57 +1,75 @@
-require('dotenv').config()
+import "dotenv/config";
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest,
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { Idl } from "@project-serum/anchor";
+import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
+import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
-import raydiumClmmIdl from "./idls/raydium_clmm.json";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
+import raydiumClmmIdl from "./idls/raydium_clmm..json";
 import { parsedTransactionOutput } from "./utils/parsedTransactionOutput";
 
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
+
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.warn = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return;
+  }
+  originalConsoleWarn(message, ...optionalParams); 
+};
+
+console.log = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleLog(message, ...optionalParams); 
+};
+
+console.error = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleError(message, ...optionalParams); 
+};
 
 const TXN_FORMATTER = new TransactionFormatter();
 const RAYDIUM_CLMM_PROGRAM_ID = new PublicKey(
-  "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+  "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK"
+);
+const TOKEN_PROGRAM_ID = new PublicKey(
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 );
 const RAYDIUM_CLMM_IX_PARSER = new SolanaParser([]);
 RAYDIUM_CLMM_IX_PARSER.addParserFromIdl(
   RAYDIUM_CLMM_PROGRAM_ID.toBase58(),
-  raydiumClmmIdl as Idl,
+  raydiumClmmIdl as Idl
 );
 const RAYDIUM_CLMM_EVENT_PARSER = new SolanaEventParser([], console);
 RAYDIUM_CLMM_EVENT_PARSER.addParserFromIdl(
   RAYDIUM_CLMM_PROGRAM_ID.toBase58(),
-  raydiumClmmIdl as Idl,
+  raydiumClmmIdl as Idl
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
-  console.log("Streaming Started...")
   const stream = await client.subscribe();
 
+  // Create `error` / `end` handler
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
       console.log("ERROR", error);
@@ -66,19 +84,27 @@ async function handleStream(client: Client, args: SubscribeRequest) {
     });
   });
 
+  // Handle updates
   stream.on("data", (data) => {
     if (data?.transaction) {
       const txn = TXN_FORMATTER.formTransactionFromJson(
         data.transaction,
-        Date.now(),
+        Date.now()
       );
-      const parsedInstructions = decodeRaydiumClmm(txn);
 
-      if (!parsedInstructions) return;
-      const formattedTxn = parsedTransactionOutput(parsedInstructions,txn)
-      console.log(`New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
-         JSON.stringify(formattedTxn.output, null, 2) + "\n",
-        formattedTxn.transactionEvent);
+      const parsedTxn = decodeRaydiumClmmTxn(txn);
+      if (!parsedTxn) return;
+      const raydiumClmmBuySellEvent = parsedTransactionOutput(parsedTxn, txn);
+      if (!raydiumClmmBuySellEvent) return;
+      console.log(
+        new Date(),
+        ":",
+        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+        JSON.stringify(raydiumClmmBuySellEvent, null, 2) + "\n"
+      );
+      console.log(
+        "--------------------------------------------------------------------------------------------------"
+      );
     }
   });
 
@@ -110,15 +136,16 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
 }
 
 const client = new Client(
-  process.env.GRPC_URL,
+  process.env.GRPC_URL!,
   process.env.X_TOKEN,
-  undefined,
+  undefined
 );
+
 const req: SubscribeRequest = {
   accounts: {},
   slots: {},
   transactions: {
-    Meteora_Pool: {
+    raydiumClmm: {
       vote: false,
       failed: false,
       signature: undefined,
@@ -138,28 +165,52 @@ const req: SubscribeRequest = {
 
 subscribeCommand(client, req);
 
-function decodeRaydiumClmm(tx: VersionedTransactionResponse) {
+function decodeRaydiumClmmTxn(tx: VersionedTransactionResponse) {
   if (tx.meta?.err) return;
+   const hydratedTx = hydrateLoadedAddresses(tx);
 
   const paredIxs = RAYDIUM_CLMM_IX_PARSER.parseTransactionData(
-    tx.transaction.message,
-    tx.meta.loadedAddresses,
+    hydratedTx.transaction.message,
+    hydratedTx.meta.loadedAddresses
   );
-
-  const raydium_clmm_Ixs = paredIxs.filter((ix) =>
-    ix.programId.equals(RAYDIUM_CLMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+  const raydiumClmmIxs = paredIxs.filter((ix) =>
+    ix.programId.equals(RAYDIUM_CLMM_PROGRAM_ID)  || 
+        ix.programId.equals(TOKEN_PROGRAM_ID)
   );
+  const parsedInnerIxs = RAYDIUM_CLMM_IX_PARSER.parseTransactionWithInnerInstructions(hydratedTx);
 
-  const parsedInnerIxs = RAYDIUM_CLMM_IX_PARSER.parseTransactionWithInnerInstructions(tx);
+   let raydium_clmm_inner_ixs = parsedInnerIxs.filter((ix) =>
+        ix.programId.equals(RAYDIUM_CLMM_PROGRAM_ID) || 
+        ix.programId.equals(TOKEN_PROGRAM_ID)
+   );
 
-  const raydium_clmm_inner_ixs = parsedInnerIxs.filter((ix) =>
-    ix.programId.equals(RAYDIUM_CLMM_PROGRAM_ID) || ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
-  );
-
-
-  if (raydium_clmm_Ixs.length === 0) return;
+  if (raydiumClmmIxs.length === 0 && raydium_clmm_inner_ixs.length === 0) return;
   const events = RAYDIUM_CLMM_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: raydium_clmm_Ixs, inner_ixs: raydium_clmm_inner_ixs, events };
+  const result = { 
+   instructions: raydiumClmmIxs, 
+   innerInstructions: raydium_clmm_inner_ixs,
+   events 
+ }; 
   bnLayoutFormatter(result);
   return result;
 }
+
+
+
+  function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
+    const loaded = tx.meta?.loadedAddresses;
+    if (!loaded) return tx;
+
+    function ensurePublicKey(arr: (Buffer | PublicKey)[]) {
+      return arr.map(item =>
+        item instanceof PublicKey ? item : new PublicKey(item)
+      );
+    }
+
+    tx.meta.loadedAddresses = {
+      writable: ensurePublicKey(loaded.writable),
+      readonly: ensurePublicKey(loaded.readonly),
+    };
+
+    return tx;
+  }
