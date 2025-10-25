@@ -6,20 +6,17 @@ import {
   PublicKey,
   VersionedTransactionResponse,
 } from "@solana/web3.js";
-import { BorshCoder, EventParser, Idl } from "@project-serum/anchor";
+import { BorshCoder, EventParser, Idl } from "@coral-xyz/anchor";
 import { intersection } from "lodash";
 
 export class SolanaEventParser {
   private eventDecoders: Map<PublicKey | string, BorshCoder>;
-  constructor(
-    programInfos: ProgramInfoType[],
-    private logger: Console,
-  ) {
+  constructor(programInfos: ProgramInfoType[], private logger: Console) {
     this.eventDecoders = new Map();
     for (const programInfo of programInfos) {
       this.addParserFromIdl(
         new PublicKey(programInfo.programId),
-        programInfo.idl as Idl,
+        programInfo.idl as Idl
       );
     }
   }
@@ -30,6 +27,11 @@ export class SolanaEventParser {
         const coder = new BorshCoder(idl);
         this.eventDecoders.set(programId, coder);
       } catch (e) {
+        this.logger.error({
+          message: "SolanaEventParser.addParserFromIdl_error",
+          data: { programId },
+          error: e,
+        });
       }
     }
   }
@@ -58,7 +60,7 @@ export class SolanaEventParser {
         });
       }
       const availableProgramIds = Array.from(this.eventDecoders.keys()).map(
-        (programId) => programId.toString(),
+        (programId) => programId.toString()
       );
       const commonProgramIds = intersection(availableProgramIds, programIds);
       if (commonProgramIds.length) {
@@ -71,10 +73,10 @@ export class SolanaEventParser {
 
           const eventParser = new EventParser(
             new PublicKey(programId),
-            eventCoder,
+            eventCoder
           );
           const eventsArray = Array.from(
-            eventParser.parseLogs(txn?.meta?.logMessages as string[]),
+            eventParser.parseLogs(txn?.meta?.logMessages as string[])
           );
           events.push(...eventsArray);
         }

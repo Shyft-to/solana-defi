@@ -16,7 +16,7 @@ Raydium CLMM Program Id: CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd Raydium/Typescript/stream_and_parse_clmm_transactions
+   cd Raydium/Typescript/stream_and_parse_raydium_clmm_transactions
    ```
 
 2. **Install Dependencies:**
