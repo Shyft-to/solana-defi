@@ -1,22 +1,11 @@
 import "dotenv/config";
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest,
 } from "@triton-one/yellowstone-grpc";
-import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { Idl } from "@coral-xyz/anchor";
-import { SolanaParser } from "@shyft-to/solana-transaction-parser";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
-import { SolanaEventParser } from "./utils/event-parser";
-import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import pumpAmmIdl from "./idls/pump_amm_0.1.0.json";
+import { PUMP_AMM_PROGRAM_ID } from "./utils/type";
+import { PumpAmmDecoder } from "./utils/decode-parser";
 
 
 const originalConsoleWarn = console.warn;
@@ -53,35 +42,8 @@ console.error = (message?: any, ...optionalParams: any[]) => {
   originalConsoleError(message, ...optionalParams); 
 };
 
-
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
-
 const TXN_FORMATTER = new TransactionFormatter();
-const PUMP_AMM_PROGRAM_ID = new PublicKey(
-  "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
-);
-const PUMP_AMM_IX_PARSER = new SolanaParser([]);
-PUMP_AMM_IX_PARSER.addParserFromIdl(
-  PUMP_AMM_PROGRAM_ID.toBase58(),
-  pumpAmmIdl as Idl
-);
-const PUMP_AMM_EVENT_PARSER = new SolanaEventParser([], console);
-PUMP_AMM_EVENT_PARSER.addParserFromIdl(
-  PUMP_AMM_PROGRAM_ID.toBase58(),
-  pumpAmmIdl as Idl
-);
-
+const PUMPAMM_PARSER = new PumpAmmDecoder();
 async function handleStream(client: Client, args: SubscribeRequest) {
   // Subscribe for events
   const stream = await client.subscribe();
@@ -109,19 +71,17 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now()
       );
 
-      const parsedTxn = decodePumpAMMTxn(txn);
-
-      if (!parsedTxn) return;
-
+      const parsedTxn = PUMPAMM_PARSER.decodePumpAmmTxn(txn);
+      
       console.log(
         new Date(),
-        ":",
-        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
-        JSON.stringify(parsedTxn, null, 2) + "\n"
-      );
-      console.log(
-        "--------------------------------------------------------------------------------------------------"
-      );
+         ":",
+         `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+         JSON.stringify(parsedTxn, null, 2) + "\n"
+       );
+       console.log(
+         "--------------------------------------------------------------------------------------------------"
+       );
     }
   });
 
@@ -182,22 +142,3 @@ const req: SubscribeRequest = {
 };
 
 subscribeCommand(client, req);
-
-function decodePumpAMMTxn(tx: VersionedTransactionResponse) {
-  if (tx.meta?.err) return;
-
-  const paredIxs = PUMP_AMM_IX_PARSER.parseTransactionData(
-    tx.transaction.message,
-    tx.meta.loadedAddresses
-  );
-
-  const pumpFunIxs = paredIxs.filter((ix) =>
-    ix.programId.equals(PUMP_AMM_PROGRAM_ID)
-  );
-
-  if (pumpFunIxs.length === 0) return;
-  const events = PUMP_AMM_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: pumpFunIxs, events };
-  bnLayoutFormatter(result);
-  return result;
-}
