@@ -1,5 +1,5 @@
 {
-  "name": "stream-and-parse-meteora_damm_transactions",
+  "name": "stream-and-parse-meteora_damm_v2_transactions",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -34,7 +34,7 @@
     "@coral-xyz/anchor": "^0.30.1",
     "@shyft-to/solana-transaction-parser": "^2.0.0",
     "@solana/web3.js": "^1.93.0",
-    "@triton-one/yellowstone-grpc": "^4.0.0",
+    "@triton-one/yellowstone-grpc": "^4.0.2",
     "dotenv": "^16.4.7",
     "lodash": "^4.17.21"
   }
