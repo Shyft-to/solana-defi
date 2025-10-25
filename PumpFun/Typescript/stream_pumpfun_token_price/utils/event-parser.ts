@@ -8,6 +8,7 @@ import {
 } from "@solana/web3.js";
 import { BorshCoder, EventParser, Idl } from "@coral-xyz/anchor";
 import { intersection } from "lodash";
+import bs58 from 'bs58';
 
 export class SolanaEventParser {
   private eventDecoders: Map<PublicKey | string, BorshCoder>;
@@ -39,97 +40,86 @@ export class SolanaEventParser {
   removeParser(programId: PublicKey | string) {
     this.eventDecoders.delete(programId);
   }
-  parseEvent(txn: VersionedTransactionResponse | ParsedTransactionWithMeta) {
-    const events: any[] = [];
-    try {
-     if (!txn?.meta?.logMessages) return events;
 
-     const allLogs = txn.meta.logMessages;
+  parseEvent(txn: VersionedTransactionResponse | ParsedTransactionWithMeta) {
+    try {
+      let programIds: string[] = Array.from(this.eventDecoders.keys()).map(
+        (e) => e.toString()
+      );
+      if (
+        txn?.transaction.message instanceof Message ||
+        txn?.transaction.message instanceof MessageV0
+      ) {
+        const accountKeys = txn.transaction.message.staticAccountKeys;
+        txn.transaction.message.compiledInstructions.forEach((instruction) => {
+          const programId = accountKeys[instruction.programIdIndex];
+          if (programId) {
+            programIds.push(programId.toBase58());
+          }
+        });
+      } else {
+        txn.transaction.message.instructions.forEach((instruction) => {
+          programIds.push(instruction.programId.toBase58());
+        });
+      }
+      const availableProgramIds = Array.from(this.eventDecoders.keys()).map(
+        (programId) => programId.toString()
+      );
+      const commonProgramIds = intersection(availableProgramIds, programIds);
+      if (commonProgramIds.length) {
+        const events: any[] = [];
+        for (const programId of commonProgramIds) {
+          const eventCoder = this.eventDecoders.get(programId);
+          if (!eventCoder) {
+            continue;
+          }
+
+          const eventParser = new EventParser(
+            new PublicKey(programId),
+            eventCoder
+          );
+          const eventsArray = Array.from(
+            eventParser.parseLogs(txn?.meta?.logMessages as string[])
+          );
+          events.push(...eventsArray);
+        }
+        return events;
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
+    }
+  }
+   parseCpiEvent(txn: VersionedTransactionResponse | ParsedTransactionWithMeta) {
+    const events: any[] = [];
+    const programData = txn.meta.innerInstructions.map((innerInstruction) => innerInstruction.instructions);
+    try {
+     if (!programData) return events;
+
+     const allProgramData = programData.flat().map(instr => instr.data)
      const availableProgramIds = Array.from(this.eventDecoders.keys()).map(p => p.toString());
 
      for (const programId of availableProgramIds) {
       const eventCoder = this.eventDecoders.get(programId);
       if (!eventCoder) continue;
-
-      const programKey = new PublicKey(programId);
-
-      try {
-        const anchorEvents = Array.from(new EventParser(programKey, eventCoder).parseLogs(allLogs));
-        if (anchorEvents.length > 0) {
-          events.push(...anchorEvents);
-          continue;
-        }
-      } catch (err) {
-        this.logger.warn({
-          message: "Anchor event parse failed, trying raw decode",
-          data: { programId },
-          error: err,
-        });
-      }
-
-      let insideProgram = false;
-
-      for (const log of allLogs) {
-        if (log.startsWith(`Program ${programId} invoke`)) {
-          insideProgram = true;
-          continue;
-        }
-
-        if (log.startsWith(`Program ${programId} success`) || log.startsWith(`Program ${programId} failed`)) {
-          insideProgram = false;
-          continue;
-        }
-
-        if (insideProgram && log.startsWith("Program data:")) {
-          const base64Data = log.replace("Program data: ", "").trim();
-          const buf = Buffer.from(base64Data, "base64");
-
-          let decoded: any = null;
-
-          if ((eventCoder as any).idl?.events) {
-            for (const e of (eventCoder as any).idl.events) {
-              try {
-                decoded = eventCoder.types.decode(e.name, buf);
-                if (decoded) {
-                  events.push({ source: programId, kind: "event", name: e.name, data: decoded });
-                  break;
-                }
-              } catch {}
-            }
+      for (const log of allProgramData) {
+    
+        if (log.startsWith("CTu2YvT3DVurkJGfs6Y")) {
+          try{
+        console.log("LOGS: ", log)
+          const decoded = eventCoder.events.decode(log);
+           if (decoded) {
+               events.push({ source: programId, kind: "account", name: "TradeEvent", data: decoded });
+               break;
+             }
+           }catch (e) {
+             this.logger.error({ 
+              message: "SolanaEventParser.parseCpiEvent_error", 
+              error: e 
+              });
+           }
           }
-
-          if (!decoded && (eventCoder as any).idl?.accounts) {
-            for (const acc of (eventCoder as any).idl.accounts) {
-              try {
-                decoded = eventCoder.accounts.decode(acc.name, buf);
-                if (decoded) {
-                  events.push({ source: programId, kind: "account", name: acc.name, data: decoded });
-                  break;
-                }
-              } catch {}
-            }
-          }
-
-          if (!decoded && (eventCoder as any).idl?.types) {
-            for (const t of (eventCoder as any).idl.types) {
-              try {
-                decoded = eventCoder.types.decode(t.name, buf);
-                if (decoded) {
-                  events.push({ source: programId, kind: "type", name: t.name, data: decoded });
-                  break;
-                }
-              } catch {}
-            }
-          }
-
-          if (!decoded) {
-            events.push({
-              source: programId,
-              kind: "raw",
-              data: buf.toString("hex"),
-            });
-          }
-        }
       }
     }
 
