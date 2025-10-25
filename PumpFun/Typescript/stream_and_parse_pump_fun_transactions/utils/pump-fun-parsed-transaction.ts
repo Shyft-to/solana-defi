@@ -1,10 +1,12 @@
 ﻿export function pumpFunParsedTransaction(parsedInstruction,txn){
   let output = {};
+  let inner_ixs = parsedInstruction.inner_ixs;
+  let events = parsedInstruction.events;
     output = {
       ...txn,
       meta: {
         ...txn.meta,
-        innerInstructions: parsedInstruction.inner_ixs,
+        innerInstructions: {inner_ixs, events},
       },
       transaction: {
         ...txn.transaction,
