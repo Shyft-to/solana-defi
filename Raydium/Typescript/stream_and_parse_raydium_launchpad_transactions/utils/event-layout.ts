@@ -2,6 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import { publicKey, u64 } from "@solana/buffer-layout-utils";
 import { struct, u8 } from "@solana/buffer-layout";
 
+
 const TradeDirection = {
   Buy: 0,
   Sell: 1,

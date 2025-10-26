@@ -15,7 +15,6 @@ export function parseSwapTransactionOutput(parsedInstruction, txn) {
 
     let baseMintPubkey = swapInstruction?.accounts?.find((account) => account.name === 'base_mint')?.pubkey;
     let quoteMintPubkey = swapInstruction?.accounts?.find((account) => account.name === 'quote_mint')?.pubkey;
-
     [baseMintPubkey, quoteMintPubkey] = getValidMints(
         baseMintPubkey,
         quoteMintPubkey,
@@ -57,23 +56,24 @@ function calculatePumpAmmPrice(
     const quote = pool_quote_reserve/ Math.pow(10, decimal);
     return base / quote;
 }
-function getValidMints(baseMint: string, quoteMint: string, preTokenBalances: any[]): [string, string] {
-    const invalidPattern = /=|[^A-Za-z0-9]/g; 
+function getValidMints(baseMint, quoteMint, preTokenBalances = []) {
+    const invalidPattern = /=|[^A-Za-z0-9]/g;
+    const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-    const isValid = (mint: string) => mint && !invalidPattern.test(mint);
+    const isValid = (mint) => mint && !invalidPattern.test(mint);
+
     if (isValid(baseMint) && isValid(quoteMint)) {
         return [baseMint, quoteMint];
     }
-    const uniqueMints = [...new Set(preTokenBalances.map((b) => b.mint))];
+
+    const uniqueMints = [...new Set(preTokenBalances.map((b) => b.mint))].filter(isValid);
 
     if (!isValid(baseMint)) {
-        const replacement = uniqueMints.find((m) => m !== quoteMint);
-        if (replacement) baseMint = replacement;
+        baseMint = uniqueMints.find((m) => m !== quoteMint) || SOL_MINT;
     }
 
     if (!isValid(quoteMint)) {
-        const replacement = uniqueMints.find((m) => m !== baseMint);
-        if (replacement) quoteMint = replacement;
+        quoteMint = uniqueMints.find((m) => m !== baseMint) || SOL_MINT;
     }
 
     return [baseMint, quoteMint];
