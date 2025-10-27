@@ -1,6 +1,7 @@
 #[cfg(feature = "serde")]
 use std::fmt;
 use crate::*;
+use crate::typedefs::OptionBool;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult,
@@ -18,6 +19,7 @@ pub enum PumpfunAmmProgramIx {
     AdminSetCoinCreator(AdminSetCoinCreatorIxArgs),
     AdminUpdateTokenIncentives(AdminUpdateTokenIncentivesIxArgs),
     Buy(BuyIxArgs),
+    BuyExactQuoteIn(BuyExactQuoteInIxArgs),
     ClaimTokenIncentives,
     CloseUserVolumeAccumulator,
     CollectCoinCreatorFee(CollectCoinCreatorFeeIxArgs),
@@ -40,6 +42,7 @@ impl PumpfunAmmProgramIx {
             Self::AdminSetCoinCreator(_) => "AdminSetCoinCreator",
             Self::AdminUpdateTokenIncentives(_) => "AdminUpdateTokenIncentives",
             Self::Buy(_) => "Buy",
+            Self::BuyExactQuoteIn(_) => "BuyExactQuoteIn",
             Self::ClaimTokenIncentives => "ClaimTokenIncentives",
             Self::CloseUserVolumeAccumulator => "CloseUserVolumeAccumulator",
             Self::CollectCoinCreatorFee(_) => "CollectCoinCreatorFee",
@@ -81,6 +84,13 @@ impl PumpfunAmmProgramIx {
                 Ok(
                     Self::Buy(
                         BuyIxArgs::deserialize(&mut reader)?,
+                    ),
+                )
+            }
+            BUY_EXACT_QUOTE_IN_IX_DISCM => {
+                Ok(
+                    Self::BuyExactQuoteIn(
+                        BuyExactQuoteInIxArgs::deserialize(&mut reader)?,
                     ),
                 )
             }
@@ -168,6 +178,10 @@ impl PumpfunAmmProgramIx {
             }
             Self::Buy(args) => {
                 writer.write_all(&BUY_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::BuyExactQuoteIn(args) => {
+                writer.write_all(&BUY_EXACT_QUOTE_IN_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
             Self::ClaimTokenIncentives  =>  writer.write_all(&CLAIM_TOKEN_INCENTIVES_IX_DISCM),
@@ -1105,7 +1119,8 @@ pub const BUY_IX_DISCM: [u8; 8] =  [102, 6, 61, 18, 1, 218, 235, 234];
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BuyIxArgs {
     pub base_amount_out: u64,
-    pub max_quote_amount_in: u64
+    pub max_quote_amount_in: u64,
+    pub track_volume: OptionBool,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuyIxData(pub BuyIxArgs);
@@ -1268,8 +1283,474 @@ pub fn buy_verify_account_privileges<'me, 'info>(
     buy_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
-pub const CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN: usize = 12;
 
+pub const BUY_EXACT_QUOTE_IN_IX_ACCOUNTS_LEN: usize = 23;
+#[derive(Copy, Clone, Debug)]
+pub struct BuyExactQuoteInAccounts<'me, 'info> {
+    pub pool: &'me AccountInfo<'info>,
+    pub user: &'me AccountInfo<'info>,
+    pub global_config: &'me AccountInfo<'info>,
+    pub base_mint: &'me AccountInfo<'info>,
+    pub quote_mint: &'me AccountInfo<'info>,
+    pub user_base_token_account: &'me AccountInfo<'info>,
+    pub user_quote_token_account: &'me AccountInfo<'info>,
+    pub pool_base_token_account: &'me AccountInfo<'info>,
+    pub pool_quote_token_account: &'me AccountInfo<'info>,
+    pub protocol_fee_recipient: &'me AccountInfo<'info>,
+    pub protocol_fee_recipient_token_account: &'me AccountInfo<'info>,
+    pub base_token_program: &'me AccountInfo<'info>,
+    pub quote_token_program: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub associated_token_program: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+    pub coin_creator_vault_ata: &'me AccountInfo<'info>,
+    pub coin_creator_vault_authority: &'me AccountInfo<'info>,
+    pub global_volume_accumulator: &'me AccountInfo<'info>,
+    pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub fee_config: &'me AccountInfo<'info>,
+    pub fee_program: &'me AccountInfo<'info>,  
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct BuyExactQuoteInKeys {
+    pub pool: Pubkey,
+    pub user: Pubkey,
+    pub global_config: Pubkey,
+    pub base_mint: Pubkey,
+    pub quote_mint: Pubkey,
+    pub user_base_token_account: Pubkey,
+    pub user_quote_token_account: Pubkey,
+    pub pool_base_token_account: Pubkey,
+    pub pool_quote_token_account: Pubkey,
+    pub protocol_fee_recipient: Pubkey,
+    pub protocol_fee_recipient_token_account: Pubkey,
+    pub base_token_program: Pubkey,
+    pub quote_token_program: Pubkey,
+    pub system_program: Pubkey,
+    pub associated_token_program: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+    pub coin_creator_vault_ata: Pubkey,
+    pub coin_creator_vault_authority: Pubkey,
+    pub global_volume_accumulator: Pubkey,
+    pub user_volume_accumulator: Pubkey,
+    pub fee_config: Pubkey,
+    pub fee_program: Pubkey,  
+}
+
+impl From<BuyExactQuoteInAccounts<'_, '_>> for BuyExactQuoteInKeys {
+    fn from(accounts: BuyExactQuoteInAccounts) -> Self {
+        Self {
+            pool: *accounts.pool.key,
+            user: *accounts.user.key,
+            global_config: *accounts.global_config.key,
+            base_mint: *accounts.base_mint.key,
+            quote_mint: *accounts.quote_mint.key,
+            user_base_token_account: *accounts.user_base_token_account.key,
+            user_quote_token_account: *accounts.user_quote_token_account.key,
+            pool_base_token_account: *accounts.pool_base_token_account.key,
+            pool_quote_token_account: *accounts.pool_quote_token_account.key,
+            protocol_fee_recipient: *accounts.protocol_fee_recipient.key,
+            protocol_fee_recipient_token_account: *accounts.protocol_fee_recipient_token_account.key,
+            base_token_program: *accounts.base_token_program.key,
+            quote_token_program: *accounts.quote_token_program.key,
+            system_program: *accounts.system_program.key,
+            associated_token_program: *accounts.associated_token_program.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+            coin_creator_vault_ata: *accounts.coin_creator_vault_ata.key,
+            coin_creator_vault_authority: *accounts.coin_creator_vault_authority.key,
+            global_volume_accumulator: *accounts.global_volume_accumulator.key,
+            user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            fee_config: *accounts.fee_config.key,
+            fee_program: *accounts.fee_program.key
+        }
+    }
+}
+
+impl From<BuyExactQuoteInKeys> for [AccountMeta; BUY_EXACT_QUOTE_IN_IX_ACCOUNTS_LEN] {
+    fn from(keys: BuyExactQuoteInKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.global_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.base_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.quote_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.user_base_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_quote_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.pool_base_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.pool_quote_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.protocol_fee_recipient,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.protocol_fee_recipient_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.base_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.quote_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.associated_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_ata,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.global_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.fee_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.fee_program,
+                is_signer: false,
+                is_writable: false,
+            }
+        ]
+    }
+}
+
+impl From<[Pubkey; BUY_EXACT_QUOTE_IN_IX_ACCOUNTS_LEN]> for BuyExactQuoteInKeys {
+    fn from(pubkeys: [Pubkey; BUY_EXACT_QUOTE_IN_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: pubkeys[0],
+            user: pubkeys[1],
+            global_config: pubkeys[2],
+            base_mint: pubkeys[3],
+            quote_mint: pubkeys[4],
+            user_base_token_account: pubkeys[5],
+            user_quote_token_account: pubkeys[6],
+            pool_base_token_account: pubkeys[7],
+            pool_quote_token_account: pubkeys[8],
+            protocol_fee_recipient: pubkeys[9],
+            protocol_fee_recipient_token_account: pubkeys[10],
+            base_token_program: pubkeys[11],
+            quote_token_program: pubkeys[12],
+            system_program: pubkeys[13],
+            associated_token_program: pubkeys[14],
+            event_authority: pubkeys[15],
+            program: pubkeys[16],
+            coin_creator_vault_ata: pubkeys[17],
+            coin_creator_vault_authority: pubkeys[18],
+            global_volume_accumulator: pubkeys[19],
+            user_volume_accumulator: pubkeys[20],
+            fee_config: pubkeys[21],
+            fee_program: pubkeys[22],
+        }
+    }
+}
+
+impl<'info> From<BuyExactQuoteInAccounts<'_, 'info>> for [AccountInfo<'info>; BUY_EXACT_QUOTE_IN_IX_ACCOUNTS_LEN] {
+    fn from(accounts: BuyExactQuoteInAccounts<'_, 'info>) -> Self {
+        [
+            accounts.pool.clone(),
+            accounts.user.clone(),
+            accounts.global_config.clone(),
+            accounts.base_mint.clone(),
+            accounts.quote_mint.clone(),
+            accounts.user_base_token_account.clone(),
+            accounts.user_quote_token_account.clone(),
+            accounts.pool_base_token_account.clone(),
+            accounts.pool_quote_token_account.clone(),
+            accounts.protocol_fee_recipient.clone(),
+            accounts.protocol_fee_recipient_token_account.clone(),
+            accounts.base_token_program.clone(),
+            accounts.quote_token_program.clone(),
+            accounts.system_program.clone(),
+            accounts.associated_token_program.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+            accounts.coin_creator_vault_ata.clone(),
+            accounts.coin_creator_vault_authority.clone(),
+            accounts.global_volume_accumulator.clone(),
+            accounts.user_volume_accumulator.clone(),
+            accounts.fee_config.clone(),
+            accounts.fee_program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; BUY_EXACT_QUOTE_IN_IX_ACCOUNTS_LEN]> for BuyExactQuoteInAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; BUY_EXACT_QUOTE_IN_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: &arr[0],
+            user: &arr[1],
+            global_config: &arr[2],
+            base_mint: &arr[3],
+            quote_mint: &arr[4],
+            user_base_token_account: &arr[5],
+            user_quote_token_account: &arr[6],
+            pool_base_token_account: &arr[7],
+            pool_quote_token_account: &arr[8],
+            protocol_fee_recipient: &arr[9],
+            protocol_fee_recipient_token_account: &arr[10],
+            base_token_program: &arr[11],
+            quote_token_program: &arr[12],
+            system_program: &arr[13],
+            associated_token_program: &arr[14],
+            event_authority: &arr[15],
+            program: &arr[16],
+            coin_creator_vault_ata: &arr[17],
+            coin_creator_vault_authority: &arr[18],
+            global_volume_accumulator: &arr[19],
+            user_volume_accumulator: &arr[20],
+            fee_config: &arr[21],
+            fee_program: &arr[22],
+        }
+    }
+}
+pub const BUY_EXACT_QUOTE_IN_IX_DISCM: [u8; 8] =  [198, 46, 21, 82, 180, 217, 232, 112];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BuyExactQuoteInIxArgs {
+    pub spendable_quote_in: u64,
+    pub min_base_amount_out: u64,
+    pub track_volume: OptionBool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BuyExactQuoteInIxData(pub BuyExactQuoteInIxArgs);
+impl From<BuyExactQuoteInIxArgs> for BuyExactQuoteInIxData {
+    fn from(args: BuyExactQuoteInIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl BuyExactQuoteInIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != BUY_EXACT_QUOTE_IN_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        BUY_EXACT_QUOTE_IN_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(BuyExactQuoteInIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&BUY_EXACT_QUOTE_IN_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn buy_exact_quote_in_ix_with_program_id(
+    program_id: Pubkey,
+    keys: BuyExactQuoteInKeys,
+    args: BuyExactQuoteInIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; BUY_EXACT_QUOTE_IN_IX_ACCOUNTS_LEN] = keys.into();
+    let data: BuyExactQuoteInIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn buy_exact_quote_in_ix(
+    keys: BuyExactQuoteInKeys,
+    args: BuyExactQuoteInIxArgs,
+) -> std::io::Result<Instruction> {
+    buy_exact_quote_in_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn buy_exact_quote_in_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: BuyExactQuoteInAccounts<'_, '_>,
+    args: BuyExactQuoteInIxArgs,
+) -> ProgramResult {
+    let keys: BuyExactQuoteInKeys = accounts.into();
+    let ix = buy_exact_quote_in_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn buy_exact_quote_in_invoke(
+    accounts: BuyExactQuoteInAccounts<'_, '_>,
+    args: BuyExactQuoteInIxArgs,
+) -> ProgramResult {
+    buy_exact_quote_in_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn buy_exact_quote_in_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: BuyExactQuoteInAccounts<'_, '_>,
+    args: BuyExactQuoteInIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: BuyExactQuoteInKeys = accounts.into();
+    let ix = buy_exact_quote_in_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn buy_exact_quote_in_invoke_signed(
+    accounts: BuyExactQuoteInAccounts<'_, '_>,
+    args: BuyExactQuoteInIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    buy_exact_quote_in_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn buy_exact_quote_in_verify_account_keys(
+    accounts: BuyExactQuoteInAccounts<'_, '_>,
+    keys: BuyExactQuoteInKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pool.key, keys.pool),
+        (*accounts.user.key, keys.user),
+        (*accounts.global_config.key, keys.global_config),
+        (*accounts.base_mint.key, keys.base_mint),
+        (*accounts.quote_mint.key, keys.quote_mint),
+        (*accounts.user_base_token_account.key, keys.user_base_token_account),
+        (*accounts.user_quote_token_account.key, keys.user_quote_token_account),
+        (*accounts.pool_base_token_account.key, keys.pool_base_token_account),
+        (*accounts.pool_quote_token_account.key, keys.pool_quote_token_account),
+        (*accounts.protocol_fee_recipient.key, keys.protocol_fee_recipient),
+        (*accounts.protocol_fee_recipient_token_account.key, keys.protocol_fee_recipient_token_account),
+        (*accounts.base_token_program.key, keys.base_token_program),
+        (*accounts.quote_token_program.key, keys.quote_token_program),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.associated_token_program.key, keys.associated_token_program),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+        (*accounts.coin_creator_vault_ata.key, keys.coin_creator_vault_ata),
+        (*accounts.coin_creator_vault_authority.key, keys.coin_creator_vault_authority),
+        (*accounts.global_volume_accumulator.key, keys.global_volume_accumulator),
+        (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.fee_config.key, keys.fee_config),
+        (*accounts.fee_program.key, keys.fee_program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn buy_exact_quote_in_verify_is_writable_privileges<'me, 'info>(
+    accounts: BuyExactQuoteInAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_is_writable in [
+        accounts.pool,
+        accounts.user,
+        accounts.user_base_token_account,
+        accounts.user_quote_token_account,
+        accounts.pool_base_token_account,
+        accounts.pool_quote_token_account,
+        accounts.protocol_fee_recipient_token_account,
+        accounts.coin_creator_vault_ata,
+        accounts.global_volume_accumulator,
+        accounts.user_volume_accumulator,
+    ] {
+        if !should_be_is_writable.is_writable {
+            return Err((should_be_is_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn buy_exact_quote_in_verify_is_signer_privileges<'me, 'info>(
+    accounts: BuyExactQuoteInAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_is_signer in [accounts.user] {
+        if !should_be_is_signer.is_signer {
+            return Err((should_be_is_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn buy_exact_quote_in_verify_account_privileges<'me, 'info>(
+    accounts: BuyExactQuoteInAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    buy_exact_quote_in_verify_is_writable_privileges(accounts)?;
+    buy_exact_quote_in_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN: usize = 12;
 #[derive(Copy, Clone, Debug)]
 pub struct ClaimTokenIncentivesAccounts<'me, 'info> {
     pub user: &'me AccountInfo<'info>,
