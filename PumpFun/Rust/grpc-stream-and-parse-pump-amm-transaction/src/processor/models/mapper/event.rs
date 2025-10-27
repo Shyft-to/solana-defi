@@ -60,7 +60,7 @@ pub fn decode_event_data(buf: &[u8]) -> Result<DecodedEvent, AccountEventError> 
   match discriminator {    
     BUY_EVENT_EVENT_DISCM => {
         let data = BuyEventEvent::deserialize(&mut &buf[..]).map_err(|e| AccountEventError {
-            message: format!("Failed to deserialize CreateEvent: {}", e),
+            message: format!("Failed to deserialize BuyEvent: {}", e),
         })?;
         Ok(DecodedEvent::BuyEvent(data.0))
     }
