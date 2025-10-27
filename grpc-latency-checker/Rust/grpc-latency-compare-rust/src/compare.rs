@@ -291,8 +291,8 @@ async fn grpc_message_handler(
         .unwrap()
         .tls_config(ClientTlsConfig::new().with_native_roots())
         .unwrap()
-        .send_compressed(yellowstone_grpc_proto::tonic::codec::CompressionEncoding::Gzip)
-        .accept_compressed(yellowstone_grpc_proto::tonic::codec::CompressionEncoding::Gzip)
+        //.send_compressed(yellowstone_grpc_proto::tonic::codec::CompressionEncoding::Gzip)
+        //.accept_compressed(yellowstone_grpc_proto::tonic::codec::CompressionEncoding::Gzip)
         .connect()
         .await
         .unwrap();
