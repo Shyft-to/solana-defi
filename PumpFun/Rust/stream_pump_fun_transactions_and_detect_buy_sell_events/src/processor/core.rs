@@ -15,6 +15,7 @@ use {
     },
     solana_sdk::{pubkey::Pubkey, hash::Hash},
 };
+use crate::TransactionEvent;
 use crate::processor::models::mapper::instruction::Idl;
 use crate::PUMPFUN_PROGRAM_ID;
 use crate::ParsedEventTransaction;
@@ -43,11 +44,10 @@ impl TransactionProcessor {
             token_program_id: Pubkey::from_str(TOKEN_PROGRAM_ID)?,
         })
     }
-
     pub fn process_transaction_update(
-    &self,
-    update: SubscribeUpdateTransaction,
-    ) -> anyhow::Result<Option<ParsedEventTransaction>> {
+     &self,
+     update: SubscribeUpdateTransaction,
+      ) -> anyhow::Result<Option<TransactionEvent>> {
       let slot = update.slot;
       let block_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)?
@@ -93,9 +93,7 @@ impl TransactionProcessor {
         } else {
             Ok(None)
      }
-}
-
-
+    }
     pub fn parse_signature(signature: &[u8]) -> anyhow::Result<Signature> {
         if signature.len() != 64 {
             anyhow::bail!("Signature must be exactly 64 bytes");
@@ -103,17 +101,15 @@ impl TransactionProcessor {
         let raw_signature_array: [u8; 64] = signature.try_into()?;
         Ok(Signature::from(raw_signature_array))
     }
-
     pub fn parse_blockhash(blockhash: &[u8]) -> anyhow::Result<Hash> {
         Ok(Hash::new_from_array(
             blockhash.try_into().context("Failed to convert blockhash to [u8; 32]")?,
         ))
     }
-
     pub fn extract_decoded_event(
         &self,
         confirmed_txn: &ConfirmedTransactionWithStatusMeta,
-    ) -> Option<DecodedEvent> {
+     ) -> Option<DecodedEvent> {
         if let TransactionWithStatusMeta::Complete(versioned_meta) = &confirmed_txn.tx_with_meta {
             if let Some(logs) = &versioned_meta.meta.log_messages {
                 if let Some(data_msg) = event::extract_log_message(logs) {
@@ -121,7 +117,6 @@ impl TransactionProcessor {
                         Ok(decoded_bytes) => match decode_event_data(&decoded_bytes) {
                             Ok(event) => return Some(event),
                             Err(err) => {
-                                eprintln!("❌ Failed to decode account data: {}", err.message);
                             }
                         },
                         Err(err) => {
@@ -133,11 +128,10 @@ impl TransactionProcessor {
         }
         None
     }
-
     pub fn extract_all_instructions(
         &self,
         confirmed_txn: &ConfirmedTransactionWithStatusMeta,
-    ) -> anyhow::Result<ExtractedInstructions> {
+     ) -> anyhow::Result<ExtractedInstructions> {
         match &confirmed_txn.tx_with_meta {
             TransactionWithStatusMeta::Complete(versioned_tx_with_meta) => {
                 Ok(ExtractedInstructions {
@@ -150,22 +144,20 @@ impl TransactionProcessor {
                 inner: vec![],
             }),
         }
-    }
-    
+    }   
     pub fn get_instruction_name_with_typename(&self,instruction: &TokenInstruction) -> String {
-    let debug_string = format!("{:?}", instruction);
-    if let Some(first_brace) = debug_string.find(" {") {
-        let name = &debug_string[..first_brace]; // Extract name before `{`
+     let debug_string = format!("{:?}", instruction);
+     if let Some(first_brace) = debug_string.find(" {") {
+        let name = &debug_string[..first_brace]; 
         self.to_camel_case(name)
-    } else {
-        self.to_camel_case(&debug_string) // Directly convert unit variant names
+     } else {
+        self.to_camel_case(&debug_string) 
+     }
     }
-    }
-
     pub fn flatten_compiled_instructions(
         &self,
         transaction_with_meta: &VersionedTransactionWithStatusMeta,
-    ) -> Vec<TransactionInstructionWithParent> {
+     ) -> Vec<TransactionInstructionWithParent> {
         let mut compiled_result = Vec::new();
         let transaction = &transaction_with_meta.transaction;
         let ci_ixs = transaction.message.instructions();
@@ -183,11 +175,10 @@ impl TransactionProcessor {
 
         compiled_result
     }
-
     pub fn flatten_inner_instructions(
         &self,
         transaction_with_meta: &VersionedTransactionWithStatusMeta,
-    ) -> Vec<TransactionInstructionWithParent> {
+     ) -> Vec<TransactionInstructionWithParent> {
         let mut inner_result = Vec::new();
         let transaction = &transaction_with_meta.transaction;
         let ci_ixs = transaction.message.instructions();
@@ -220,12 +211,11 @@ impl TransactionProcessor {
 
         inner_result
     }
-
     fn compiled_instruction_to_instruction(
         &self,
         ci: &CompiledInstruction,
         parsed_accounts: Vec<AccountMeta>,
-    ) -> Instruction {
+     ) -> Instruction {
         let program_id = parsed_accounts[ci.program_id_index as usize].pubkey;
         let accounts: Vec<AccountMeta> = ci.accounts.iter().map(|&index| {
             if index as usize >= parsed_accounts.len() {
@@ -245,10 +235,9 @@ impl TransactionProcessor {
             data: ci.data.clone(),
         }
     }
-
     pub fn convert_token_balance(
         tb: TransactionTokenBalance,
-    ) -> TransactionTokenBalance {
+     ) -> TransactionTokenBalance {
         let ui_token_amount = tb.ui_token_amount.clone();
         TransactionTokenBalance {
             account_index: tb.account_index as u8,
@@ -267,12 +256,11 @@ impl TransactionProcessor {
             program_id: tb.program_id.clone(),
         }
     }
-
     fn to_camel_case(&self, name: &str) -> String {
         let mut chars = name.chars();
         match chars.next() {
         Some(first_char) => first_char.to_lowercase().collect::<String>() + chars.as_str(),
         None => String::new(),
     }
-}
+  }
 }

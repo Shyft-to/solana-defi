@@ -21,6 +21,7 @@ pub enum PumpProgramIx {
     AdminSetIdlAuthority(AdminSetIdlAuthorityIxArgs),
     AdminUpdateTokenIncentives(AdminUpdateTokenIncentivesIxArgs),
     Buy(BuyIxArgs),
+    BuyExactSolIn(BuyExactSolInIxArgs),
     ClaimTokenIncentives,
     CloseUserVolumeAccumulator,
     CollectCreatorFee,
@@ -50,6 +51,7 @@ impl PumpProgramIx {
             ADMIN_SET_IDL_AUTHORITY_IX_DISCM => Ok(Self::AdminSetIdlAuthority(AdminSetIdlAuthorityIxArgs::deserialize(&mut reader)?)),
             ADMIN_UPDATE_TOKEN_INCENTIVES_IX_DISCM => Ok(Self::AdminUpdateTokenIncentives(AdminUpdateTokenIncentivesIxArgs::deserialize(&mut reader)?)),
             BUY_IX_DISCM => Ok(Self::Buy(BuyIxArgs::deserialize(&mut reader)?)),
+            BUY_EXACT_SOL_IN_IX_DISCM => Ok(Self::BuyExactSolIn(BuyExactSolInIxArgs::deserialize(&mut reader)?)),
             CLAIM_TOKEN_INCENTIVES_IX_DISCM => Ok(Self::ClaimTokenIncentives),
             CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM => Ok(Self::CloseUserVolumeAccumulator),
             COLLECT_CREATOR_FEE_IX_DISCM => Ok(Self::CollectCreatorFee),
@@ -90,6 +92,10 @@ impl PumpProgramIx {
             }
              Self::Buy(args) => {
                 writer.write_all(&BUY_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::BuyExactSolIn(args) => {
+                writer.write_all(&BUY_EXACT_SOL_IN_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
             Self::ClaimTokenIncentives => writer.write_all(&CLAIM_TOKEN_INCENTIVES_IX_DISCM),
@@ -1182,6 +1188,7 @@ pub const BUY_IX_DISCM: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 pub struct BuyIxArgs {
     pub amount: u64,
     pub max_sol_cost: u64,
+   // pub track_volume: Option<OptionBool>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuyIxData(pub BuyIxArgs);
@@ -1328,8 +1335,375 @@ pub fn buy_verify_account_privileges<'me, 'info>(
     Ok(())
 }
 
-pub const CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN: usize = 12;
+pub const BUY_EXACT_SOL_IN_IX_ACCOUNTS_LEN: usize = 16;
+#[derive(Copy, Clone, Debug)]
+pub struct BuyExactSolInAccounts<'me, 'info> {
+    pub global: &'me AccountInfo<'info>,
+    pub fee_recipient: &'me AccountInfo<'info>,
+    pub mint: &'me AccountInfo<'info>,
+    pub bonding_curve: &'me AccountInfo<'info>,
+    pub associated_bonding_curve: &'me AccountInfo<'info>,
+    pub associated_user: &'me AccountInfo<'info>,
+    pub user: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub token_program: &'me AccountInfo<'info>,
+    pub creator_vault: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+    pub global_volume_accumulator :  &'me AccountInfo<'info>,
+    pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub fee_config: &'me AccountInfo<'info>,
+    pub fee_program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct BuyExactSolInKeys {
+    pub global: Pubkey,
+    pub fee_recipient: Pubkey,
+    pub mint: Pubkey,
+    pub bonding_curve: Pubkey,
+    pub associated_bonding_curve: Pubkey,
+    pub associated_user: Pubkey,
+    pub user: Pubkey,
+    pub system_program: Pubkey,
+    pub token_program: Pubkey,
+    pub creator_vault: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+    pub global_volume_accumulator: Pubkey,
+    pub user_volume_accumulator: Pubkey,
+    pub fee_config: Pubkey,
+    pub fee_program: Pubkey,
+}
+impl From<BuyExactSolInAccounts<'_, '_>> for BuyExactSolInKeys {
+    fn from(accounts: BuyExactSolInAccounts) -> Self {
+        Self {
+            global: *accounts.global.key,
+            fee_recipient: *accounts.fee_recipient.key,
+            mint: *accounts.mint.key,
+            bonding_curve: *accounts.bonding_curve.key,
+            associated_bonding_curve: *accounts.associated_bonding_curve.key,
+            associated_user: *accounts.associated_user.key,
+            user: *accounts.user.key,
+            system_program: *accounts.system_program.key,
+            token_program: *accounts.token_program.key,
+            creator_vault: *accounts.creator_vault.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+            global_volume_accumulator: *accounts.global_volume_accumulator.key,
+            user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            fee_config: *accounts.fee_config.key,
+            fee_program: *accounts.fee_program.key,
+        }
+    }
+}
+impl From<BuyExactSolInKeys> for [AccountMeta; BUY_EXACT_SOL_IN_IX_ACCOUNTS_LEN] {
+    fn from(keys: BuyExactSolInKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.global,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.fee_recipient,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.bonding_curve,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.associated_bonding_curve,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.associated_user,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.creator_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.global_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            }, 
+            AccountMeta {
+                pubkey: keys.fee_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.fee_program,
+                is_signer: false,
+                is_writable: false,
+            }
+        ]
+    }
+}
+impl From<[Pubkey; BUY_EXACT_SOL_IN_IX_ACCOUNTS_LEN]> for BuyExactSolInKeys {
+    fn from(pubkeys: [Pubkey; BUY_EXACT_SOL_IN_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            global: pubkeys[0],
+            fee_recipient: pubkeys[1],
+            mint: pubkeys[2],
+            bonding_curve: pubkeys[3],
+            associated_bonding_curve: pubkeys[4],
+            associated_user: pubkeys[5],
+            user: pubkeys[6],
+            system_program: pubkeys[7],
+            token_program: pubkeys[8],
+            creator_vault: pubkeys[9],
+            event_authority: pubkeys[10],
+            program: pubkeys[11],
+            global_volume_accumulator: pubkeys[12],
+            user_volume_accumulator: pubkeys[13],
+            fee_config: pubkeys[14],
+            fee_program: pubkeys[15],
+        }
+    }
+}
+impl<'info> From<BuyExactSolInAccounts<'_, 'info>> for [AccountInfo<'info>; BUY_EXACT_SOL_IN_IX_ACCOUNTS_LEN] {
+    fn from(accounts: BuyExactSolInAccounts<'_, 'info>) -> Self {
+        [
+            accounts.global.clone(),
+            accounts.fee_recipient.clone(),
+            accounts.mint.clone(),
+            accounts.bonding_curve.clone(),
+            accounts.associated_bonding_curve.clone(),
+            accounts.associated_user.clone(),
+            accounts.user.clone(),
+            accounts.system_program.clone(),
+            accounts.token_program.clone(),
+            accounts.creator_vault.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+            accounts.global_volume_accumulator.clone(),
+            accounts.user_volume_accumulator.clone(),
+            accounts.fee_config.clone(),
+            accounts.fee_program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; BUY_EXACT_SOL_IN_IX_ACCOUNTS_LEN]>
+for BuyExactSolInAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; BUY_EXACT_SOL_IN_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            global: &arr[0],
+            fee_recipient: &arr[1],
+            mint: &arr[2],
+            bonding_curve: &arr[3],
+            associated_bonding_curve: &arr[4],
+            associated_user: &arr[5],
+            user: &arr[6],
+            system_program: &arr[7],
+            token_program: &arr[8],
+            creator_vault: &arr[9],
+            event_authority: &arr[10],
+            program: &arr[11],
+            global_volume_accumulator: &arr[12],
+            user_volume_accumulator: &arr[13],
+            fee_config: &arr[14],
+            fee_program: &arr[15],
+        }
+    }
+}
+pub const BUY_EXACT_SOL_IN_IX_DISCM: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BuyExactSolInIxArgs {
+    pub spendable_sol_in: u64,
+    pub min_tokens_out: u64,
+    pub track_volume: OptionBool,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct BuyExactSolInIxData(pub BuyExactSolInIxArgs);
+impl From<BuyExactSolInIxArgs> for BuyExactSolInIxData {
+    fn from(args: BuyExactSolInIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl BuyExactSolInIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != BUY_EXACT_SOL_IN_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        BUY_EXACT_SOL_IN_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(BuyExactSolInIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&BUY_EXACT_SOL_IN_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn buy_exact_sol_in_ix_with_program_id(
+    program_id: Pubkey,
+    keys: BuyExactSolInKeys,
+    args: BuyExactSolInIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; BUY_EXACT_SOL_IN_IX_ACCOUNTS_LEN] = keys.into();
+    let data: BuyExactSolInIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn buy_exact_sol_in_ix(keys: BuyExactSolInKeys, args: BuyExactSolInIxArgs) -> std::io::Result<Instruction> {
+    buy_exact_sol_in_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn buy_exact_sol_in_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: BuyExactSolInAccounts<'_, '_>,
+    args: BuyExactSolInIxArgs,
+) -> ProgramResult {
+    let keys: BuyExactSolInKeys = accounts.into();
+    let ix = buy_exact_sol_in_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn buy_exact_sol_in_invoke(accounts: BuyExactSolInAccounts<'_, '_>, args: BuyExactSolInIxArgs) -> ProgramResult {
+    buy_exact_sol_in_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn buy_exact_sol_in_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: BuyExactSolInAccounts<'_, '_>,
+    args: BuyExactSolInIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: BuyExactSolInKeys = accounts.into();
+    let ix = buy_exact_sol_in_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn buy_exact_sol_in_invoke_signed(
+    accounts: BuyExactSolInAccounts<'_, '_>,
+    args: BuyExactSolInIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    buy_exact_sol_in_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn buy_exact_sol_in_verify_account_keys(
+    accounts: BuyExactSolInAccounts<'_, '_>,
+    keys: BuyExactSolInKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.global.key, keys.global),
+        (*accounts.fee_recipient.key, keys.fee_recipient),
+        (*accounts.mint.key, keys.mint),
+        (*accounts.bonding_curve.key, keys.bonding_curve),
+        (*accounts.associated_bonding_curve.key, keys.associated_bonding_curve),
+        (*accounts.associated_user.key, keys.associated_user),
+        (*accounts.user.key, keys.user),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.token_program.key, keys.token_program),
+        (*accounts.creator_vault.key, keys.creator_vault),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+        (*accounts.global_volume_accumulator.key, keys.global_volume_accumulator),
+        (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.fee_config.key, keys.fee_config),
+        (*accounts.fee_program.key, keys.fee_program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn buy_exact_sol_in_verify_writable_privileges<'me, 'info>(
+    accounts: BuyExactSolInAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.fee_recipient,
+        accounts.bonding_curve,
+        accounts.associated_bonding_curve,
+        accounts.associated_user,
+        accounts.user,
+        accounts.creator_vault,
+        accounts.global_volume_accumulator,
+        accounts.user_volume_accumulator,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn buy_exact_sol_in_verify_signer_privileges<'me, 'info>(
+    accounts: BuyExactSolInAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.user] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn buy_exact_sol_in_verify_account_privileges<'me, 'info>(
+    accounts: BuyExactSolInAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    buy_exact_sol_in_verify_writable_privileges(accounts)?;
+    buy_exact_sol_in_verify_signer_privileges(accounts)?;
+    Ok(())
+}
 
+
+pub const CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN: usize = 12;
 #[derive(Copy, Clone, Debug)]
 pub struct ClaimTokenIncentivesAccounts<'me, 'info> {
     pub user: &'me AccountInfo<'info>,
