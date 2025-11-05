@@ -111,8 +111,8 @@ struct ParsedEventTransaction {
 #[derive(Clone, Debug)]
 pub struct ParsedConfirmedTransactionWithStatusMeta {
     pub slot: u64,
-    pub transaction: ParsedTransaction,
     pub meta: ParsedTransactionStatusMeta,
+    pub transaction: ParsedTransaction,
     pub block_time: Option<i64>,
 }
 
