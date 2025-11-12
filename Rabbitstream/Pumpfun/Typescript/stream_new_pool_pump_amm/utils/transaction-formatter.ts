@@ -1,0 +1,175 @@
+import {
+  ConfirmedTransactionMeta,
+  Message,
+  MessageV0,
+  PublicKey,
+  VersionedMessage,
+  VersionedTransactionResponse,
+} from "@solana/web3.js";
+import { utils } from "@coral-xyz/anchor";
+
+export class TransactionFormatter {
+  public formTransactionFromJson(
+    data: any,
+    time: number
+  ): VersionedTransactionResponse {
+    const rawTx = data["transaction"];
+
+    const slot = data.slot;
+    const version = rawTx.transaction.message.versioned ? 0 : "legacy";
+    let meta = null;
+    if (rawTx.meta) {
+      meta = this.formMeta(rawTx.meta);
+    }
+    const signatures = rawTx.transaction.signatures.map((s: Buffer) =>
+      utils.bytes.bs58.encode(s)
+    );
+
+    const message = this.formTxnMessage(rawTx.transaction.message);
+   if (
+      (!meta || !meta.loadedAddresses) &&
+      rawTx.transaction.message.versioned 
+    ) {
+      const lookups = rawTx.transaction.message.addressTableLookups || [];
+      if (lookups.length > 0) {
+        try {
+          meta = { ...(meta || {}), loadedAddresses: null };
+        } catch (err) {
+          console.error("Failed to resolve address lookup tables:", err);
+        }
+      }
+    }
+    return {
+      slot,
+      version,
+      blockTime: time,
+      meta,
+      transaction: {
+        signatures,
+        message,
+      },
+    };
+  }
+
+  private formTxnMessage(message: any): VersionedMessage {
+    if (!message.versioned) {
+      return new Message({
+        header: {
+          numRequiredSignatures: message.header.numRequiredSignatures,
+          numReadonlySignedAccounts: message.header.numReadonlySignedAccounts,
+          numReadonlyUnsignedAccounts:
+            message.header.numReadonlyUnsignedAccounts,
+        },
+        recentBlockhash: utils.bytes.bs58.encode(
+          Buffer.from(message.recentBlockhash, "base64")
+        ),
+        accountKeys: message.accountKeys?.map((d: string) =>
+          new PublicKey(Buffer.from(d, "base64"))
+        ),
+        instructions: message.instructions.map(
+          ({
+            data,
+            programIdIndex,
+            accounts,
+          }: {
+            data: any;
+            programIdIndex: any;
+            accounts: any;
+          }) => ({
+            programIdIndex: programIdIndex,
+            accounts: Array.from(accounts),
+            data: utils.bytes.bs58.encode(Buffer.from(data || "", "base64")),
+          })
+        ),
+      });
+    } else {
+      return new MessageV0({
+        header: {
+          numRequiredSignatures: message.header.numRequiredSignatures,
+          numReadonlySignedAccounts: message.header.numReadonlySignedAccounts,
+          numReadonlyUnsignedAccounts:
+            message.header.numReadonlyUnsignedAccounts,
+        },
+        recentBlockhash: utils.bytes.bs58.encode(
+          Buffer.from(message.recentBlockhash, "base64")
+        ),
+        staticAccountKeys: message.accountKeys.map(
+          (k: string) => new PublicKey(Buffer.from(k, "base64"))
+        ),
+        compiledInstructions: message.instructions.map(
+          ({
+            programIdIndex,
+            accounts,
+            data,
+          }: {
+            programIdIndex: any;
+            accounts: any;
+            data: any;
+          }) => ({
+            programIdIndex: programIdIndex,
+            accountKeyIndexes: Array.from(accounts),
+            data: Uint8Array.from(Buffer.from(data || "", "base64")),
+          })
+        ),
+        addressTableLookups:
+          message.addressTableLookups?.map(
+            ({
+              accountKey,
+              writableIndexes,
+              readonlyIndexes,
+            }: {
+              accountKey: any;
+              writableIndexes: any;
+              readonlyIndexes: any;
+            }) => ({
+              writableIndexes: writableIndexes || [],
+              readonlyIndexes: readonlyIndexes || [],
+              accountKey: new PublicKey(Buffer.from(accountKey, "base64")),
+            })
+          ) || [],
+      });
+    }
+  }
+
+  private formMeta(meta: any): ConfirmedTransactionMeta {
+    return {
+      err: meta.errorInfo ? { err: meta.errorInfo } : null,
+      fee: meta.fee,
+      preBalances: meta.preBalances,
+      postBalances: meta.postBalances,
+      preTokenBalances: meta.preTokenBalances || [],
+      postTokenBalances: meta.postTokenBalances || [],
+      logMessages: meta.logMessages || [],
+      loadedAddresses:
+        meta.loadedWritableAddresses || meta.loadedReadonlyAddresses
+          ? {
+              writable:
+                meta.loadedWritableAddresses?.map((address: any) =>
+                  typeof address === "string"
+                    ? new PublicKey(Buffer.from(address, "base64"))
+                    : new PublicKey(address)
+                ) || [],
+              readonly:
+                meta.loadedReadonlyAddresses?.map((address: any) =>
+                  typeof address === "string"
+                    ? new PublicKey(Buffer.from(address, "base64"))
+                    : new PublicKey(address)
+                ) || [],
+            }
+          : undefined,
+      innerInstructions:
+        meta.innerInstructions?.map(
+          (i: { index: number; instructions: any }) => ({
+            index: i.index || 0,
+            instructions: i.instructions.map((instruction: any) => ({
+              programIdIndex: instruction.programIdIndex,
+              accounts: Array.from(instruction.accounts),
+              data: utils.bytes.bs58.encode(
+                Buffer.from(instruction.data || "", "base64")
+              ),
+            })),
+          })
+        ) || [],
+    };
+  }
+}
