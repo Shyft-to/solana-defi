@@ -8,7 +8,6 @@ import {
 } from "@solana/web3.js";
 import { BorshCoder, EventParser, Idl } from "@coral-xyz/anchor";
 import { intersection } from "lodash";
-import bs58 from 'bs58';
 
 export class SolanaEventParser {
   private eventDecoders: Map<PublicKey | string, BorshCoder>;
