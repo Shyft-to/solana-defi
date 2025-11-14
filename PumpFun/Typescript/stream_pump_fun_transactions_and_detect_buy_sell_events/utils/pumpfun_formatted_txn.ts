@@ -2,13 +2,13 @@ export function parseSwapTransactionOutput(parsedInstruction) {
   const innerInstructions = parsedInstruction.inner_ixs.pumpfun_inner_ixs ?? [];
    let swapInstruction = 
         parsedInstruction?.instructions?.pumpAmmIxs?.find(
-            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+        instruction => instruction.name === 'buy' || instruction.name === 'sell' || instruction.name === 'buy_exact_sol_in'
         ) ||
         parsedInstruction?.inner_ixs?.find(
-            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+            instruction => instruction.name === 'buy' || instruction.name === 'sell' || instruction.name === 'buy_exact_sol_in'
         ) ||
         parsedInstruction?.inner_ixs?.pump_amm_inner_ixs?.find(
-            instruction => instruction.name === 'buy' || instruction.name === 'sell'
+            instruction => instruction.name === 'buy' || instruction.name === 'sell' || instruction.name === 'buy_exact_sol_in'
         );
 
   if (!swapInstruction) return;
