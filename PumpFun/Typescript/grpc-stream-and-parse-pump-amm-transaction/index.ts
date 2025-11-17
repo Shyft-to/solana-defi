@@ -6,6 +6,7 @@ import Client, {
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import { PUMP_AMM_PROGRAM_ID } from "./utils/type";
 import { PumpAmmDecoder } from "./utils/decode-parser";
+import { pumpSwapParsedTransaction } from "./utils/pump-amm-transaction-parser";
 
 
 const originalConsoleWarn = console.warn;
@@ -71,8 +72,9 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now()
       );
 
-      const parsedTxn = PUMPAMM_PARSER.decodePumpAmmTxn(txn);
-      
+      const decodedParsedTxn = PUMPAMM_PARSER.decodePumpAmmTxn(txn);
+      const parsedTxn = pumpSwapParsedTransaction(decodedParsedTxn,txn);
+
       console.log(
         new Date(),
          ":",
