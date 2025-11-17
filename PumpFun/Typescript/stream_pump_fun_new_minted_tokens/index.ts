@@ -42,6 +42,8 @@ console.error = (message?: any, ...optionalParams: any[]) => {
   }
   originalConsoleError(message, ...optionalParams); 
 };
+const PUMPFUN_MINT_AUTHORITY = 'TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM';
+
 const pumpFunDecoder = new PumpFunDecoder();
 
 const TXN_FORMATTER = new TransactionFormatter();
@@ -127,7 +129,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58()],
+      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58(), PUMPFUN_MINT_AUTHORITY],
       accountExclude: [],
       accountRequired: [],
     },
