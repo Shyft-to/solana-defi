@@ -6,6 +6,9 @@ edition = "2021"
 [dependencies.borsh]
 version = "^0.10"
 
+[dependencies.borsh-derive]
+version = "^0.10"
+
 [dependencies.num-derive]
 version = "^0.3"
 
