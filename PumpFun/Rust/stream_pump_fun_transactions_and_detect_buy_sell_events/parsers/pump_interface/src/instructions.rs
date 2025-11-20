@@ -26,6 +26,7 @@ pub enum PumpProgramIx {
     CloseUserVolumeAccumulator,
     CollectCreatorFee,
     Create(CreateIxArgs),
+    CreateV2(CreateV2IxArgs),
     ExtendAccount,
     InitUserVolumeAccumulator,
     Initialize,
@@ -35,6 +36,8 @@ pub enum PumpProgramIx {
     SetMetaPlexCreator,
     SetParams(SetParamsIxArgs),
     SyncUserVolumeAccumlator,
+    ToggleCreateV2(ToggleCreateV2IxArgs),
+    ToggleMayhemMode(ToggleMayhemModeIxArgs),
     UpdateGlobalAuthority,
 }
 
@@ -56,6 +59,7 @@ impl PumpProgramIx {
             CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM => Ok(Self::CloseUserVolumeAccumulator),
             COLLECT_CREATOR_FEE_IX_DISCM => Ok(Self::CollectCreatorFee),
             CREATE_IX_DISCM => Ok(Self::Create(CreateIxArgs::deserialize(&mut reader)?)),
+            CREATEV2_IX_DISCM => Ok(Self::CreateV2(CreateV2IxArgs::deserialize(&mut reader)?)),
             EXTEND_ACCOUNT_IX_DISCM => Ok(Self::ExtendAccount),
             INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM => Ok(Self::InitUserVolumeAccumulator),
             INITIALIZE_IX_DISCM => Ok(Self::Initialize),
@@ -65,6 +69,8 @@ impl PumpProgramIx {
             SET_METAPLEX_CREATOR_IX_DISCM => Ok(Self::SetMetaPlexCreator),
             SET_PARAMS_IX_DISCM => Ok(Self::SetParams(SetParamsIxArgs::deserialize(&mut reader)?)),
             SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM => Ok(Self::SyncUserVolumeAccumlator),
+            TOGGLE_CREATEV2_IX_DISCM => Ok(Self::ToggleCreateV2(ToggleCreateV2IxArgs::deserialize(&mut reader)?)),
+            TOGGLE_MAYHEM_MODE_IX_DISCM => Ok(Self::ToggleMayhemMode(ToggleMayhemModeIxArgs::deserialize(&mut reader)?)),
             UPDATE_GLOBAL_AUTHORITY_IX_DISCM => Ok(Self::UpdateGlobalAuthority),
             _ => {
                 Err(
@@ -105,6 +111,10 @@ impl PumpProgramIx {
                 writer.write_all(&CREATE_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
+            Self::CreateV2(args) => {
+                writer.write_all(&CREATEV2_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
             Self::ExtendAccount => writer.write_all(&EXTEND_ACCOUNT_IX_DISCM),
             Self::InitUserVolumeAccumulator => writer.write_all(&INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM),
             Self::Initialize => writer.write_all(&INITIALIZE_IX_DISCM),
@@ -125,6 +135,14 @@ impl PumpProgramIx {
                 args.serialize(&mut writer)
             }
             Self::SyncUserVolumeAccumlator => writer.write_all(&SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM),
+            Self::ToggleCreateV2(args) => {
+                writer.write_all(&TOGGLE_CREATEV2_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::ToggleMayhemMode(args) => {
+                writer.write_all(&TOGGLE_MAYHEM_MODE_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
             Self::UpdateGlobalAuthority => writer.write_all(&UPDATE_GLOBAL_AUTHORITY_IX_DISCM),
         }
     }
@@ -1188,7 +1206,7 @@ pub const BUY_IX_DISCM: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 pub struct BuyIxArgs {
     pub amount: u64,
     pub max_sol_cost: u64,
-   // pub track_volume: Option<OptionBool>,
+    // pub track_volume: Option<OptionBool>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuyIxData(pub BuyIxArgs);
@@ -2814,6 +2832,377 @@ pub fn create_verify_account_privileges<'me, 'info>(
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     create_verify_writable_privileges(accounts)?;
     create_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const CREATEV2_IX_ACCOUNTS_LEN: usize = 16;
+#[derive(Copy, Clone, Debug)]
+pub struct CreateV2Accounts<'me, 'info> {
+    pub mint: &'me AccountInfo<'info>,
+    pub mint_authority : &'me AccountInfo<'info>,
+    pub bonding_curve: &'me AccountInfo<'info>,
+    pub associated_bonding_curve: &'me AccountInfo<'info>,
+    pub global: &'me AccountInfo<'info>,
+    pub user: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub token_program: &'me AccountInfo<'info>,
+    pub associated_token_program: &'me AccountInfo<'info>,
+    pub mayhem_program_id : &'me AccountInfo<'info>,
+    pub global_params: &'me AccountInfo<'info>,
+    pub sol_vault: &'me AccountInfo<'info>,
+    pub mayhem_state: &'me AccountInfo<'info>,
+    pub mayhem_token_vault: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CreateV2Keys {
+    pub mint: Pubkey,
+    pub mint_authority: Pubkey,
+    pub bonding_curve: Pubkey,
+    pub associated_bonding_curve: Pubkey,
+    pub global: Pubkey,
+    pub user: Pubkey,
+    pub system_program: Pubkey,
+    pub token_program: Pubkey,
+    pub associated_token_program: Pubkey,
+    pub mayhem_program_id: Pubkey,
+    pub global_params: Pubkey,
+    pub sol_vault: Pubkey,
+    pub mayhem_state: Pubkey,
+    pub mayhem_token_vault: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<CreateV2Accounts<'_,'_>> for CreateV2Keys {
+   fn from(accounts: CreateV2Accounts) -> Self {
+    Self {
+        mint: *accounts.mint.key,
+        mint_authority: *accounts.mint_authority.key,
+        bonding_curve: *accounts.bonding_curve.key,
+        associated_bonding_curve: *accounts.associated_bonding_curve.key,
+        global: *accounts.global.key,
+        user: *accounts.user.key,
+        system_program: *accounts.system_program.key,
+        token_program: *accounts.token_program.key,
+        associated_token_program: *accounts.associated_token_program.key,
+        mayhem_program_id: *accounts.mayhem_program_id.key,
+        global_params: *accounts.global_params.key,
+        sol_vault: *accounts.sol_vault.key,
+        mayhem_state: *accounts.mayhem_state.key,
+        mayhem_token_vault: *accounts.mayhem_token_vault.key,
+        event_authority: *accounts.event_authority.key,
+        program: *accounts.program.key,
+    }
+   }
+}
+
+impl From<CreateV2Keys> for [AccountMeta; CREATEV2_IX_ACCOUNTS_LEN] {
+    fn from(keys: CreateV2Keys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.mint,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.mint_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.bonding_curve,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.associated_bonding_curve,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.global,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.user,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.associated_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.mayhem_program_id,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.global_params,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.sol_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.mayhem_state,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.mayhem_token_vault,
+                is_signer: false,
+                is_writable: true
+            },
+            AccountMeta {
+                 pubkey : keys.event_authority,
+                 is_signer : false ,
+                 is_writable : false
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false
+            }  
+        ]
+    }
+}
+impl From<[Pubkey; CREATEV2_IX_ACCOUNTS_LEN]> for CreateV2Keys {
+    fn from(pubkeys: [Pubkey; CREATEV2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            mint: pubkeys[0],
+            mint_authority: pubkeys[1],
+            bonding_curve: pubkeys[2],
+            associated_bonding_curve: pubkeys[3],
+            global: pubkeys[4],
+            user: pubkeys[5],
+            system_program: pubkeys[6],
+            token_program: pubkeys[7],
+            associated_token_program: pubkeys[8],
+            mayhem_program_id: pubkeys[9],
+            global_params: pubkeys[10],
+            sol_vault: pubkeys[11],
+            mayhem_state: pubkeys[12],
+            mayhem_token_vault: pubkeys[13],
+            event_authority: pubkeys[14],
+            program: pubkeys[15],
+        }
+    }
+}
+impl<'info> From<CreateV2Accounts<'_, 'info>> for [AccountInfo<'info>; CREATEV2_IX_ACCOUNTS_LEN] {
+    fn from(accounts: CreateV2Accounts<'_, 'info>) -> Self {
+        [
+            accounts.mint.clone(),
+            accounts.mint_authority.clone(),
+            accounts.bonding_curve.clone(),
+            accounts.associated_bonding_curve.clone(),
+            accounts.global.clone(),
+            accounts.user.clone(),
+            accounts.system_program.clone(),
+            accounts.token_program.clone(),
+            accounts.associated_token_program.clone(),
+            accounts.mayhem_program_id.clone(),
+            accounts.global_params.clone(),
+            accounts.sol_vault.clone(),
+            accounts.mayhem_state.clone(),
+            accounts.mayhem_token_vault.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone()
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; CREATEV2_IX_ACCOUNTS_LEN]>
+for CreateV2Accounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; CREATEV2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            mint: &arr[0],
+            mint_authority: &arr[1],
+            bonding_curve: &arr[2],
+            associated_bonding_curve: &arr[3],
+            global: &arr[4],
+            user: &arr[5],
+            system_program: &arr[6],
+            token_program: &arr[7],
+            associated_token_program: &arr[8],
+            mayhem_program_id: &arr[9],
+            global_params: &arr[10],
+            sol_vault: &arr[11],
+            mayhem_state: &arr[12],
+            mayhem_token_vault : &arr[13],
+            event_authority: &arr[14],
+            program: &arr[15],
+        }
+    }
+}
+pub const CREATEV2_IX_DISCM: [u8; 8] = [214,144,76,236,95,139,49,180];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CreateV2IxArgs {
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+    pub creator: Pubkey,
+    pub is_mayhem_mode: bool,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreateV2IxData(pub CreateV2IxArgs);
+impl From<CreateV2IxArgs> for CreateV2IxData {
+    fn from(args: CreateV2IxArgs) -> Self {
+        Self(args)
+    }
+}
+impl CreateV2IxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CREATEV2_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        CREATEV2_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(CreateV2IxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CREATEV2_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn createv2_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CreateV2Keys,
+    args: CreateV2IxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CREATEV2_IX_ACCOUNTS_LEN] = keys.into();
+    let data: CreateV2IxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn createv2_ix(keys: CreateV2Keys, args: CreateV2IxArgs) -> std::io::Result<Instruction> {
+    createv2_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn createv2_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateV2Accounts<'_, '_>,
+    args: CreateV2IxArgs,
+) -> ProgramResult {
+    let keys: CreateV2Keys = accounts.into();
+    let ix = createv2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn createv2_invoke(accounts: CreateV2Accounts<'_, '_>, args: CreateV2IxArgs) -> ProgramResult {
+    createv2_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn createv2_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateV2Accounts<'_, '_>,
+    args: CreateV2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CreateV2Keys = accounts.into();
+    let ix = createv2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn createv2_invoke_signed(
+    accounts: CreateV2Accounts<'_, '_>,
+    args: CreateV2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    createv2_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn createv2_verify_account_keys(
+    accounts: CreateV2Accounts<'_, '_>,
+    keys: CreateV2Keys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.mint.key, keys.mint),
+        (*accounts.mint_authority.key, keys.mint_authority),
+        (*accounts.bonding_curve.key, keys.bonding_curve),
+        (*accounts.associated_bonding_curve.key, keys.associated_bonding_curve),
+        (*accounts.global.key, keys.global),
+        (*accounts.user.key, keys.user),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.token_program.key, keys.token_program),
+        (*accounts.associated_token_program.key, keys.associated_token_program),
+        (*accounts.mayhem_program_id.key, keys.mayhem_program_id),
+        (*accounts.global_params.key, keys.global_params),
+        (*accounts.sol_vault.key, keys.sol_vault),
+        (*accounts.mayhem_state.key, keys.mayhem_state),
+        (*accounts.mayhem_token_vault.key, keys.mayhem_token_vault),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn createv2_verify_writable_privileges<'me, 'info>(
+    accounts: CreateV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.mint,
+        accounts.bonding_curve,
+        accounts.associated_bonding_curve,
+        accounts.mayhem_program_id,
+        accounts.sol_vault,
+        accounts.mayhem_state,
+        accounts.mayhem_token_vault,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn createv2_verify_signer_privileges<'me, 'info>(
+    accounts: CreateV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.mint, accounts.user] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn createv2_verify_account_privileges<'me, 'info>(
+    accounts: CreateV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    createv2_verify_writable_privileges(accounts)?;
+    createv2_verify_signer_privileges(accounts)?;
     Ok(())
 }
 
@@ -5298,6 +5687,465 @@ pub fn sync_user_volume_accumulator_verify_account_privileges<'me, 'info>(
     sync_user_volume_accumulator_verify_signer_privileges(accounts)?;
     Ok(())
 }
+
+pub const TOGGLE_CREATEV2_IX_ACCOUNTS_LEN: usize = 4;
+#[derive(Copy, Clone, Debug)]
+pub struct ToggleCreateV2Accounts<'me, 'info> {
+    pub global:  &'me AccountInfo<'info>,
+    pub authority:  &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ToggleCreateV2Keys {
+    pub global: Pubkey,
+    pub authority: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<ToggleCreateV2Accounts<'_, '_>> for ToggleCreateV2Keys {
+    fn from(accounts: ToggleCreateV2Accounts) -> Self {
+        Self {
+            global: *accounts.global.key,
+            authority: *accounts.authority.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<ToggleCreateV2Keys> for [AccountMeta; TOGGLE_CREATEV2_IX_ACCOUNTS_LEN] {
+    fn from(keys: ToggleCreateV2Keys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.global,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; TOGGLE_CREATEV2_IX_ACCOUNTS_LEN]> for ToggleCreateV2Keys {
+    fn from(pubkeys: [Pubkey; TOGGLE_CREATEV2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            global: pubkeys[0],
+            authority: pubkeys[1],
+            event_authority: pubkeys[2],
+            program: pubkeys[3],
+        }
+    }
+}
+
+impl<'info> From<ToggleCreateV2Accounts<'_, 'info>> for [AccountInfo<'info>; TOGGLE_CREATEV2_IX_ACCOUNTS_LEN] {
+    fn from(accounts: ToggleCreateV2Accounts<'_, 'info>) -> Self {
+        [
+            accounts.global.clone(),
+            accounts.authority.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; TOGGLE_CREATEV2_IX_ACCOUNTS_LEN]> for ToggleCreateV2Accounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; TOGGLE_CREATEV2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            global: &arr[0],
+            authority: &arr[1],
+            event_authority: &arr[2],
+            program: &arr[3],
+        }
+    }
+}
+pub const TOGGLE_CREATEV2_IX_DISCM: [u8; 8] = [28, 255, 230, 240, 172, 107, 203, 171];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ToggleCreateV2IxArgs {
+    enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ToggleCreateV2IxData(pub ToggleCreateV2IxArgs);
+
+impl From<ToggleCreateV2IxArgs> for ToggleCreateV2IxData {
+    fn from(args: ToggleCreateV2IxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl ToggleCreateV2IxData {
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&TOGGLE_CREATEV2_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut discm = [0u8; 8];
+        reader.read_exact(&mut discm)?;
+        if discm != TOGGLE_CREATEV2_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discriminator mismatch. Expected {:?}, got {:?}",
+                    TOGGLE_CREATEV2_IX_DISCM, discm
+                ),
+            ));
+        }
+        Ok(Self(ToggleCreateV2IxArgs::deserialize(&mut reader)?))
+    }
+}
+pub fn toggle_createv2_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ToggleCreateV2Keys,
+    args: ToggleCreateV2IxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; TOGGLE_CREATEV2_IX_ACCOUNTS_LEN] = keys.into();
+    let data: ToggleCreateV2IxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn toggle_createv2_ix(keys: ToggleCreateV2Keys, args: ToggleCreateV2IxArgs) -> std::io::Result<Instruction> {
+    toggle_createv2_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn toggle_createv2_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ToggleCreateV2Accounts<'_, '_>,
+    args: ToggleCreateV2IxArgs,
+) -> ProgramResult {
+    let keys: ToggleCreateV2Keys = accounts.into();
+    let ix = toggle_createv2_ix_with_program_id(program_id,keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn toggle_createv2_invoke(accounts: ToggleCreateV2Accounts<'_, '_>, args: ToggleCreateV2IxArgs) -> ProgramResult {
+    toggle_createv2_invoke_with_program_id(crate::ID, accounts,args)
+}
+
+pub fn toggle_createv2_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ToggleCreateV2Accounts<'_, '_>,
+    args: ToggleCreateV2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys : ToggleCreateV2Keys = accounts.into();
+    let ix = toggle_createv2_ix_with_program_id(program_id, keys,args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn toggle_createv2_invoke_signed(
+    accounts: ToggleCreateV2Accounts<'_, '_>,
+    args: ToggleCreateV2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    toggle_createv2_invoke_signed_with_program_id(crate::ID, accounts,args, seeds)
+}
+
+pub fn toggle_createv2_verify_account_keys(
+    accounts: ToggleCreateV2Accounts<'_, '_>,
+    keys: ToggleCreateV2Keys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.global.key, keys.global),
+        (*accounts.authority.key, keys.authority),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_createv2_verify_writable_privileges<'me, 'info>(
+    accounts: ToggleCreateV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.global] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_createv2_verify_signer_privileges<'me, 'info>(
+    accounts: ToggleCreateV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_createv2_verify_account_privileges<'me, 'info>(
+    accounts: ToggleCreateV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    toggle_createv2_verify_writable_privileges(accounts)?;
+    toggle_createv2_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN: usize = 4;
+#[derive(Copy, Clone, Debug)]
+pub struct ToggleMayhemModeAccounts<'me, 'info> {
+    pub global:  &'me AccountInfo<'info>,
+    pub authority:  &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ToggleMayhemModeKeys {
+    pub global: Pubkey,
+    pub authority: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<ToggleMayhemModeAccounts<'_, '_>> for ToggleMayhemModeKeys {
+    fn from(accounts: ToggleMayhemModeAccounts) -> Self {
+        Self {
+            global: *accounts.global.key,
+            authority: *accounts.authority.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<ToggleMayhemModeKeys> for [AccountMeta; TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN] {
+    fn from(keys: ToggleMayhemModeKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.global,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.authority,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN]> for ToggleMayhemModeKeys {
+    fn from(pubkeys: [Pubkey; TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            global: pubkeys[0],
+            authority: pubkeys[1],
+            event_authority: pubkeys[2],
+            program: pubkeys[3],
+        }
+    }
+}
+
+impl<'info> From<ToggleMayhemModeAccounts<'_, 'info>> for [AccountInfo<'info>; TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN] {
+    fn from(accounts: ToggleMayhemModeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.global.clone(),
+            accounts.authority.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN]> for ToggleMayhemModeAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            global: &arr[0],
+            authority: &arr[1],
+            event_authority: &arr[2],
+            program: &arr[3],
+        }
+    }
+}
+pub const TOGGLE_MAYHEM_MODE_IX_DISCM: [u8; 8] = [1, 9, 111, 208, 100, 31, 255, 163];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct  ToggleMayhemModeIxArgs {
+    enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ToggleMayhemModeIxData(pub ToggleMayhemModeIxArgs);
+
+impl From<ToggleMayhemModeIxArgs> for ToggleMayhemModeIxData {
+    fn from(args: ToggleMayhemModeIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl ToggleMayhemModeIxData {
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&TOGGLE_MAYHEM_MODE_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut discm = [0u8; 8];
+        reader.read_exact(&mut discm)?;
+        if discm != TOGGLE_MAYHEM_MODE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discriminator mismatch. Expected {:?}, got {:?}",
+                    TOGGLE_MAYHEM_MODE_IX_DISCM, discm
+                ),
+            ));
+        }
+        Ok(Self(ToggleMayhemModeIxArgs::deserialize(&mut reader)?))
+    }
+}
+
+pub fn toggle_mayhem_mode_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ToggleMayhemModeKeys,
+    args: ToggleMayhemModeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: ToggleMayhemModeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn toggle_mayhem_mode_ix(keys: ToggleMayhemModeKeys, args: ToggleMayhemModeIxArgs) -> std::io::Result<Instruction> {
+    toggle_mayhem_mode_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn toggle_mayhem_mode_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ToggleMayhemModeAccounts<'_, '_>,
+    args: ToggleMayhemModeIxArgs,
+) -> ProgramResult {
+    let keys: ToggleMayhemModeKeys = accounts.into();
+    let ix = toggle_mayhem_mode_ix_with_program_id(program_id,keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn toggle_mayhem_mode_invoke(accounts: ToggleMayhemModeAccounts<'_, '_>, args: ToggleMayhemModeIxArgs) -> ProgramResult {
+    toggle_mayhem_mode_invoke_with_program_id(crate::ID, accounts,args)
+}
+
+pub fn toggle_mayhem_mode_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ToggleMayhemModeAccounts<'_, '_>,
+    args: ToggleMayhemModeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys : ToggleMayhemModeKeys = accounts.into();
+    let ix = toggle_mayhem_mode_ix_with_program_id(program_id, keys,args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn toggle_mayhem_mode_invoke_signed(
+    accounts: ToggleMayhemModeAccounts<'_, '_>,
+    args: ToggleMayhemModeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    toggle_mayhem_mode_invoke_signed_with_program_id(crate::ID, accounts,args, seeds)
+}
+
+pub fn toggle_mayhem_mode_verify_account_keys(
+    accounts: ToggleMayhemModeAccounts<'_, '_>,
+    keys: ToggleMayhemModeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.global.key, keys.global),
+        (*accounts.authority.key, keys.authority),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_mayhem_mode_verify_writable_privileges<'me, 'info>(
+    accounts: ToggleMayhemModeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.global] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_mayhem_mode_verify_signer_privileges<'me, 'info>(
+    accounts: ToggleMayhemModeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_mayhem_mode_verify_account_privileges<'me, 'info>(
+    accounts: ToggleMayhemModeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    toggle_mayhem_mode_verify_writable_privileges(accounts)?;
+    toggle_mayhem_mode_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
 pub const UPDATE_GLOBAL_AUTHORITY_IX_ACCOUNTS_LEN: usize = 5;
 
 #[derive(Copy, Clone, Debug)]
