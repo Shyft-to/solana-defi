@@ -6,7 +6,7 @@ import Client, {
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import { parseSwapTransactionOutput } from "./utils/pumpfun_formatted_txn";
-import { PUMP_FUN_PROGRAM_ID } from "./utils/type";
+import { PUMP_FUN_PROGRAM_ID, PUMPFUN_MINT_AUTHORITY } from "./utils/type";
 import { PumpFunDecoder } from "./utils/decode-parser";
 
 const originalConsoleWarn = console.warn;
@@ -42,7 +42,6 @@ console.error = (message?: any, ...optionalParams: any[]) => {
   }
   originalConsoleError(message, ...optionalParams); 
 };
-const PUMPFUN_MINT_AUTHORITY = 'TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM';
 
 const pumpFunDecoder = new PumpFunDecoder();
 
@@ -74,9 +73,9 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now(),
       );
       const parsedTxn = pumpFunDecoder.decodePumpFunTxn(txn);
-
-      const parsedPumpfunTxn = parseSwapTransactionOutput(parsedTxn)
-      if(!parsedPumpfunTxn) return;
+     // if(!parsedTxn) return;
+     const parsedPumpfunTxn = parseSwapTransactionOutput(parsedTxn)
+     if(!parsedPumpfunTxn) return;
        console.log(
         new Date(),
         ":",
@@ -129,7 +128,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58(), PUMPFUN_MINT_AUTHORITY],
+      accountInclude: [PUMPFUN_MINT_AUTHORITY.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },

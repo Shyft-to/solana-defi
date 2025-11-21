@@ -1,15 +1,14 @@
 export function parseSwapTransactionOutput(parsedInstruction) {
    let createInstruction = 
         parsedInstruction?.instructions?.pumpAmmIxs?.find(
-            instruction => instruction.name === 'create' && instruction.name === 'create_v2'
+            instruction => instruction.name === 'create' || instruction.name === 'create_v2'
         ) ||
         parsedInstruction?.inner_ixs?.find(
-            instruction => instruction.name === 'create' && instruction.name === 'create_v2'
+            instruction => instruction.name === 'create' || instruction.name === 'create_v2'
         ) ||
         parsedInstruction?.inner_ixs?.pump_amm_inner_ixs?.find(
-            instruction => instruction.name === 'create' && instruction.name === 'create_v2'
+            instruction => instruction.name === 'create' || instruction.name === 'create_v2'
         );
-   console.log(createInstruction)     
   const createEvents = parsedInstruction?.events?.find((x) => x.name === "CreateEvent");
   if (!createInstruction) return;
   const args = createInstruction.args;
@@ -21,7 +20,6 @@ export function parseSwapTransactionOutput(parsedInstruction) {
   const virtual_sol_reserves = createEvents.virtual_sol_reserves;
   const real_token_reserves = createEvents.real_token_reserves;
   const token_total_supply = createEvents.token_total_supply;
-  const is_mayhem_mode = createEvents.is_mayhem_mode;
   const mint = createInstruction.accounts.find((ix)=> ix.name == "mint").pubkey;
   const bondingCurve = createInstruction.accounts.find((ix) => ix.name == "bonding_curve").pubkey;
   let output = {};
@@ -35,8 +33,7 @@ export function parseSwapTransactionOutput(parsedInstruction) {
      VirtualTokenReserves: virtual_token_reserves,
      VirtualSolReserves: virtual_sol_reserves,
      RealTokenReserves: real_token_reserves,
-     TokenTotalSupply: token_total_supply,
-     MayhemMode: is_mayhem_mode
+     TokenTotalSupply: token_total_supply
     }
   return output;
 }
