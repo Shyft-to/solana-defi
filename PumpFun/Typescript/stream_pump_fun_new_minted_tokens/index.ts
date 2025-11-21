@@ -1,40 +1,57 @@
-import "dotenv/config";
+require('dotenv').config()
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest,
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
-import { Connection, PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
-import { tOutPut } from "./utils/transactionOutput";
-import { publicKey } from "@solana/buffer-layout-utils";
+import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
+import { TransactionFormatter } from "./utils/transaction-formatter";
+import { parseSwapTransactionOutput } from "./utils/pumpfun_formatted_txn";
+import { PUMP_FUN_PROGRAM_ID, PUMPFUN_MINT_AUTHORITY } from "./utils/type";
+import { PumpFunDecoder } from "./utils/decode-parser";
 
-const pumpfun = 'TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM';
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
 
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
+console.warn = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleWarn(message, ...optionalParams); 
+};
 
-  async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
+console.log = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleLog(message, ...optionalParams); 
+};
+
+console.error = (message?: any, ...optionalParams: any[]) => {
+  if (
+    typeof message === "string" &&
+    message.includes("Parser does not matching the instruction args")
+  ) {
+    return; 
+  }
+  originalConsoleError(message, ...optionalParams); 
+};
+
+const pumpFunDecoder = new PumpFunDecoder();
+
+const TXN_FORMATTER = new TransactionFormatter();
+
+
+async function handleStream(client: Client, args: SubscribeRequest) {
+  console.log("Streaming Newly Minted Tokens on Pumpfun...")
   const stream = await client.subscribe();
-  console.log("Starting Stream....")
 
-  // Create `error` / `end` handler
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
       console.log("ERROR", error);
@@ -49,28 +66,28 @@ interface SubscribeRequest {
     });
   });
 
-  // Handle updates
-  stream.on("data", async (data) => {
-    try{
+  stream.on("data", (data) => {
+    if (data?.transaction) {
+      const txn = TXN_FORMATTER.formTransactionFromJson(
+        data.transaction,
+        Date.now(),
+      );
+      const parsedTxn = pumpFunDecoder.decodePumpFunTxn(txn);
+     // if(!parsedTxn) return;
+     const parsedPumpfunTxn = parseSwapTransactionOutput(parsedTxn)
+     if(!parsedPumpfunTxn) return;
+       console.log(
+        new Date(),
+        ":",
+        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+        JSON.stringify(parsedPumpfunTxn, null, 2) + "\n"
+      );
+      console.log(
+        "--------------------------------------------------------------------------------------------------"
+      );
+    }
+  });
 
-     const result = await tOutPut(data);
-
-     const Ca = result.meta.postTokenBalances[0].mint
-   
-    console.log(`
-      NEWLY MINTED
-      Ca : ${Ca}
-    
-   `)
-   
- 
-}catch(error){
-  if(error){
-  }
-}
-});
-
-  // Send subscribe request
   await new Promise<void>((resolve, reject) => {
     stream.write(args, (err: any) => {
       if (err === null || err === undefined) {
@@ -97,32 +114,32 @@ async function subscribeCommand(client: Client, args: SubscribeRequest) {
     }
   }
 }
+
 const client = new Client(
   process.env.GRPC_URL,
   process.env.X_TOKEN,
   undefined,
 );
-
-const req = {
-accounts: {},
-slots: {},
-transactions: {
-  pumpfun: {
-    vote: false,
-    failed: false,
-    signature: undefined,
-    accountInclude: [pumpfun], //Address 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
-    accountExclude: [],
-    accountRequired: [],
+const req: SubscribeRequest = {
+  accounts: {},
+  slots: {},
+  transactions: {
+    pumpFun: {
+      vote: false,
+      failed: false,
+      signature: undefined,
+      accountInclude: [PUMPFUN_MINT_AUTHORITY.toBase58()],
+      accountExclude: [],
+      accountRequired: [],
+    },
   },
-},
-transactionsStatus: {},
-entry: {},
-blocks: {},
-blocksMeta: {},
-accountsDataSlice: [],
-ping: undefined,
-commitment: CommitmentLevel.PROCESSED, //for receiving confirmed txn updates
+  transactionsStatus: {},
+  entry: {},
+  blocks: {},
+  blocksMeta: {},
+  accountsDataSlice: [],
+  ping: undefined,
+  commitment: CommitmentLevel.CONFIRMED,
 };
 
-subscribeCommand(client,req);
+subscribeCommand(client, req);
