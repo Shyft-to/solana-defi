@@ -209,16 +209,15 @@ impl LatencyChecker {
 
             margins.samples.sort_unstable();
 
-            let p25 = calculate_percentile(&margins.samples, 25.0);
+            // let p25 = calculate_percentile(&margins.samples, 25.0);
             let p50 = calculate_percentile(&margins.samples, 50.0);
             let p99 = calculate_percentile(&margins.samples, 99.0);
             
             info!(
-                "Node: {:?}, Wins: {} ({:.2}%), P25: {} ms, P50(Median): {} ms, P99: {} ms",
+                "Node: {:?}, Wins: {} ({:.2}%), P50(Median): {} ms, P99: {} ms",
                 node,
                 count_u64,
                 percentage_wins,
-                p25,
                 p50,
                 p99
             );
