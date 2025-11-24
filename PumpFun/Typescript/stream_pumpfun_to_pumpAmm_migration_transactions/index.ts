@@ -6,7 +6,6 @@ import Client, {
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
