@@ -14,6 +14,7 @@ cargo run -- \
   --endpoint https://grpc.sgp.shyft.to \
   --x-token <auth_token> \
   --ws-uri 'wss://rpc.sgp.shyft.to?api_key=<api_key>' \
+  --account-include pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA \
   --duration 60
 ```
 
@@ -22,6 +23,7 @@ cargo run -- \
 - --endpoint : gRPC endpoint URL (required)
 - --x-token : Authorization token for gRPC (required)
 - --ws-uri : WebSocket URL (required)
+- --account-include : Only stream transactions for this account (required)
 - --duration : Test duration in seconds (optional, default: 60)
 
 ## Sample Output

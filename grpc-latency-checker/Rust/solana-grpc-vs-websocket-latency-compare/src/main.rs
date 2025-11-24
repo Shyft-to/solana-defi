@@ -4,12 +4,17 @@ use {
     futures::{SinkExt, StreamExt},
     log::{error, info},
     maplit::hashmap,
-    solana_client::{client_error::reqwest::Url, nonblocking::pubsub_client::PubsubClient, rpc_config::CommitmentConfig},
+    solana_client::{
+        client_error::reqwest::Url,
+        nonblocking::pubsub_client::PubsubClient,
+        rpc_config::{CommitmentConfig, RpcTransactionLogsConfig, RpcTransactionLogsFilter},
+    },
     solana_sdk::signature::Signature,
     std::{
         collections::{HashMap, HashSet},
         env,
         sync::Arc,
+        vec,
     },
     tokio::sync::{mpsc, oneshot},
     yellowstone_grpc_client::{ClientTlsConfig, GeyserGrpcClient},
@@ -162,6 +167,9 @@ struct Args {
     #[clap(long)]
     ws_uri: String,
 
+    #[clap(long)]
+    account_include: String,
+
     #[clap(long, default_value = "60")]
     duration: u64, // seconds
 }
@@ -170,6 +178,7 @@ async fn grpc_message_handler(
     timeout: oneshot::Receiver<bool>,
     endpoint: String,
     token: Option<String>,
+    account_include: String,
     m_tx: mpsc::Sender<LatencyCheckerInput>,
 ) {
     let mut client = GeyserGrpcClient::build_from_shared(endpoint.clone())
@@ -194,7 +203,7 @@ async fn grpc_message_handler(
                 vote: None,
                 failed: None,
                 signature: None,
-                account_include: vec!["pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA".to_string()],
+                account_include: vec![account_include],
                 account_exclude: Vec::new(),
                 account_required: Vec::new(),
             } },
@@ -243,6 +252,7 @@ async fn grpc_message_handler(
 async fn ws_message_handler(
     timeout: oneshot::Receiver<bool>,
     ws_url: String,
+    account_include: String,
     m_tx: mpsc::Sender<LatencyCheckerInput>,
 ) {
     let mut ws_url = Url::parse(&ws_url).unwrap();
@@ -252,10 +262,8 @@ async fn ws_message_handler(
     let ps_client = PubsubClient::new(ws_url.to_string()).await.unwrap();
     let (mut stream, unsubscriber) = ps_client
         .logs_subscribe(
-            solana_client::rpc_config::RpcTransactionLogsFilter::Mentions(vec![
-                "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA".to_string(),
-            ]),
-            solana_client::rpc_config::RpcTransactionLogsConfig {
+            RpcTransactionLogsFilter::Mentions(vec![account_include]),
+            RpcTransactionLogsConfig {
                 commitment: Some(CommitmentConfig::processed()),
             },
         )
@@ -306,10 +314,18 @@ async fn main() {
     shutdown_sig.push(tx);
 
     let m_tx_g = m_tx.clone();
+    let account_include_grpc = args.account_include.clone();
 
-    info!("starting yellowstone grpc stream{}", endpoint,);
+    info!("starting yellowstone grpc stream{}", endpoint);
     tokio::spawn(async move {
-        grpc_message_handler(rx, args.endpoint, Some(args.x_token), m_tx_g).await;
+        grpc_message_handler(
+            rx,
+            args.endpoint,
+            Some(args.x_token),
+            account_include_grpc,
+            m_tx_g,
+        )
+        .await;
     });
 
     let endpoint = Arc::new(args.ws_uri.clone());
@@ -321,7 +337,7 @@ async fn main() {
 
     info!("starting websocket stream {}", endpoint);
     tokio::spawn(async move {
-        ws_message_handler(rx, args.ws_uri, m_tx_ws).await;
+        ws_message_handler(rx, args.ws_uri, args.account_include, m_tx_ws).await;
     });
 
     let ctrl_c = async {
