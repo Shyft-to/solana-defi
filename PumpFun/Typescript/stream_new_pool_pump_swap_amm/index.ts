@@ -68,6 +68,10 @@ interface SubscribeRequest {
 }
 
 const TXN_FORMATTER = new TransactionFormatter();
+const PUMP_FUN_MIGRATION_PROGRAM_ID = new PublicKey(
+  "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg"
+);
+
 const PUMP_AMM_PROGRAM_ID = new PublicKey(
   "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
 );
@@ -110,7 +114,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
 
       const parsedTxn = decodePumpAmmTxn(txn);
 
-      if (!parsedTxn) return;
+       if (!parsedTxn) return;
       const formatterPAMMTxn = pump_amm_formatter(parsedTxn, txn);
       if (!formatterPAMMTxn) return;
       console.log(
@@ -166,7 +170,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [PUMP_AMM_PROGRAM_ID.toBase58()],
+      accountInclude: [PUMP_FUN_MIGRATION_PROGRAM_ID.toBase58(), PUMP_AMM_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },
