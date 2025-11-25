@@ -1,5 +1,5 @@
 {
-  "name": "stream-and-parse-pump-fun-transaction-instructions-via-grpc",
+  "name": "stream_pumpfun_to_pumpAmm_migration_transactions",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
