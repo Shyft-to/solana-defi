@@ -52,6 +52,9 @@ const TXN_FORMATTER = new TransactionFormatter();
 const PUMP_FUN_PROGRAM_ID  = new PublicKey(
   "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 );
+const PUMP_FUN_MIGRATION_PROGRAM_ID = new PublicKey(
+  "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg"
+);
 
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -153,7 +156,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58()],
+      accountInclude: [PUMP_FUN_MIGRATION_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },
