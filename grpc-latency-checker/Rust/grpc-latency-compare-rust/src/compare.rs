@@ -186,7 +186,7 @@ impl LatencyChecker {
         
         let total_events = self.event_timings.len() as f64;
         
-        info!("Final Winning Margin Percentile Results:");
+        info!("Final Winning Margin Percentile Results(Only wins are displayed):");
         info!("------------------------------------------");
         
         let mut printed_endpoints = HashSet::new();
@@ -237,7 +237,7 @@ impl LatencyChecker {
         }
         
         info!("------------------------------------------");
-        info!("Note: Margin is the time advantage (Gain) the fastest node had over the slowest node for a single event.");
+        info!("Note: This only reports on nodes that won. Margin is the time advantage (Gain) the fastest node had over the slowest node for a single event.");
     }
 }
 
