@@ -6,7 +6,6 @@ import Client, {
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
@@ -51,6 +50,7 @@ const TXN_FORMATTER = new TransactionFormatter();
 const PUMP_FUN_PROGRAM_ID  = new PublicKey(
   "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 );
+const PUMP_FUN_MIGRATION_PROGRAM_ID = new PublicKey("39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg");
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 )
@@ -91,10 +91,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         data.transaction,
         Date.now()
       );
-
       const parsedTxn = decodePumpFunTxn(txn);
-      if (!parsedTxn) return;
-
       const pumpfunParsedTxn = pumpFunParsedTransaction(parsedTxn, txn);
       if (!pumpfunParsedTxn) return;
 
@@ -152,7 +149,7 @@ const req: SubscribeRequest = {
       vote: false,
       failed: false,
       signature: undefined,
-      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58()],
+      accountInclude: [PUMP_FUN_MIGRATION_PROGRAM_ID.toBase58()],
       accountExclude: [],
       accountRequired: [],
     },
