@@ -51,7 +51,6 @@ impl<'info> InstructionAccountMapper<'info> for Idl {
             .iter()
             .find(|ix| ix.name.to_lowercase() == instruction_name.to_lowercase())
             .ok_or(ProgramError::InvalidArgument)?;
-
         let mut account_metadata: Vec<AccountMetadata> = accounts
             .iter()
             .take(instruction.accounts.len())

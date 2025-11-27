@@ -1,2 +1,64 @@
 target/
 Cargo.lock
+
+  
+pub fn pump_amm_formatter(
+    &self,
+    parsed_instruction: &ParsedConfirmedTransactionWithStatusMeta,   // your custom struct
+) -> Option<PumpFunParsedResult> {
+
+    let meta = &original.meta;
+    let tx = &original.transaction; 
+    let filter_mint = tx.message.instructions.
+                      iter().chain(meta.inner_instructions.iter())
+                      .find(|ix| ix.name == "create" || ix.name == "create_v2")?;
+
+    // 2. Find "CreateEvent"
+    let create_event = tx.message.instructions.
+        .events
+        .iter()
+        .find(|ev| ev.name == "CreateEvent")?;
+
+    let data = &create_event.data;
+
+    // 3. Extract event state
+    let virtual_token_reserves = data.virtual_token_reserves;
+    let virtual_sol_reserves = data.virtual_sol_reserves;
+    let real_token_reserves = data.real_token_reserves;
+    let token_total_supply = data.token_total_supply;
+
+    // 4. Extract args
+    let args = &filter_mint.args;
+
+    let name = args.name.clone();
+    let symbol = args.symbol.clone();
+    let uri = args.uri.clone();
+    let creator = args.creator.clone();
+
+    // 5. Extract mint + bonding curve from accounts list
+    let mint = filter_mint
+        .accounts
+        .iter()
+        .find(|a| a.name == "mint")
+        .map(|a| a.pubkey.clone());
+
+    let bonding_curve = filter_mint
+        .accounts
+        .iter()
+        .find(|a| a.name == "bonding_curve")
+        .map(|a| a.pubkey.clone());
+
+    // 6. Return Rust struct
+    Some(PumpFunParsedResult {
+        name,
+        symbol,
+        uri,
+        mint,
+        bonding_curve,
+        creator,
+        virtual_token_reserves,
+        virtual_sol_reserves,
+        real_token_reserves,
+        token_total_supply,
+    })
+}

@@ -17,7 +17,7 @@ use {
 };
 use crate::processor::models::mapper::instruction::Idl;
 use crate::PUMPFUN_PROGRAM_ID;
-use crate::ParsedEventTransaction;
+use crate::DecodedInstruction;
 use crate::TOKEN_PROGRAM_ID;
 use spl_token::instruction::TokenInstruction;
 use crate::processor::models::mapper::event;
@@ -47,7 +47,7 @@ impl TransactionProcessor {
     pub fn process_transaction_update(
     &self,
     update: SubscribeUpdateTransaction,
-    ) -> anyhow::Result<Option<ParsedConfirmedTransactionWithStatusMeta>> {
+    ) -> anyhow::Result<Option<DecodedInstruction>> {
       let slot = update.slot;
       let block_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)?
@@ -89,7 +89,7 @@ impl TransactionProcessor {
                 block_time,
             )?;
 
-            Ok(self.pump_amm_formatter(parsed_txn))
+            Ok(self.parsed_pumpfun_create_txn(parsed_txn))
         } else {
             Ok(None)
      }
