@@ -47,7 +47,7 @@ impl TransactionProcessor {
     pub fn process_transaction_update(
     &self,
     update: SubscribeUpdateTransaction,
-    ) -> anyhow::Result<Option<ParsedConfirmedTransactionWithStatusMeta>> {
+    ) -> anyhow::Result<Option<DecodedInstruction>> {
       let slot = update.slot;
       let block_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)?
