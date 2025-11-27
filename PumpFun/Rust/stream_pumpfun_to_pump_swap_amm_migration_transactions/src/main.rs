@@ -36,6 +36,8 @@ type TxnFilterMap = HashMap<String, SubscribeRequestFilterTransactions>;
 
 const PUMPFUN_PROGRAM_ID: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const PUMP_FUN_MIGRATION_PROGRAM_ID: &str = "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg";
+
 
 
 #[derive(Debug, Clone, ClapParser)]
@@ -69,7 +71,7 @@ impl Args {
             SubscribeRequestFilterTransactions {
                 vote: Some(false),
                 failed: Some(false),
-                account_include: vec![PUMPFUN_PROGRAM_ID.to_string()],
+                account_include: vec![PUMP_FUN_MIGRATION_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
                 account_required: vec![],
                 signature: None,
