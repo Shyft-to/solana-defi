@@ -32,16 +32,3 @@ pub struct ExtractedInstructions {
     pub compiled: Vec<TransactionInstructionWithParent>,
     pub inner: Vec<TransactionInstructionWithParent>,
 }
-#[derive(Debug, Clone)]
-pub struct PumpFunParsedResult {
-    pub name: String,
-    pub symbol: String,
-    pub uri: String,
-    pub mint: Option<String>,
-    pub bonding_curve: Option<String>,
-    pub creator: String,
-    pub virtual_token_reserves: u64,
-    pub virtual_sol_reserves: u64,
-    pub real_token_reserves: u64,
-    pub token_total_supply: u64,
-}
