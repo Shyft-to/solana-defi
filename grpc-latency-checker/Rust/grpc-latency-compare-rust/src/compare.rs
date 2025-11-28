@@ -96,11 +96,6 @@ struct MarginSamples {
     samples: Vec<u64>,
 }
 
-#[derive(Default, Debug)]
-struct LatencyReportLag {
-    count: u64,
-    time_taken: u64,
-}
 
 // Helper function to calculate a specific percentile (P25, P50, P99, etc.)
 fn calculate_percentile(sorted_data: &[u64], percentile: f64) -> u64 {
@@ -159,10 +154,16 @@ impl LatencyChecker {
         }
     }
 
+
     fn get_report(&mut self, all_endpoints: &[Arc<String>]) {
-        
+        let mut draw_count = 0;
+        let mut total_event_based_on_fastest_node = 0;
+        let mut other_outcomes = 0;
+
         for v in self.event_timings.values() {
             if v.len() < 2 {
+                other_outcomes += 1;
+                // info!("SKIPPED EVENT (Reports: {}): {}", v.len(), sig);
                 continue;
             }
             
@@ -174,17 +175,36 @@ impl LatencyChecker {
 
             let gain = slowest.timestamp.saturating_sub(fastest.timestamp);
 
+            if(gain == 0) {
+                info!(
+                    "EVENT DRAW: {} ms (Winner: {}, Loser: {}) for Sig/Block: {}",
+                    gain,
+                    fastest.node,
+                    slowest.node,
+                    fastest.sig // sig is either the signature or block hash
+                );
+            }
+
             if gain > 0 {
+                total_event_based_on_fastest_node += 1;
                 self.winning_margins
                     .entry(fastest.node.clone())
                     .or_default()
                     .samples
                     .push(gain);
-            }
+            } else if gain == 0 {
+                draw_count += 1;
+                total_event_based_on_fastest_node += 1;
+            } 
+            
         }
         
         
         let total_events = self.event_timings.len() as f64;
+        // let total_events = self.event_timings
+        //     .values()
+        //     .map(|timings| timings.len() as u64)
+        //     .sum::<u64>() as f64;
         
         info!("Final Winning Margin Percentile Results(Only wins are displayed):");
         info!("------------------------------------------");
@@ -201,8 +221,8 @@ impl LatencyChecker {
                 continue;
             }
             
-            let percentage_wins = if total_events > 0.0 {
-                (count / total_events) * 100.0
+            let percentage_wins = if total_event_based_on_fastest_node as f64 > 0.0 {
+                (count / total_event_based_on_fastest_node as f64) * 100.0
             } else {
                 0.0
             };
@@ -223,8 +243,10 @@ impl LatencyChecker {
             );
         }
 
-        // --- STEP 3: Report on Non-Winning Nodes ---
         info!("Total Events Observed: {}", total_events);
+        info!("Total based on fastest node Observed: {}", total_event_based_on_fastest_node);
+        info!("Total Events Drawn: {}", draw_count);
+        info!("Events Skipped: {}", other_outcomes);
 
         for endpoint in all_endpoints {
             if !printed_endpoints.contains(endpoint) {
