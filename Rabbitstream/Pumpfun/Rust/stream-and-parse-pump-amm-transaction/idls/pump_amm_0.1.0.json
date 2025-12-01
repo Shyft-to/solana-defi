@@ -302,7 +302,8 @@
       ],
       "accounts": [
         {
-          "name": "pool"
+          "name": "pool",
+          "writable": true
         },
         {
           "name": "user",
@@ -542,7 +543,6 @@
         },
         {
           "name": "global_volume_accumulator",
-          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -730,7 +730,8 @@
       ],
       "accounts": [
         {
-          "name": "pool"
+          "name": "pool",
+          "writable": true
         },
         {
           "name": "user",
@@ -970,7 +971,6 @@
         },
         {
           "name": "global_volume_accumulator",
-          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -2083,6 +2083,10 @@
         {
           "name": "coin_creator",
           "type": "pubkey"
+        },
+        {
+          "name": "is_mayhem_mode",
+          "type": "bool"
         }
       ]
     },
@@ -2465,7 +2469,8 @@
       ],
       "accounts": [
         {
-          "name": "pool"
+          "name": "pool",
+          "writable": true
         },
         {
           "name": "user",
@@ -3004,6 +3009,92 @@
       "args": []
     },
     {
+      "name": "set_reserved_fee_recipients",
+      "discriminator": [
+        111,
+        172,
+        162,
+        232,
+        114,
+        89,
+        213,
+        142
+      ],
+      "accounts": [
+        {
+          "name": "global_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "global_config"
+          ]
+        },
+        {
+          "name": "event_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  95,
+                  95,
+                  101,
+                  118,
+                  101,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "whitelist_pda",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "sync_user_volume_accumulator",
       "discriminator": [
         86,
@@ -3130,6 +3221,70 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "toggle_mayhem_mode",
+      "discriminator": [
+        1,
+        9,
+        111,
+        208,
+        100,
+        31,
+        255,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "global_config"
+          ]
+        },
+        {
+          "name": "global_config",
+          "writable": true
+        },
+        {
+          "name": "event_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  95,
+                  95,
+                  101,
+                  118,
+                  101,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "enabled",
+          "type": "bool"
+        }
+      ]
     },
     {
       "name": "update_admin",
@@ -3642,6 +3797,19 @@
       ]
     },
     {
+      "name": "ReservedFeeRecipientsEvent",
+      "discriminator": [
+        43,
+        188,
+        250,
+        18,
+        221,
+        75,
+        187,
+        95
+      ]
+    },
+    {
       "name": "SellEvent",
       "discriminator": [
         62,
@@ -3899,6 +4067,22 @@
       "code": 6040,
       "name": "BuySlippageBelowMinBaseAmountOut",
       "msg": "buy: slippage - would buy less tokens than expected min_base_amount_out"
+    },
+    {
+      "code": 6041,
+      "name": "MayhemModeDisabled"
+    },
+    {
+      "code": 6042,
+      "name": "OnlyPumpPoolsMayhemMode"
+    },
+    {
+      "code": 6043,
+      "name": "MayhemModeInDesiredState"
+    },
+    {
+      "code": 6044,
+      "name": "NotEnoughRemainingAccounts"
     }
   ],
   "types": [
@@ -4002,6 +4186,10 @@
           {
             "name": "creator",
             "type": "pubkey"
+          },
+          {
+            "name": "is_mayhem_mode",
+            "type": "bool"
           }
         ]
       }
@@ -4354,6 +4542,10 @@
           {
             "name": "coin_creator",
             "type": "pubkey"
+          },
+          {
+            "name": "is_mayhem_mode",
+            "type": "bool"
           }
         ]
       }
@@ -4622,6 +4814,27 @@
               "The admin authority for setting coin creators"
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "whitelist_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "reserved_fee_recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "mayhem_mode_enabled",
+            "type": "bool"
+          },
+          {
+            "name": "reserved_fee_recipients",
+            "type": {
+              "array": [
+                "pubkey",
+                7
+              ]
+            }
           }
         ]
       }
@@ -4744,6 +4957,35 @@
           {
             "name": "coin_creator",
             "type": "pubkey"
+          },
+          {
+            "name": "is_mayhem_mode",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReservedFeeRecipientsEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "reserved_fee_recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "reserved_fee_recipients",
+            "type": {
+              "array": [
+                "pubkey",
+                7
+              ]
+            }
           }
         ]
       }
