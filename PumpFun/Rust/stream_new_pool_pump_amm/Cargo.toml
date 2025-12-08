@@ -1,5 +1,5 @@
 [package]
-name = "stream_pump_swap_amm_transactions_and_detect_buy_sell_events"
+name = "stream_new_pool_pump_amm"
 version = "0.1.0"
 edition = "2021"
 

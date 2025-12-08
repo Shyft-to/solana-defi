@@ -1,14 +1,14 @@
-# Streaming PumpSwap Amm transaction and Buy/Sell Event Detection on Solana
+# Stream and parse Pump Swap Amm New Pool transactions instructions via gRPC
+A Rust service that streams real-time Solana transactions via gRPC and detects new pool creations on the PumpFun AMM by filtering txn using its instruction name `CreatePool`.
 
-This project provides real-time streaming and decoding of PumpSwap AMM buy/sell transactions on Solana using gRPC and Rust. It targets the pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA program to extract key trading data for analytics and monitoring.
+## Key Features
+- Real-time monitoring of Solana blockchain via gRPC WebSocket
 
-## Features
-- 🔄 Real-Time gRPC Streaming: Continuously ingests Solana transactions related to the PumpSwap AMM with low-latency performance.
-- 🧠 Buy/Sell Instruction Decoding: Parses and structures critical trading instructions, including base/quote pool details.
-- 📊 Market Insight Extraction: Delivers structured outputs to analytics platforms, enabling deep visibility into DeFi trading trends.
-- ⚙️ High-Performance Rust Backend: Built for speed and reliability, ideal for demanding real-time financial applications.
-- 🔧 Easy Integration: Outputs data in a format ready for dashboards, alerts, and market analysis tools.
+- Automated detection of CreatePool instructions from PumpFun AMM
 
+- Comprehensive parsing of transaction data using custom IDL definitions
+
+- Multi-protocol support for both PumpFun AMM and SPL Token programs
 ```
 $ cargo run -- --endpoint <endpoint> --x-token <token>
 ```
