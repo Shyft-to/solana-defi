@@ -1,5 +1,5 @@
 [package]
-name = "pump_fun_grpc_txn_stream_n_parse"
+name = "stream_new_pool_pump_amm"
 version = "0.1.0"
 edition = "2021"
 

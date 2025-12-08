@@ -1,7 +1,15 @@
-# Streaming Pumpfun transaction using Rabbitstream and parsing instructions in Rust
+# Stream and parse Pump Swap Amm New Pool transactions instructions via Rabbitstream
+A Rust service that streams real-time Solana transactions via gRPC and detects new pool creations on the PumpFun AMM by filtering txn using its instruction name `CreatePool`.
 
-This project streams Pump.fun transactions from Rabbitstream, parsing both Pump.fun and Token Program instructions in real-time. It efficiently decodes transaction data, extracts meaningful insights, and structures the parsed instructions into a serializable format for easy processing and analysis. The implementation ensures smooth integration with Solana’s ecosystem, leveraging Rust’s strong type safety and performance for handling high-throughput transaction streams.
+## Key Features
+- Real-time monitoring of Solana blockchain via Rabbitstream 
 
+- Automated detection of CreatePool instructions from PumpFun AMM
+
+- Comprehensive parsing of transaction data using custom IDL definitions
+
+- Multi-protocol support for both PumpFun AMM and SPL Token programs
+```
 ```
 $ cargo run -- --endpoint <endpoint> --x-token <token>
 ```
