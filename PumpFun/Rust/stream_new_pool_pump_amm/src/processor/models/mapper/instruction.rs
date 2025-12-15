@@ -32,7 +32,6 @@ pub struct AccountMetadata {
     pub name: String,
 }
 
-// Helper function to convert snake_case to CamelCase
 fn to_camel_case(s: &str) -> String {
     s.split('_')
         .map(|word| {
@@ -45,7 +44,6 @@ fn to_camel_case(s: &str) -> String {
         .collect()
 }
 
-// Helper function to convert CamelCase to snake_case
 fn to_snake_case(s: &str) -> String {
     let mut result = String::new();
     for (i, c) in s.chars().enumerate() {

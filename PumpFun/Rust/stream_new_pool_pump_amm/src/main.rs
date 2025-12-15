@@ -205,7 +205,7 @@ async fn geyser_subscribe(
                  match processor.process_transaction_update(update) {
                   Ok(Some(pumpfun_txn)) => println!("Pump AMM:\n{:#?}", pumpfun_txn),
                   Ok(None) => (),
-                  Err(e) => (),//error!("Failed to process txn (skipping): {e}"),
+                  Err(e) => (),
                 }
             } 
                 Some(UpdateOneof::Ping(_)) => {
@@ -223,7 +223,6 @@ async fn geyser_subscribe(
                 _ => {}
             },
             Err(error) => {
-          //      error!("error: {error:?}");
                 break;
             }
         }

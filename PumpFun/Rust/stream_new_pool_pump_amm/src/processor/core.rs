@@ -153,10 +153,10 @@ impl TransactionProcessor {
     pub fn get_instruction_name_with_typename(&self,instruction: &TokenInstruction) -> String {
     let debug_string = format!("{:?}", instruction);
     if let Some(first_brace) = debug_string.find(" {") {
-        let name = &debug_string[..first_brace]; // Extract name before `{`
+        let name = &debug_string[..first_brace]; 
         self.to_camel_case(name)
     } else {
-        self.to_camel_case(&debug_string) // Directly convert unit variant names
+        self.to_camel_case(&debug_string) 
     }
     }
 

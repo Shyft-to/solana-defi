@@ -68,7 +68,6 @@ impl TransactionProcessor {
     let meta = &original.meta;
     let tx = &original.transaction;
     
-    // Look for CreatePool
     let amm_instruction = tx.message.instructions
         .iter()
         .chain(meta.inner_instructions.iter())
