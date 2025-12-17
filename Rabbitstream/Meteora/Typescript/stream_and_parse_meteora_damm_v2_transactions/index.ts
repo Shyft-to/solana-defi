@@ -178,7 +178,6 @@ function decodeMeteoraDAMM(tx: VersionedTransactionResponse) {
   bnLayoutFormatter(result);
   return result;
   }catch(err){
-    console.log(err)
   }
 }
 function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
