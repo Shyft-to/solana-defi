@@ -1,13 +1,7 @@
 require('dotenv').config()
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest
 } from "@triton-one/yellowstone-grpc";
 import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/types/grpc/geyser";
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
@@ -19,18 +13,6 @@ import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import { meteoradbcTransactionOutput } from "./utils/meteora_dbc_transaction_output";
 
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
 
 const TXN_FORMATTER = new TransactionFormatter();
 const METEORA_DBC_PROGRAM_ID = new PublicKey(
