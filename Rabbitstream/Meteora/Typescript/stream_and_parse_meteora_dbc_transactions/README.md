@@ -15,7 +15,7 @@ All parsed transaction data is normalized and structured for seamless downstream
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd Meteora/Typescript/stream_and_parse_meteora_dbc_transactions
+   cd Rabbitstream/Meteora/Typescript/stream_and_parse_meteora_dbc_transactions
    ```
 
 2. **Install Dependencies:**
