@@ -1,5 +1,5 @@
 {
-  "name": "stream-and-parse-meteora_damm_transactions",
+  "name": "stream-and-parse-meteora_dbc_transactions",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -13,7 +13,7 @@
     "solana",
     "grpc",
     "meteora",
-    "damm",
+    "dbc",
     "transaction",
     "events",
     "parser",
