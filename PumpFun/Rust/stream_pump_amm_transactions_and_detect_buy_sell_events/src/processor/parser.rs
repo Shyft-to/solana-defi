@@ -63,7 +63,7 @@ impl TransactionProcessor {
     pub fn parsed_pump_amm_txn(
         &self,
         original: ParsedConfirmedTransactionWithStatusMeta,
-    ) -> Option<ParsedEventTransaction> {
+    ) -> Option<TransactionEvent> {
         let meta = &original.meta;
     let tx = &original.transaction;
 
@@ -142,38 +142,7 @@ impl TransactionProcessor {
         amount_out: Some(quote_amount_out),
     };
 
-    let output = ParsedEventTransaction {
-        parsed_transaction: ParsedConfirmedTransactionWithStatusMeta {
-            slot: original.slot,
-            transaction: ParsedTransaction {
-                signatures: tx.signatures.clone(),
-                message: ParsedMessage {
-                    header: tx.message.header.clone(),
-                    account_keys: tx.message.account_keys.clone(),
-                    recent_blockhash: tx.message.recent_blockhash.clone(),
-                    instructions: tx.message.instructions.clone(),
-                    address_table_lookups: tx.message.address_table_lookups.clone(),
-                },
-            },
-            meta: ParsedTransactionStatusMeta {
-                status: meta.status.clone(),
-                fee: meta.fee,
-                pre_balances: meta.pre_balances.clone(),
-                post_balances: meta.post_balances.clone(),
-                inner_instructions: meta.inner_instructions.clone(),
-                log_messages: meta.log_messages.clone(),
-                pre_token_balances: meta.pre_token_balances.clone(),
-                post_token_balances: meta.post_token_balances.clone(),
-                rewards: meta.rewards.clone(),
-                loaded_addresses: meta.loaded_addresses.clone(),
-                return_data: meta.return_data.clone(),
-                compute_units_consumed: meta.compute_units_consumed,
-            },
-            block_time: original.block_time,
-        },
-        event,
-    };
 
-    Some(output)
+    Some(event)
 }
 }
