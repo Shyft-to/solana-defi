@@ -1,0 +1,20 @@
+[package]
+name = "solana-grpc-vs-websocket-latency-compare"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.62"
+backoff = { version = "0.4.0", features = ["tokio"] }
+bs58 = "0.5.1"
+clap = { version = "4.3.0", features = ["derive"] }
+chrono = "0.4.42"
+env_logger = "0.11.3"
+futures = "0.3.24"
+log = "0.4.17"
+maplit = "1.0.2"
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "fs", "signal"] }
+yellowstone-grpc-client = "7.0.0"
+yellowstone-grpc-proto = { version = "7.0.0", default-features = false ,features = ["plugin"] }
+solana-client = "3.1.1"
+solana-sdk = "3.0.0"

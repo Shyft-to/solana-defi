@@ -80,8 +80,8 @@ struct Timing {
 }
 #[derive(Default, Debug)]
 struct LatencyChecker {
-    txns: HashMap<String, HashSet<Timing>>,
-    blocks: HashMap<String, HashSet<Timing>>,
+    event_timings: HashMap<String, HashSet<Timing>>, 
+    winning_margins: HashMap<Arc<String>, MarginSamples>,
 }
 struct LatencyCheckerInput {
     signature: String,
@@ -91,40 +91,58 @@ struct LatencyCheckerInput {
 }
 
 #[derive(Default, Debug)]
+struct MarginSamples {
+    // Stores the margin of victory (Time_Slowest - Time_Fastest) for every win by this node.
+    samples: Vec<u64>,
+}
+
+#[derive(Default, Debug)]
 struct LatencyReportLag {
     count: u64,
     time_taken: u64,
 }
+
+// Helper function to calculate a specific percentile (P25, P50, P99, etc.)
+fn calculate_percentile(sorted_data: &[u64], percentile: f64) -> u64 {
+    if sorted_data.is_empty() {
+        return 0;
+    }
+    
+    let count = sorted_data.len();
+    let index_float = (percentile / 100.0) * count as f64;
+    let index = (index_float.ceil() as usize).saturating_sub(1);
+    let safe_index = index.min(count - 1);
+    
+    sorted_data[safe_index]
+}
+
 impl LatencyChecker {
     // m_type 0
     fn add_txn(&mut self, signature: String, timestamp: u64, node: Arc<String>) {
         let timing = Timing {
             sig: signature.clone(),
             timestamp,
-            node,
+            node, // Arc<String>
         };
-        if let Some(set) = self.txns.get_mut(&signature) {
-            set.insert(timing);
-        } else {
-            let mut set = HashSet::new();
-            set.insert(timing);
-            self.txns.insert(signature, set);
-        }
+        // Insert the timing into the event_timings map.
+        self.event_timings
+            .entry(signature)
+            .or_insert_with(HashSet::new)
+            .insert(timing);
     }
-    // m_type 1
+    
+    // m_type 1: Block Hash
     fn add_block(&mut self, block: String, timestamp: u64, node: Arc<String>) {
         let timing = Timing {
             sig: block.clone(),
             timestamp,
-            node,
+            node, // Arc<String>
         };
-        if let Some(set) = self.blocks.get_mut(&block) {
-            set.insert(timing);
-        } else {
-            let mut set = HashSet::new();
-            set.insert(timing);
-            self.blocks.insert(block, set);
-        }
+        // Insert the timing into the event_timings map.
+        self.event_timings
+            .entry(block)
+            .or_insert_with(HashSet::new)
+            .insert(timing);
     }
 
     async fn listen_messages(&mut self, mut m_rx: mpsc::Receiver<LatencyCheckerInput>) {
@@ -141,73 +159,85 @@ impl LatencyChecker {
         }
     }
 
-    fn get_report(&self, all_endpoints: &[Arc<String>]) {
-        let mut txns_compare: HashMap<Arc<String>, LatencyReportLag> = HashMap::new(); // map of node vs (fastest,slowest) between others
-        for v in self.txns.values() {
-            let mut values: Vec<_> = v.into_iter().collect();
+    fn get_report(&mut self, all_endpoints: &[Arc<String>]) {
+        
+        for v in self.event_timings.values() {
+            if v.len() < 2 {
+                continue;
+            }
+            
+            let mut values: Vec<_> = v.iter().collect();
             values.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-            let fastest = values.first();
-            let slowest = values.last();
 
-            if let Some(f) = fastest {
-                let s_tmp = slowest.map(|s| s.timestamp).unwrap_or(0);
+            let fastest = values.first().unwrap(); 
+            let slowest = values.last().unwrap();  
 
-                if f.timestamp == s_tmp {
-                    continue;
-                }
-                info!("Fastes: {}, slow: {}", f.timestamp, s_tmp);
-                if let Some(c) = txns_compare.get_mut(&f.node) {
-                    c.count += 1;
-                    c.time_taken += s_tmp - f.timestamp;
-                } else {
-                    txns_compare.insert(
-                        f.node.clone(),
-                        LatencyReportLag {
-                            count: 1,
-                            time_taken: s_tmp - f.timestamp,
-                        },
-                    );
-                }
+            let gain = slowest.timestamp.saturating_sub(fastest.timestamp);
+
+            if gain > 0 {
+                self.winning_margins
+                    .entry(fastest.node.clone())
+                    .or_default()
+                    .samples
+                    .push(gain);
             }
         }
-
-        let mut printed: Vec<Arc<String>> = Vec::new();
-        let total_count: u64 = txns_compare.values().map(|v| v.count).sum();
-
         
-        info!("Final results:");
-        info!("----------  Total Transactions: {} --------", total_count);
-        for (k, v) in txns_compare {
-            let percentage = if total_count > 0 {
-                (v.count as f64 / total_count as f64) * 100.0
+        
+        let total_events = self.event_timings.len() as f64;
+        
+        info!("Final Winning Margin Percentile Results:");
+        info!("------------------------------------------");
+        
+        let mut printed_endpoints = HashSet::new();
+        
+        for (node, margins) in &mut self.winning_margins {
+            printed_endpoints.insert(node.clone());
+            
+            let count = margins.samples.len() as f64;
+            let count_u64 = margins.samples.len() as u64;
+
+            if count_u64 == 0 {
+                continue;
+            }
+            
+            let percentage_wins = if total_events > 0.0 {
+                (count / total_events) * 100.0
             } else {
                 0.0
             };
 
+            margins.samples.sort_unstable();
+
+            // let p25 = calculate_percentile(&margins.samples, 25.0);
+            let p50 = calculate_percentile(&margins.samples, 50.0);
+            let p99 = calculate_percentile(&margins.samples, 99.0);
+            
             info!(
-                "{:?}, count: {} (faster in {:.2}% cases), avg_gain: {} ms",
-                k,
-                v.count,
-                percentage,
-                v.time_taken / v.count
+                "Node: {:?}, Wins: {} ({:.2}%), P50(Median): {} ms, P99: {} ms",
+                node,
+                count_u64,
+                percentage_wins,
+                p50,
+                p99
             );
-            printed.push(k);
         }
 
+        // --- STEP 3: Report on Non-Winning Nodes ---
+        info!("Total Events Observed: {}", total_events);
 
-        if printed.is_empty() {
-            info!("Error: Data not received from one endpoint");
-        } else {
-            for endpoint in all_endpoints {
-                if !printed.contains(endpoint) {
-                    info!(
-                        "{:?}, count: 0 (faster in 0% cases), avg_gain: 0 ms (always slower or equal)",
-                        endpoint
-                    );
-                }
+        for endpoint in all_endpoints {
+            if !printed_endpoints.contains(endpoint) {
+                // Percentage wins is 0.00%
+                info!(
+                    "Node: {:?} (Wins: 0 (0.00%)), P25/50/99 Margin: N/A (Never Won)",
+                    endpoint
+                );
             }
         }
-
+        
+        info!("------------------------------------------");
+        info!("Note: Margin is the time advantage (Gain) the fastest node had over the slowest node for a single event.");
     }
 }
 
