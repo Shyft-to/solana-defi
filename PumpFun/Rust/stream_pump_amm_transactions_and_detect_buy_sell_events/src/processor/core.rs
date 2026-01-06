@@ -21,6 +21,7 @@ use crate::ParsedEventTransaction;
 use crate::TOKEN_PROGRAM_ID;
 use spl_token::instruction::TokenInstruction;
 use crate::processor::models::mapper::event;
+use crate::TransactionEvent;
 
 pub struct TransactionProcessor {
     pub pumpfun_idl: Idl,
@@ -47,7 +48,7 @@ impl TransactionProcessor {
     pub fn process_transaction_update(
     &self,
     update: SubscribeUpdateTransaction,
-    ) -> anyhow::Result<Option<ParsedEventTransaction>> {
+    ) -> anyhow::Result<Option<TransactionEvent>> {
       let slot = update.slot;
       let block_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)?
