@@ -1,0 +1,176 @@
+require('dotenv').config()
+import Client, {
+  CommitmentLevel,
+  SubscribeRequest
+} from "@triton-one/yellowstone-grpc";
+import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
+import { Idl } from "@coral-xyz/anchor";
+import { SolanaParser } from "@shyft-to/solana-transaction-parser";
+import { TransactionFormatter } from "./utils/transaction-formatter";
+import meteoraDBCIdl from "./idls/meteora_dbc.json";
+import { SolanaEventParser } from "./utils/event/event-parser";
+import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
+import { meteoradbcTransactionOutput } from "./utils/meteora_dbc_transaction_output";
+
+const TXN_FORMATTER = new TransactionFormatter();
+const METEORA_DBC_PROGRAM_ID = new PublicKey(
+  "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN",
+);
+const METEORA_DBC_IX_PARSER = new SolanaParser([]);
+METEORA_DBC_IX_PARSER.addParserFromIdl(
+  METEORA_DBC_PROGRAM_ID.toBase58(),
+  meteoraDBCIdl as Idl,
+);
+const METEORA_DBC_EVENT_PARSER = new SolanaEventParser([], console);
+METEORA_DBC_EVENT_PARSER.addParserFromIdl(
+  METEORA_DBC_PROGRAM_ID.toBase58(),
+  meteoraDBCIdl as Idl,
+);
+
+async function handleStream(client: Client, args: SubscribeRequest) {
+  console.log("Starting Streaming...")
+  const stream = await client.subscribe();
+
+  // Create `error` / `end` handler
+  const streamClosed = new Promise<void>((resolve, reject) => {
+    stream.on("error", (error) => {
+      console.log("ERROR", error);
+      reject(error);
+      stream.end();
+    });
+    stream.on("end", () => {
+      resolve();
+    });
+    stream.on("close", () => {
+      resolve();
+    });
+  });
+
+  // Handle updates
+  stream.on("data", (data) => {
+    if (data?.transaction) {
+      const txn = TXN_FORMATTER.formTransactionFromJson(
+        data.transaction,
+        Date.now(),
+      );
+      const parsedInstruction = decodeMeteoraDBC(txn);
+      if (!parsedInstruction) return;
+      const parsedMeteoraDbc = meteoradbcTransactionOutput(parsedInstruction)
+      if(!parsedMeteoraDbc) return;
+     console.log(
+        new Date(),
+        ":",
+        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+        JSON.stringify(parsedMeteoraDbc, null, 2) + "\n"
+      );
+      console.log(
+        "--------------------------------------------------------------------------------------------------"
+      );
+    }
+  });
+
+  // Send subscribe request
+  await new Promise<void>((resolve, reject) => {
+    stream.write(args, (err: any) => {
+      if (err === null || err === undefined) {
+        resolve();
+      } else {
+        reject(err);
+      }
+    });
+  }).catch((reason) => {
+    console.error(reason);
+    throw reason;
+  });
+
+  await streamClosed;
+}
+
+async function subscribeCommand(client: Client, args: SubscribeRequest) {
+  while (true) {
+    try {
+      await handleStream(client, args);
+    } catch (error) {
+      console.error("Stream error, restarting in 1 second...", error);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+}
+
+const client = new Client(
+  process.env.RABBITSTREAM_URL,
+  process.env.X_TOKEN,
+  undefined,
+);
+const req: SubscribeRequest = {
+  accounts: {},
+  slots: {},
+  transactions: {
+    Meteora_DBC: {
+      vote: false,
+      failed: false,
+      signature: undefined,
+      accountInclude: [METEORA_DBC_PROGRAM_ID.toBase58()],
+      accountExclude: [],
+      accountRequired: [],
+    },
+  },
+  transactionsStatus: {},
+  entry: {},
+  blocks: {},
+  blocksMeta: {},
+  accountsDataSlice: [],
+  ping: undefined,
+  commitment: CommitmentLevel.CONFIRMED,
+};
+
+subscribeCommand(client, req);
+
+
+function decodeMeteoraDBC(tx: VersionedTransactionResponse) {
+  if (tx.meta?.err) return;
+
+  try {
+    const hydratedTx = hydrateLoadedAddresses(tx);
+
+    const parsedInnerIxs =
+      METEORA_DBC_IX_PARSER.parseTransactionWithInnerInstructions(hydratedTx);
+
+    const meteora_dbc_inner_ixs = parsedInnerIxs.filter(ix =>
+      ix.programId.equals(METEORA_DBC_PROGRAM_ID) ||
+      ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")) ||
+      ix.programId.equals(new PublicKey("ComputeBudget111111111111111111111111111111"))
+    );
+
+    if (meteora_dbc_inner_ixs.length === 0) return;
+
+    let events = [];
+    if (tx.meta?.innerInstructions && tx.meta.innerInstructions.length > 0) {
+      events = METEORA_DBC_EVENT_PARSER.parseEvent(tx);
+    }
+
+    const result = { instructions: meteora_dbc_inner_ixs, events };
+    bnLayoutFormatter(result);
+    return result;
+
+  } catch (err) {
+    return;
+  }
+}
+
+function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
+  const loaded = tx.meta?.loadedAddresses;
+  if (!loaded) return tx;
+  function ensurePublicKey(arr: (Buffer | PublicKey)[]) {
+    return arr.map(item =>
+      item instanceof PublicKey ? item : new PublicKey(item)
+    );
+  }
+
+  tx.meta.loadedAddresses = {
+    writable: ensurePublicKey(loaded.writable),
+    readonly: ensurePublicKey(loaded.readonly),
+  };
+
+  return tx;
+}
