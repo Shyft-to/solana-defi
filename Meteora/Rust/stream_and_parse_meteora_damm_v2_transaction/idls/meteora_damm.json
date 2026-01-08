@@ -2,7 +2,7 @@
   "address": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
   "metadata": {
     "name": "cp_amm",
-    "version": "0.1.1",
+    "version": "0.1.6",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },
@@ -167,29 +167,7 @@
       "accounts": [
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -325,29 +303,7 @@
       "accounts": [
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -486,29 +442,7 @@
       "accounts": [
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -739,19 +673,19 @@
           }
         },
         {
-          "name": "claim_fee_operator",
+          "name": "operator",
           "docs": [
             "Claim fee operator"
           ]
         },
         {
-          "name": "operator",
+          "name": "whitelisted_address",
           "docs": [
             "Operator"
           ],
           "signer": true,
           "relations": [
-            "claim_fee_operator"
+            "operator"
           ]
         },
         {
@@ -799,7 +733,16 @@
           "name": "program"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "max_amount_a",
+          "type": "u64"
+        },
+        {
+          "name": "max_amount_b",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "claim_reward",
@@ -816,29 +759,7 @@
       "accounts": [
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -918,33 +839,43 @@
         {
           "name": "reward_index",
           "type": "u8"
+        },
+        {
+          "name": "skip_reward",
+          "type": "u8"
         }
       ]
     },
     {
-      "name": "close_claim_fee_operator",
+      "name": "close_config",
       "discriminator": [
-        38,
-        134,
-        82,
-        216,
+        145,
+        9,
+        72,
+        157,
         95,
-        124,
-        17,
-        99
+        125,
+        61,
+        85
       ],
       "accounts": [
         {
-          "name": "claim_fee_operator",
+          "name": "config",
           "writable": true
+        },
+        {
+          "name": "operator"
+        },
+        {
+          "name": "whitelisted_address",
+          "signer": true,
+          "relations": [
+            "operator"
+          ]
         },
         {
           "name": "rent_receiver",
           "writable": true
-        },
-        {
-          "name": "admin",
-          "signer": true
         },
         {
           "name": "event_authority",
@@ -982,25 +913,24 @@
       "args": []
     },
     {
-      "name": "close_config",
+      "name": "close_operator_account",
       "discriminator": [
-        145,
+        171,
         9,
-        72,
-        157,
-        95,
-        125,
-        61,
-        85
+        213,
+        74,
+        120,
+        23,
+        3,
+        29
       ],
       "accounts": [
         {
-          "name": "config",
+          "name": "operator",
           "writable": true
         },
         {
           "name": "admin",
-          "writable": true,
           "signer": true
         },
         {
@@ -1082,29 +1012,7 @@
         },
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "rent_receiver",
@@ -1160,57 +1068,35 @@
       "args": []
     },
     {
-      "name": "create_claim_fee_operator",
+      "name": "close_token_badge",
       "discriminator": [
-        169,
-        62,
-        207,
-        107,
-        58,
-        187,
-        162,
-        109
+        108,
+        146,
+        86,
+        110,
+        179,
+        254,
+        10,
+        104
       ],
       "accounts": [
         {
-          "name": "claim_fee_operator",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  102,
-                  95,
-                  111,
-                  112,
-                  101,
-                  114,
-                  97,
-                  116,
-                  111,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "operator"
-              }
-            ]
-          }
+          "name": "token_badge",
+          "writable": true
         },
         {
           "name": "operator"
         },
         {
-          "name": "admin",
-          "writable": true,
-          "signer": true
+          "name": "whitelisted_address",
+          "signer": true,
+          "relations": [
+            "operator"
+          ]
         },
         {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
+          "name": "rent_receiver",
+          "writable": true
         },
         {
           "name": "event_authority",
@@ -1250,7 +1136,7 @@
     {
       "name": "create_config",
       "docs": [
-        "ADMIN FUNCTIONS /////"
+        "OPERATOR FUNCTIONS /////"
       ],
       "discriminator": [
         201,
@@ -1287,7 +1173,17 @@
           }
         },
         {
-          "name": "admin",
+          "name": "operator"
+        },
+        {
+          "name": "whitelisted_address",
+          "signer": true,
+          "relations": [
+            "operator"
+          ]
+        },
+        {
+          "name": "payer",
           "writable": true,
           "signer": true
         },
@@ -1380,7 +1276,17 @@
           }
         },
         {
-          "name": "admin",
+          "name": "operator"
+        },
+        {
+          "name": "whitelisted_address",
+          "signer": true,
+          "relations": [
+            "operator"
+          ]
+        },
+        {
+          "name": "payer",
           "writable": true,
           "signer": true
         },
@@ -1433,6 +1339,103 @@
               "name": "DynamicConfigParameters"
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "create_operator_account",
+      "docs": [
+        "ADMIN FUNCTIONS /////"
+      ],
+      "discriminator": [
+        221,
+        64,
+        246,
+        149,
+        240,
+        153,
+        229,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "operator",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  112,
+                  101,
+                  114,
+                  97,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "whitelisted_address"
+              }
+            ]
+          }
+        },
+        {
+          "name": "whitelisted_address"
+        },
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "event_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  95,
+                  95,
+                  101,
+                  118,
+                  101,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "permission",
+          "type": "u128"
         }
       ]
     },
@@ -1531,29 +1534,7 @@
         },
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "payer",
@@ -1654,7 +1635,17 @@
           "name": "token_mint"
         },
         {
-          "name": "admin",
+          "name": "operator"
+        },
+        {
+          "name": "whitelisted_address",
+          "signer": true,
+          "relations": [
+            "operator"
+          ]
+        },
+        {
+          "name": "payer",
           "writable": true,
           "signer": true
         },
@@ -1696,6 +1687,40 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "dummy_ix",
+      "discriminator": [
+        234,
+        95,
+        176,
+        185,
+        7,
+        42,
+        35,
+        159
+      ],
+      "accounts": [
+        {
+          "name": "pod_aligned_fee_time_scheduler"
+        },
+        {
+          "name": "pod_aligned_fee_rate_limiter"
+        },
+        {
+          "name": "pod_aligned_fee_market_cap_scheduler"
+        }
+      ],
+      "args": [
+        {
+          "name": "_ixs",
+          "type": {
+            "defined": {
+              "name": "DummyParams"
+            }
+          }
+        }
+      ]
     },
     {
       "name": "fund_reward",
@@ -1854,29 +1879,7 @@
         },
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -2156,29 +2159,7 @@
         },
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -2462,29 +2443,7 @@
         },
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -2696,29 +2655,7 @@
       "accounts": [
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -2761,7 +2698,11 @@
           "name": "reward_mint"
         },
         {
-          "name": "admin",
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "payer",
           "writable": true,
           "signer": true
         },
@@ -3041,29 +2982,7 @@
       "accounts": [
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -3212,29 +3131,7 @@
       "accounts": [
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -3386,8 +3283,14 @@
           "writable": true
         },
         {
-          "name": "admin",
-          "signer": true
+          "name": "operator"
+        },
+        {
+          "name": "whitelisted_address",
+          "signer": true,
+          "relations": [
+            "operator"
+          ]
         },
         {
           "name": "event_authority",
@@ -3430,29 +3333,80 @@
       ]
     },
     {
-      "name": "swap",
+      "name": "split_position",
       "discriminator": [
-        248,
-        198,
-        158,
-        145,
-        225,
-        117,
-        135,
-        200
+        172,
+        241,
+        221,
+        138,
+        161,
+        29,
+        253,
+        42
       ],
       "accounts": [
         {
-          "name": "pool_authority",
+          "name": "pool",
+          "writable": true,
+          "relations": [
+            "first_position",
+            "second_position"
+          ]
+        },
+        {
+          "name": "first_position",
+          "docs": [
+            "The first position"
+          ],
+          "writable": true
+        },
+        {
+          "name": "first_position_nft_account",
+          "docs": [
+            "The token account for position nft"
+          ]
+        },
+        {
+          "name": "second_position",
+          "docs": [
+            "The second position"
+          ],
+          "writable": true
+        },
+        {
+          "name": "second_position_nft_account",
+          "docs": [
+            "The token account for position nft"
+          ]
+        },
+        {
+          "name": "first_owner",
+          "docs": [
+            "Owner of first position"
+          ],
+          "signer": true
+        },
+        {
+          "name": "second_owner",
+          "docs": [
+            "Owner of second position"
+          ],
+          "signer": true
+        },
+        {
+          "name": "event_authority",
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  111,
-                  111,
-                  108,
+                  95,
+                  95,
+                  101,
+                  118,
+                  101,
+                  110,
+                  116,
                   95,
                   97,
                   117,
@@ -3467,6 +3421,139 @@
               }
             ]
           }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "SplitPositionParameters"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "split_position2",
+      "discriminator": [
+        221,
+        147,
+        228,
+        207,
+        140,
+        212,
+        17,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true,
+          "relations": [
+            "first_position",
+            "second_position"
+          ]
+        },
+        {
+          "name": "first_position",
+          "docs": [
+            "The first position"
+          ],
+          "writable": true
+        },
+        {
+          "name": "first_position_nft_account",
+          "docs": [
+            "The token account for position nft"
+          ]
+        },
+        {
+          "name": "second_position",
+          "docs": [
+            "The second position"
+          ],
+          "writable": true
+        },
+        {
+          "name": "second_position_nft_account",
+          "docs": [
+            "The token account for position nft"
+          ]
+        },
+        {
+          "name": "first_owner",
+          "docs": [
+            "Owner of first position"
+          ],
+          "signer": true
+        },
+        {
+          "name": "second_owner",
+          "docs": [
+            "Owner of second position"
+          ],
+          "signer": true
+        },
+        {
+          "name": "event_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  95,
+                  95,
+                  101,
+                  118,
+                  101,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "numerator",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "swap",
+      "discriminator": [
+        248,
+        198,
+        158,
+        145,
+        225,
+        117,
+        135,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "pool_authority",
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -3583,10 +3670,222 @@
       ],
       "args": [
         {
-          "name": "params",
+          "name": "_params",
           "type": {
             "defined": {
               "name": "SwapParameters"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "swap2",
+      "discriminator": [
+        65,
+        75,
+        63,
+        76,
+        235,
+        91,
+        91,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "pool_authority",
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
+        },
+        {
+          "name": "pool",
+          "docs": [
+            "Pool account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "input_token_account",
+          "docs": [
+            "The user token account for input token"
+          ],
+          "writable": true
+        },
+        {
+          "name": "output_token_account",
+          "docs": [
+            "The user token account for output token"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_a_vault",
+          "docs": [
+            "The vault token account for input token"
+          ],
+          "writable": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "token_b_vault",
+          "docs": [
+            "The vault token account for output token"
+          ],
+          "writable": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "token_a_mint",
+          "docs": [
+            "The mint of token a"
+          ]
+        },
+        {
+          "name": "token_b_mint",
+          "docs": [
+            "The mint of token b"
+          ]
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "The user performing the swap"
+          ],
+          "signer": true
+        },
+        {
+          "name": "token_a_program",
+          "docs": [
+            "Token a program"
+          ]
+        },
+        {
+          "name": "token_b_program",
+          "docs": [
+            "Token b program"
+          ]
+        },
+        {
+          "name": "referral_token_account",
+          "docs": [
+            "referral token account"
+          ],
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "event_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  95,
+                  95,
+                  101,
+                  118,
+                  101,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "_params",
+          "type": {
+            "defined": {
+              "name": "SwapParameters2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_pool_fees",
+      "discriminator": [
+        118,
+        217,
+        203,
+        179,
+        60,
+        8,
+        70,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "operator"
+        },
+        {
+          "name": "whitelisted_address",
+          "signer": true,
+          "relations": [
+            "operator"
+          ]
+        },
+        {
+          "name": "event_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  95,
+                  95,
+                  101,
+                  118,
+                  101,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdatePoolFeesParameters"
             }
           }
         }
@@ -3610,7 +3909,7 @@
           "writable": true
         },
         {
-          "name": "admin",
+          "name": "signer",
           "signer": true
         },
         {
@@ -3675,7 +3974,7 @@
           "writable": true
         },
         {
-          "name": "admin",
+          "name": "signer",
           "signer": true
         },
         {
@@ -3737,29 +4036,7 @@
       "accounts": [
         {
           "name": "pool_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  111,
-                  108,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
         },
         {
           "name": "pool",
@@ -3826,19 +4103,6 @@
   ],
   "accounts": [
     {
-      "name": "ClaimFeeOperator",
-      "discriminator": [
-        166,
-        48,
-        134,
-        86,
-        34,
-        200,
-        188,
-        150
-      ]
-    },
-    {
       "name": "Config",
       "discriminator": [
         155,
@@ -3849,6 +4113,58 @@
         250,
         204,
         130
+      ]
+    },
+    {
+      "name": "Operator",
+      "discriminator": [
+        219,
+        31,
+        188,
+        145,
+        69,
+        139,
+        204,
+        117
+      ]
+    },
+    {
+      "name": "PodAlignedFeeMarketCapScheduler",
+      "discriminator": [
+        251,
+        130,
+        208,
+        253,
+        245,
+        27,
+        145,
+        203
+      ]
+    },
+    {
+      "name": "PodAlignedFeeRateLimiter",
+      "discriminator": [
+        160,
+        219,
+        8,
+        251,
+        179,
+        7,
+        16,
+        117
+      ]
+    },
+    {
+      "name": "PodAlignedFeeTimeScheduler",
+      "discriminator": [
+        239,
+        132,
+        138,
+        213,
+        67,
+        154,
+        130,
+        70
       ]
     },
     {
@@ -3906,19 +4222,6 @@
   ],
   "events": [
     {
-      "name": "EvtAddLiquidity",
-      "discriminator": [
-        175,
-        242,
-        8,
-        157,
-        30,
-        247,
-        185,
-        169
-      ]
-    },
-    {
       "name": "EvtClaimPartnerFee",
       "discriminator": [
         118,
@@ -3971,19 +4274,6 @@
       ]
     },
     {
-      "name": "EvtCloseClaimFeeOperator",
-      "discriminator": [
-        111,
-        39,
-        37,
-        55,
-        110,
-        216,
-        194,
-        23
-      ]
-    },
-    {
       "name": "EvtCloseConfig",
       "discriminator": [
         36,
@@ -4007,19 +4297,6 @@
         142,
         214,
         178
-      ]
-    },
-    {
-      "name": "EvtCreateClaimFeeOperator",
-      "discriminator": [
-        21,
-        6,
-        153,
-        120,
-        68,
-        116,
-        28,
-        177
       ]
     },
     {
@@ -4114,6 +4391,19 @@
       ]
     },
     {
+      "name": "EvtLiquidityChange",
+      "discriminator": [
+        197,
+        171,
+        78,
+        127,
+        224,
+        211,
+        87,
+        13
+      ]
+    },
+    {
       "name": "EvtLockPosition",
       "discriminator": [
         168,
@@ -4140,19 +4430,6 @@
       ]
     },
     {
-      "name": "EvtRemoveLiquidity",
-      "discriminator": [
-        87,
-        46,
-        88,
-        98,
-        175,
-        96,
-        34,
-        91
-      ]
-    },
-    {
       "name": "EvtSetPoolStatus",
       "discriminator": [
         100,
@@ -4166,16 +4443,42 @@
       ]
     },
     {
-      "name": "EvtSwap",
+      "name": "EvtSplitPosition2",
       "discriminator": [
-        27,
-        60,
-        21,
-        213,
-        138,
-        170,
-        187,
-        147
+        165,
+        32,
+        203,
+        174,
+        72,
+        100,
+        233,
+        103
+      ]
+    },
+    {
+      "name": "EvtSwap2",
+      "discriminator": [
+        189,
+        66,
+        51,
+        168,
+        38,
+        80,
+        117,
+        153
+      ]
+    },
+    {
+      "name": "EvtUpdatePoolFees",
+      "discriminator": [
+        76,
+        165,
+        246,
+        102,
+        102,
+        217,
+        156,
+        44
       ]
     },
     {
@@ -4428,6 +4731,96 @@
       "code": 6041,
       "name": "InvalidConfigType",
       "msg": "Invalid config type"
+    },
+    {
+      "code": 6042,
+      "name": "InvalidPoolCreator",
+      "msg": "Invalid pool creator"
+    },
+    {
+      "code": 6043,
+      "name": "RewardVaultFrozenSkipRequired",
+      "msg": "Reward vault is frozen, must skip reward to proceed"
+    },
+    {
+      "code": 6044,
+      "name": "InvalidSplitPositionParameters",
+      "msg": "Invalid parameters for split position"
+    },
+    {
+      "code": 6045,
+      "name": "UnsupportPositionHasVestingLock",
+      "msg": "Unsupported split position has vesting lock"
+    },
+    {
+      "code": 6046,
+      "name": "SamePosition",
+      "msg": "Same position"
+    },
+    {
+      "code": 6047,
+      "name": "InvalidBaseFeeMode",
+      "msg": "Invalid base fee mode"
+    },
+    {
+      "code": 6048,
+      "name": "InvalidFeeRateLimiter",
+      "msg": "Invalid fee rate limiter"
+    },
+    {
+      "code": 6049,
+      "name": "FailToValidateSingleSwapInstruction",
+      "msg": "Fail to validate single swap instruction in rate limiter"
+    },
+    {
+      "code": 6050,
+      "name": "InvalidFeeTimeScheduler",
+      "msg": "Invalid fee scheduler"
+    },
+    {
+      "code": 6051,
+      "name": "UndeterminedError",
+      "msg": "Undetermined error"
+    },
+    {
+      "code": 6052,
+      "name": "InvalidPoolVersion",
+      "msg": "Invalid pool version"
+    },
+    {
+      "code": 6053,
+      "name": "InvalidAuthority",
+      "msg": "Invalid authority to do that action"
+    },
+    {
+      "code": 6054,
+      "name": "InvalidPermission",
+      "msg": "Invalid permission"
+    },
+    {
+      "code": 6055,
+      "name": "InvalidFeeMarketCapScheduler",
+      "msg": "Invalid fee market cap scheduler"
+    },
+    {
+      "code": 6056,
+      "name": "CannotUpdateBaseFee",
+      "msg": "Cannot update base fee"
+    },
+    {
+      "code": 6057,
+      "name": "InvalidDynamicFeeParameters",
+      "msg": "Invalid dynamic fee parameters"
+    },
+    {
+      "code": 6058,
+      "name": "InvalidUpdatePoolFeesParameters",
+      "msg": "Invalid update pool fees parameters"
+    },
+    {
+      "code": 6059,
+      "name": "MissingOperatorAccount",
+      "msg": "Missing operator account"
     }
   ],
   "types": [
@@ -4461,7 +4854,7 @@
       }
     },
     {
-      "name": "BaseFeeConfig",
+      "name": "BaseFeeInfo",
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4470,33 +4863,13 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "cliff_fee_numerator",
-            "type": "u64"
-          },
-          {
-            "name": "fee_scheduler_mode",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
+            "name": "data",
             "type": {
               "array": [
                 "u8",
-                5
+                32
               ]
             }
-          },
-          {
-            "name": "number_of_period",
-            "type": "u16"
-          },
-          {
-            "name": "period_frequency",
-            "type": "u64"
-          },
-          {
-            "name": "reduction_factor",
-            "type": "u64"
           }
         ]
       }
@@ -4507,24 +4880,13 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "cliff_fee_numerator",
-            "type": "u64"
-          },
-          {
-            "name": "number_of_period",
-            "type": "u16"
-          },
-          {
-            "name": "period_frequency",
-            "type": "u64"
-          },
-          {
-            "name": "reduction_factor",
-            "type": "u64"
-          },
-          {
-            "name": "fee_scheduler_mode",
-            "type": "u8"
+            "name": "data",
+            "type": {
+              "array": [
+                "u8",
+                30
+              ]
+            }
           }
         ]
       }
@@ -4539,21 +4901,123 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "base_fee_info",
+            "type": {
+              "defined": {
+                "name": "BaseFeeInfo"
+              }
+            }
+          },
+          {
+            "name": "padding_1",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BorshFeeMarketCapScheduler",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
             "name": "cliff_fee_numerator",
             "type": "u64"
           },
           {
-            "name": "fee_scheduler_mode",
+            "name": "number_of_period",
+            "type": "u16"
+          },
+          {
+            "name": "sqrt_price_step_bps",
+            "type": "u32"
+          },
+          {
+            "name": "scheduler_expiration_duration",
+            "type": "u32"
+          },
+          {
+            "name": "reduction_factor",
+            "type": "u64"
+          },
+          {
+            "name": "base_fee_mode",
             "type": "u8"
           },
           {
-            "name": "padding_0",
+            "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                3
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BorshFeeRateLimiter",
+      "docs": [
+        "we denote reference_amount = x0, cliff_fee_numerator = c, fee_increment = i",
+        "if input_amount <= x0, then fee = input_amount * c",
+        "",
+        "if input_amount > x0, then input_amount = x0 + (a * x0 + b)",
+        "if a < max_index",
+        "then fee = x0 * c + x0 * (c + i) + .... + x0 * (c + i*a) + b * (c + i * (a+1))",
+        "then fee = x0 * (c + c*a + i*a*(a+1)/2) + b * (c + i * (a+1))",
+        "",
+        "if a >= max_index",
+        "if a = max_index + d, input_amount = x0 + max_index * x0 + (d * x0 + b)",
+        "then fee = x0 * (c + c*max_index + i*max_index*(max_index+1)/2) + (d * x0 + b) * MAX_FEE"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cliff_fee_numerator",
+            "type": "u64"
+          },
+          {
+            "name": "fee_increment_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_limiter_duration",
+            "type": "u32"
+          },
+          {
+            "name": "max_fee_bps",
+            "type": "u32"
+          },
+          {
+            "name": "reference_amount",
+            "type": "u64"
+          },
+          {
+            "name": "base_fee_mode",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BorshFeeTimeScheduler",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cliff_fee_numerator",
+            "type": "u64"
           },
           {
             "name": "number_of_period",
@@ -4568,40 +5032,15 @@
             "type": "u64"
           },
           {
-            "name": "padding_1",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ClaimFeeOperator",
-      "docs": [
-        "Parameter that set by the protocol"
-      ],
-      "serialization": "bytemuck",
-      "repr": {
-        "kind": "c"
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "operator",
-            "docs": [
-              "operator"
-            ],
-            "type": "pubkey"
+            "name": "base_fee_mode",
+            "type": "u8"
           },
           {
-            "name": "_padding",
-            "docs": [
-              "Reserve"
-            ],
+            "name": "padding",
             "type": {
               "array": [
                 "u8",
-                128
+                3
               ]
             }
           }
@@ -4707,6 +5146,38 @@
                 "u64",
                 10
               ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DummyParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "borsh_fee_time_scheduler_params",
+            "type": {
+              "defined": {
+                "name": "BorshFeeTimeScheduler"
+              }
+            }
+          },
+          {
+            "name": "borsh_fee_rate_limiter_params",
+            "type": {
+              "defined": {
+                "name": "BorshFeeRateLimiter"
+              }
+            }
+          },
+          {
+            "name": "borsh_fee_market_cap_scheduler_params",
+            "type": {
+              "defined": {
+                "name": "BorshFeeMarketCapScheduler"
+              }
             }
           }
         ]
@@ -4892,50 +5363,6 @@
       }
     },
     {
-      "name": "EvtAddLiquidity",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pool",
-            "type": "pubkey"
-          },
-          {
-            "name": "position",
-            "type": "pubkey"
-          },
-          {
-            "name": "owner",
-            "type": "pubkey"
-          },
-          {
-            "name": "params",
-            "type": {
-              "defined": {
-                "name": "AddLiquidityParameters"
-              }
-            }
-          },
-          {
-            "name": "token_a_amount",
-            "type": "u64"
-          },
-          {
-            "name": "token_b_amount",
-            "type": "u64"
-          },
-          {
-            "name": "total_amount_a",
-            "type": "u64"
-          },
-          {
-            "name": "total_amount_b",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "EvtClaimPartnerFee",
       "type": {
         "kind": "struct",
@@ -5036,25 +5463,6 @@
       }
     },
     {
-      "name": "EvtCloseClaimFeeOperator",
-      "docs": [
-        "Close claim fee operator"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "claim_fee_operator",
-            "type": "pubkey"
-          },
-          {
-            "name": "operator",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
       "name": "EvtCloseConfig",
       "docs": [
         "Close config"
@@ -5098,21 +5506,6 @@
           },
           {
             "name": "position_nft_mint",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "EvtCreateClaimFeeOperator",
-      "docs": [
-        "Create claim fee operator"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "operator",
             "type": "pubkey"
           }
         ]
@@ -5259,6 +5652,18 @@
           {
             "name": "transfer_fee_excluded_amount_in",
             "type": "u64"
+          },
+          {
+            "name": "reward_duration_end",
+            "type": "u64"
+          },
+          {
+            "name": "pre_reward_rate",
+            "type": "u128"
+          },
+          {
+            "name": "post_reward_rate",
+            "type": "u128"
           }
         ]
       }
@@ -5377,12 +5782,76 @@
             "type": "pubkey"
           },
           {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
             "name": "reward_index",
             "type": "u8"
           },
           {
             "name": "reward_duration",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EvtLiquidityChange",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "position",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_a_amount",
+            "type": "u64"
+          },
+          {
+            "name": "token_b_amount",
+            "type": "u64"
+          },
+          {
+            "name": "transfer_fee_included_token_a_amount",
+            "type": "u64"
+          },
+          {
+            "name": "transfer_fee_included_token_b_amount",
+            "type": "u64"
+          },
+          {
+            "name": "reserve_a_amount",
+            "type": "u64"
+          },
+          {
+            "name": "reserve_b_amount",
+            "type": "u64"
+          },
+          {
+            "name": "liquidity_delta",
+            "type": "u128"
+          },
+          {
+            "name": "token_a_amount_threshold",
+            "type": "u64"
+          },
+          {
+            "name": "token_b_amount_threshold",
+            "type": "u64"
+          },
+          {
+            "name": "change_type",
+            "type": "u8"
           }
         ]
       }
@@ -5456,42 +5925,6 @@
       }
     },
     {
-      "name": "EvtRemoveLiquidity",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pool",
-            "type": "pubkey"
-          },
-          {
-            "name": "position",
-            "type": "pubkey"
-          },
-          {
-            "name": "owner",
-            "type": "pubkey"
-          },
-          {
-            "name": "params",
-            "type": {
-              "defined": {
-                "name": "RemoveLiquidityParameters"
-              }
-            }
-          },
-          {
-            "name": "token_a_amount",
-            "type": "u64"
-          },
-          {
-            "name": "token_b_amount",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "EvtSetPoolStatus",
       "type": {
         "kind": "struct",
@@ -5508,7 +5941,71 @@
       }
     },
     {
-      "name": "EvtSwap",
+      "name": "EvtSplitPosition2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "first_owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "second_owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "first_position",
+            "type": "pubkey"
+          },
+          {
+            "name": "second_position",
+            "type": "pubkey"
+          },
+          {
+            "name": "current_sqrt_price",
+            "type": "u128"
+          },
+          {
+            "name": "amount_splits",
+            "type": {
+              "defined": {
+                "name": "SplitAmountInfo"
+              }
+            }
+          },
+          {
+            "name": "first_position_info",
+            "type": {
+              "defined": {
+                "name": "SplitPositionInfo"
+              }
+            }
+          },
+          {
+            "name": "second_position_info",
+            "type": {
+              "defined": {
+                "name": "SplitPositionInfo"
+              }
+            }
+          },
+          {
+            "name": "split_position_parameters",
+            "type": {
+              "defined": {
+                "name": "SplitPositionParameters2"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "EvtSwap2",
       "type": {
         "kind": "struct",
         "fields": [
@@ -5521,6 +6018,10 @@
             "type": "u8"
           },
           {
+            "name": "collect_fee_mode",
+            "type": "u8"
+          },
+          {
             "name": "has_referral",
             "type": "bool"
           },
@@ -5528,7 +6029,7 @@
             "name": "params",
             "type": {
               "defined": {
-                "name": "SwapParameters"
+                "name": "SwapParameters2"
               }
             }
           },
@@ -5536,17 +6037,57 @@
             "name": "swap_result",
             "type": {
               "defined": {
-                "name": "SwapResult"
+                "name": "SwapResult2"
               }
             }
           },
           {
-            "name": "actual_amount_in",
+            "name": "included_transfer_fee_amount_in",
+            "type": "u64"
+          },
+          {
+            "name": "included_transfer_fee_amount_out",
+            "type": "u64"
+          },
+          {
+            "name": "excluded_transfer_fee_amount_out",
             "type": "u64"
           },
           {
             "name": "current_timestamp",
             "type": "u64"
+          },
+          {
+            "name": "reserve_a_amount",
+            "type": "u64"
+          },
+          {
+            "name": "reserve_b_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EvtUpdatePoolFees",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "params",
+            "type": {
+              "defined": {
+                "name": "UpdatePoolFeesParameters"
+              }
+            }
           }
         ]
       }
@@ -5666,7 +6207,7 @@
           {
             "name": "sqrt_price",
             "docs": [
-              "The init price of the pool as a sqrt(token_b/token_a) Q64.64 value"
+              "The init price of the pool as a sqrt(token_b/token_a) Q64.64 value. Market cap fee scheduler minimum price will be derived from this value"
             ],
             "type": "u128"
           },
@@ -5723,6 +6264,166 @@
             "type": {
               "option": "u64"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Operator",
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "whitelisted_address",
+            "type": "pubkey"
+          },
+          {
+            "name": "permission",
+            "type": "u128"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u64",
+                2
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PodAlignedFeeMarketCapScheduler",
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cliff_fee_numerator",
+            "type": "u64"
+          },
+          {
+            "name": "base_fee_mode",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "number_of_period",
+            "type": "u16"
+          },
+          {
+            "name": "sqrt_price_step_bps",
+            "type": "u32"
+          },
+          {
+            "name": "scheduler_expiration_duration",
+            "type": "u32"
+          },
+          {
+            "name": "reduction_factor",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PodAlignedFeeRateLimiter",
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cliff_fee_numerator",
+            "type": "u64"
+          },
+          {
+            "name": "base_fee_mode",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "fee_increment_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_limiter_duration",
+            "type": "u32"
+          },
+          {
+            "name": "max_fee_bps",
+            "type": "u32"
+          },
+          {
+            "name": "reference_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PodAlignedFeeTimeScheduler",
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cliff_fee_numerator",
+            "type": "u64"
+          },
+          {
+            "name": "base_fee_mode",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "number_of_period",
+            "type": "u16"
+          },
+          {
+            "name": "period_frequency",
+            "type": "u64"
+          },
+          {
+            "name": "reduction_factor",
+            "type": "u64"
           }
         ]
       }
@@ -5890,7 +6591,7 @@
           {
             "name": "collect_fee_mode",
             "docs": [
-              "0 is collect fee in both token, 1 only collect fee in token a, 2 only collect fee in token b"
+              "0 is collect fee in both token, 1 only collect fee only in token b"
             ],
             "type": "u8"
           },
@@ -5902,16 +6603,18 @@
             "type": "u8"
           },
           {
+            "name": "version",
+            "docs": [
+              "pool version, 0: max_fee is still capped at 50%, 1: max_fee is capped at 99%"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "_padding_0",
             "docs": [
               "padding"
             ],
-            "type": {
-              "array": [
-                "u8",
-                2
-              ]
-            }
+            "type": "u8"
           },
           {
             "name": "fee_a_per_liquidity",
@@ -5953,6 +6656,13 @@
             }
           },
           {
+            "name": "creator",
+            "docs": [
+              "pool creator"
+            ],
+            "type": "pubkey"
+          },
+          {
             "name": "_padding_1",
             "docs": [
               "Padding for further use"
@@ -5960,7 +6670,7 @@
             "type": {
               "array": [
                 "u64",
-                10
+                6
               ]
             }
           },
@@ -6003,27 +6713,6 @@
             }
           },
           {
-            "name": "protocol_fee_percent",
-            "docs": [
-              "Protocol trade fee percent"
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "partner_fee_percent",
-            "docs": [
-              "partner fee percent"
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "referral_fee_percent",
-            "docs": [
-              "referral fee percent"
-            ],
-            "type": "u8"
-          },
-          {
             "name": "dynamic_fee",
             "docs": [
               "dynamic fee"
@@ -6052,7 +6741,7 @@
             "name": "base_fee",
             "type": {
               "defined": {
-                "name": "BaseFeeConfig"
+                "name": "BaseFeeInfo"
               }
             }
           },
@@ -6174,16 +6863,8 @@
             }
           },
           {
-            "name": "padding_1",
-            "docs": [
-              "padding"
-            ],
-            "type": {
-              "array": [
-                "u64",
-                2
-              ]
-            }
+            "name": "init_sqrt_price",
+            "type": "u128"
           }
         ]
       }
@@ -6525,6 +7206,160 @@
       }
     },
     {
+      "name": "SplitAmountInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "permanent_locked_liquidity",
+            "type": "u128"
+          },
+          {
+            "name": "unlocked_liquidity",
+            "type": "u128"
+          },
+          {
+            "name": "fee_a",
+            "type": "u64"
+          },
+          {
+            "name": "fee_b",
+            "type": "u64"
+          },
+          {
+            "name": "reward_0",
+            "type": "u64"
+          },
+          {
+            "name": "reward_1",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitPositionInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "liquidity",
+            "type": "u128"
+          },
+          {
+            "name": "fee_a",
+            "type": "u64"
+          },
+          {
+            "name": "fee_b",
+            "type": "u64"
+          },
+          {
+            "name": "reward_0",
+            "type": "u64"
+          },
+          {
+            "name": "reward_1",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitPositionParameters",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "unlocked_liquidity_percentage",
+            "docs": [
+              "Percentage of unlocked liquidity to split to the second position"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "permanent_locked_liquidity_percentage",
+            "docs": [
+              "Percentage of permanent locked liquidity to split to the second position"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fee_a_percentage",
+            "docs": [
+              "Percentage of fee A pending to split to the second position"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fee_b_percentage",
+            "docs": [
+              "Percentage of fee B pending to split to the second position"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "reward_0_percentage",
+            "docs": [
+              "Percentage of reward 0 pending to split to the second position"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "reward_1_percentage",
+            "docs": [
+              "Percentage of reward 1 pending to split to the second position"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "docs": [
+              "padding for future"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitPositionParameters2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "unlocked_liquidity_numerator",
+            "type": "u32"
+          },
+          {
+            "name": "permanent_locked_liquidity_numerator",
+            "type": "u32"
+          },
+          {
+            "name": "fee_a_numerator",
+            "type": "u32"
+          },
+          {
+            "name": "fee_b_numerator",
+            "type": "u32"
+          },
+          {
+            "name": "reward_0_numerator",
+            "type": "u32"
+          },
+          {
+            "name": "reward_1_numerator",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
       "name": "StaticConfigParameters",
       "type": {
         "kind": "struct",
@@ -6581,13 +7416,51 @@
       }
     },
     {
-      "name": "SwapResult",
-      "docs": [
-        "Encodes all results of swapping"
-      ],
+      "name": "SwapParameters2",
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "amount_0",
+            "docs": [
+              "When it's exact in, partial fill, this will be amount_in. When it's exact out, this will be amount_out"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "amount_1",
+            "docs": [
+              "When it's exact in, partial fill, this will be minimum_amount_out. When it's exact out, this will be maximum_amount_in"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "swap_mode",
+            "docs": [
+              "Swap mode, refer [SwapMode]"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwapResult2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "included_fee_input_amount",
+            "type": "u64"
+          },
+          {
+            "name": "excluded_fee_input_amount",
+            "type": "u64"
+          },
+          {
+            "name": "amount_left",
+            "type": "u64"
+          },
           {
             "name": "output_amount",
             "type": "u64"
@@ -6597,7 +7470,7 @@
             "type": "u128"
           },
           {
-            "name": "lp_fee",
+            "name": "trading_fee",
             "type": "u64"
           },
           {
@@ -6644,6 +7517,41 @@
                 "u8",
                 128
               ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdatePoolFeesParameters",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cliff_fee_numerator",
+            "docs": [
+              "Base fee update mode:",
+              "- None: skip base fee update",
+              "- Some: update new cliff_fee_numerator if base fee is static"
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "dynamic_fee",
+            "docs": [
+              "Dynamic fee update mode:",
+              "- None: skip dynamic fee update",
+              "- Some(with default value): disable dynamic fee",
+              "- Some(with non default value): enable dynamic fee if disabled or update dynamic fee if enabled"
+            ],
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "DynamicFeeParameters"
+                }
+              }
             }
           }
         ]
@@ -6774,6 +7682,94 @@
           }
         ]
       }
+    }
+  ],
+  "constants": [
+    {
+      "name": "BIN_STEP_BPS_DEFAULT",
+      "type": "u16",
+      "value": "1"
+    },
+    {
+      "name": "BIN_STEP_U128_DEFAULT_LE_BYTES",
+      "type": {
+        "array": [
+          "u8",
+          16
+        ]
+      },
+      "value": "[203, 16, 199, 186, 184, 141, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
+    },
+    {
+      "name": "CUSTOMIZABLE_POOL_PREFIX",
+      "type": "bytes",
+      "value": "[99, 112, 111, 111, 108]"
+    },
+    {
+      "name": "FEE_DENOMINATOR",
+      "docs": [
+        "Default fee denominator. DO NOT simply update it as it will break logic that depends on it as default value."
+      ],
+      "type": "u64",
+      "value": "1000000000"
+    },
+    {
+      "name": "MAX_BASIS_POINT",
+      "docs": [
+        "Max basis point. 100% in pct"
+      ],
+      "type": "u64",
+      "value": "10000"
+    },
+    {
+      "name": "MAX_SQRT_PRICE_LE_BYTES",
+      "type": {
+        "array": [
+          "u8",
+          16
+        ]
+      },
+      "value": "[155, 87, 105, 78, 169, 26, 92, 132, 177, 196, 254, 255, 0, 0, 0, 0]"
+    },
+    {
+      "name": "MIN_SQRT_PRICE_LE_BYTES",
+      "type": {
+        "array": [
+          "u8",
+          16
+        ]
+      },
+      "value": "[80, 59, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
+    },
+    {
+      "name": "POOL_AUTHORITY_PREFIX",
+      "type": "bytes",
+      "value": "[112, 111, 111, 108, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
+    },
+    {
+      "name": "POOL_PREFIX",
+      "type": "bytes",
+      "value": "[112, 111, 111, 108]"
+    },
+    {
+      "name": "POSITION_NFT_ACCOUNT_PREFIX",
+      "type": "bytes",
+      "value": "[112, 111, 115, 105, 116, 105, 111, 110, 95, 110, 102, 116, 95, 97, 99, 99, 111, 117, 110, 116]"
+    },
+    {
+      "name": "POSITION_PREFIX",
+      "type": "bytes",
+      "value": "[112, 111, 115, 105, 116, 105, 111, 110]"
+    },
+    {
+      "name": "SPLIT_POSITION_DENOMINATOR",
+      "type": "u32",
+      "value": "1000000000"
+    },
+    {
+      "name": "TOKEN_VAULT_PREFIX",
+      "type": "bytes",
+      "value": "[116, 111, 107, 101, 110, 95, 118, 97, 117, 108, 116]"
     }
   ]
 }

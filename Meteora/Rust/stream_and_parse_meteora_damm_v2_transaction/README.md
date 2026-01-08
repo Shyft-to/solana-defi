@@ -9,4 +9,6 @@ $ cargo run -- --endpoint <endpoint> --x-token <token>
 
 ## Notes
 
-gRPC client example in rust: [https://github.com/rpcpool/yellowstone-grpc/tree/master/examples/rust]
+gRPC client example in rust: [https://github.com/rpcpool/yellowstone-grpc/tree/master/examples/rust] 
+
+cargo run -- --endpoint https://grpc.ny.shyft.to --x-token 09306e57-22bd-42f5-a613-b7a341c8c52f
