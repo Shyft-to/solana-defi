@@ -1,5 +1,4 @@
 #[cfg(feature = "serde")]
-//use crate::serializer::{deserialize_u128_as_string, serialize_u128_as_string};
 use std::fmt;
 use crate::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -9,8 +8,9 @@ use solana_program::{
     program::{invoke, invoke_signed},
     pubkey::Pubkey, program_error::ProgramError,
 };
+use std::io::{Read, Write};
 use inflector::Inflector;
-use std::io::Read;
+// use std::io::Read;
 use typedefs::{AddLiquidityParameters,InitializeCustomizablePoolParameters};
 use strum_macros::{Display, EnumString};
 
@@ -24,12 +24,16 @@ pub enum MeteoraDammProgramIx {
     ClaimReward(ClaimRewardIxArgs),
     CloseClaimFeeOperator,
     CloseConfig,
+    CloseOperatorAccount,
     ClosePosition,
+    CloseTokenBadge,
     CreateClaimFeeOperator,
     CreateConfig(CreateConfigIxArgs),
     CreateDynamicConfig(CreateDynamicConfigIxArgs),
+    CreateOperatorAccount(CreateOperatorAccountIxArgs),
     CreatePosition,
     CreateTokenBadge,
+    DummyIx(DummyIxArgs),
     FundReward(FundRewardIxArgs),
     InitializeCustomizablePool(InitializeCustomizablePoolIxArgs),
     InitializePool(InitializePoolIxArgs),
@@ -41,7 +45,11 @@ pub enum MeteoraDammProgramIx {
     RemoveAllLiquidity(RemoveAllLiquidityIxArgs),
     RemoveLiquidity(RemoveLiquidityIxArgs),
     SetPoolStatus(SetPoolStatusIxArgs),
+    SplitPosition(SplitPositionIxArgs),
+    SplitPositionV2(SplitPositionV2IxArgs), 
     Swap(SwapIxArgs),
+    Swap2(Swap2IxArgs),
+    UpdatePoolFees(UpdatePoolFeesIxArgs),
     UpdateRewardDuration(UpdateRewardDurationIxArgs),
     UpdateRewardFunder(UpdateRewardFunderIxArgs),
     WithdrawIneligibleReward(WithdrawIneligibleRewardIxArgs),
@@ -78,7 +86,9 @@ impl MeteoraDammProgramIx {
             } 
             CLOSE_CLAIM_FEE_OPERATOR_IX_DISCM => {Ok(Self::CloseClaimFeeOperator)}
             CLOSE_CONFIG_IX_DISCM => {Ok(Self::CloseConfig)}
+            CLOSE_OPERATOR_ACCOUNT_IX_DISCM => {Ok(Self::CloseOperatorAccount)}
             CLOSE_POSITION_IX_DISCM => {Ok(Self::ClosePosition)}
+            CLOSE_TOKEN_BADGE_IX_DISCM => {Ok(Self::CloseTokenBadge)}
             CREATE_CLAIM_FEE_OPERATOR_IX_DISCM => {Ok(Self::CreateClaimFeeOperator)}
             CREATE_CONFIG_IX_DISCM => { 
                 Ok(Self::CreateConfig(CreateConfigIxArgs::deserialize(&mut reader)?
@@ -90,8 +100,18 @@ impl MeteoraDammProgramIx {
              ),
             )
            }
+           CREATE_OPERATOR_ACCOUNT_IX_DISCM => {
+             Ok(Self::CreateOperatorAccount(CreateOperatorAccountIxArgs::deserialize(&mut reader)?
+              ),
+            )
+           }
             CREATE_POSITION_IX_DISCM => {Ok(Self::CreatePosition)}
             CREATE_TOKEN_BADGE_IX_DISCM => {Ok(Self::CreateTokenBadge)}
+            DUMMY_IX_DISCM => {
+                Ok(Self::DummyIx(DummyIxArgs::deserialize(&mut reader)?
+             )
+             )
+            }
             FUND_REWARD_IX_DISCM => {
                  Ok(Self::FundReward(FundRewardIxArgs::deserialize(&mut reader)?
                 ),
@@ -143,10 +163,31 @@ impl MeteoraDammProgramIx {
                ),
               )
             }
+            SPLIT_POSITION_IX_DISCM => { 
+               Ok(Self::SplitPosition(SplitPositionIxArgs::deserialize(&mut reader)?
+              ),
+            )
+            }   
+            SPLIT_POSITION_V2_IX_DISCM => {
+                Ok(Self::SplitPositionV2(SplitPositionV2IxArgs::deserialize(&mut reader)?
+             ),
+             )
+            }
             SWAP_IX_DISCM => {
+                
                 Ok(Self::Swap(SwapIxArgs::deserialize(&mut reader)?
                ),
              )
+            }
+            SWAP_2_IX_DISCM => {
+                Ok(Self::Swap2(Swap2IxArgs::deserialize(&mut reader)?
+              ),
+             )
+            }
+            UPDATE_POOL_FEE_IX_DISCM => {
+              Ok(Self::UpdatePoolFees(UpdatePoolFeesIxArgs::deserialize(&mut reader)?
+            ),
+                )
             }
             UPDATE_REWARD_DURATION_IX_DISCM =>{
              Ok(Self::UpdateRewardDuration(UpdateRewardDurationIxArgs::deserialize(&mut reader)?
@@ -190,7 +231,9 @@ impl MeteoraDammProgramIx {
             }
             Self::CloseClaimFeeOperator => {writer.write_all(&CLOSE_CLAIM_FEE_OPERATOR_IX_DISCM)}
             Self::CloseConfig => {writer.write_all(&CLOSE_CONFIG_IX_DISCM)}
+            Self::CloseOperatorAccount => {writer.write_all(&CLOSE_OPERATOR_ACCOUNT_IX_DISCM)}
             Self::ClosePosition => {writer.write_all(&CLOSE_POSITION_IX_DISCM)}
+            Self::CloseTokenBadge => {writer.write_all(&CLOSE_TOKEN_BADGE_IX_DISCM)}
             Self::CreateClaimFeeOperator => {writer.write_all(&CREATE_CLAIM_FEE_OPERATOR_IX_DISCM)}
             Self::CreateConfig(args) => {
                 writer.write_all(&CREATE_CONFIG_IX_DISCM)?;
@@ -200,8 +243,16 @@ impl MeteoraDammProgramIx {
                 writer.write_all(&CREATE_DYNAMIC_CONFIG_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
+            Self::CreateOperatorAccount(args) => {
+                writer.write_all(&CREATE_OPERATOR_ACCOUNT_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
             Self::CreatePosition => {writer.write_all(&CREATE_POSITION_IX_DISCM)}
             Self::CreateTokenBadge => {writer.write_all(&CREATE_TOKEN_BADGE_IX_DISCM)}
+            Self::DummyIx(args) => {
+                writer.write_all(&DUMMY_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
             Self::FundReward(args) => {
                 writer.write_all(&FUND_REWARD_IX_DISCM)?;
                 args.serialize(&mut writer)
@@ -243,8 +294,24 @@ impl MeteoraDammProgramIx {
                 writer.write_all(&SET_POOL_STATUS_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
+            Self::SplitPosition(args) => {
+                writer.write_all(&SPLIT_POSITION_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::SplitPositionV2(args) => {
+                writer.write_all(&SPLIT_POSITION_V2_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
             Self::Swap(args) => {
                 writer.write_all(&SWAP_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::Swap2(args) => {
+                writer.write_all(&SWAP_2_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
+            Self::UpdatePoolFees(args) => {
+                writer.write_all(&UPDATE_POOL_FEE_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
             Self::UpdateRewardDuration(args) => {
@@ -2413,6 +2480,236 @@ pub fn close_config_verify_account_privileges<'me, 'info>(
     close_config_verify_signer_privileges(accounts)?;
     Ok(())
 }
+pub const CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN: usize = 5;
+#[derive(Copy, Clone, Debug)]
+pub struct CloseOperatorAccountAccounts<'me, 'info> {
+    pub operator: &'me AccountInfo<'info>,
+    pub admin: &'me AccountInfo<'info>,
+    pub rent_receiver: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CloseOperatorAccountKeys {
+    pub operator: Pubkey,
+    pub admin: Pubkey,
+    pub rent_receiver: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+impl From<CloseOperatorAccountAccounts<'_,'_>> for CloseOperatorAccountKeys {
+    fn from(accounts: CloseOperatorAccountAccounts) -> Self {
+        Self {
+            operator: *accounts.operator.key,
+            admin: *accounts.admin.key,
+            rent_receiver: *accounts.rent_receiver.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key
+        }
+    }
+}
+impl From<CloseOperatorAccountKeys> for [AccountMeta; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]{
+    fn from(keys:CloseOperatorAccountKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.operator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey:keys.admin,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.rent_receiver,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable:false
+            }
+        ]
+    }
+}
+impl From<[Pubkey; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]> for CloseOperatorAccountKeys {
+    fn from(pubkeys: [Pubkey; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            operator: pubkeys[0],
+            admin: pubkeys[1],
+            rent_receiver: pubkeys[2],
+            event_authority: pubkeys[3],
+            program: pubkeys[4]
+        }
+    }
+}
+impl<'info> From<CloseOperatorAccountAccounts<'_,'info>> for [AccountInfo<'info>; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]{
+    fn from(accounts: CloseOperatorAccountAccounts<'_,'info>) -> Self {
+        [
+            accounts.operator.clone(),
+            accounts.admin.clone(),
+            accounts.rent_receiver.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]> for CloseOperatorAccountAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            operator: &arr[0],
+            admin: &arr[1],
+            rent_receiver: &arr[2],
+            event_authority: &arr[3],
+            program: &arr[4]
+        }
+    }
+}
+pub const CLOSE_OPERATOR_ACCOUNT_IX_DISCM: [u8; 8] = [171, 9, 213, 74, 120, 23, 3, 29];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CloseOperatorAccountIxArgs {}
+#[derive(Clone, Debug, PartialEq)]
+pub struct CloseOperatorAccountIxData(pub CloseOperatorAccountIxArgs);
+impl From<CloseOperatorAccountIxArgs> for CloseOperatorAccountIxData {
+    fn from(args: CloseOperatorAccountIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl CloseOperatorAccountIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLOSE_OPERATOR_ACCOUNT_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        CLOSE_OPERATOR_ACCOUNT_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(CloseOperatorAccountIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLOSE_OPERATOR_ACCOUNT_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn close_operator_account_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CloseOperatorAccountKeys,
+    args: CloseOperatorAccountIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN] = keys.into();
+    let data: CloseOperatorAccountIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn close_operator_account_ix(
+    keys: CloseOperatorAccountKeys,
+    args: CloseOperatorAccountIxArgs,
+) -> std::io::Result<Instruction> {
+    close_operator_account_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn close_operator_account_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+    args: CloseOperatorAccountIxArgs,
+) -> ProgramResult {
+    let keys: CloseOperatorAccountKeys = accounts.into();
+    let ix = close_operator_account_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn close_operator_account_invoke(
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+    args: CloseOperatorAccountIxArgs,
+) -> ProgramResult {
+    close_operator_account_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn close_operator_account_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+    args: CloseOperatorAccountIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CloseOperatorAccountKeys = accounts.into();
+    let ix = close_operator_account_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn close_operator_account_invoke_signed(
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+    args: CloseOperatorAccountIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    close_operator_account_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn close_operator_account_verify_account_keys(
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+    keys: CloseOperatorAccountKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.operator.key, keys.operator),
+        (*accounts.admin.key, keys.admin),
+        (*accounts.rent_receiver.key, keys.rent_receiver),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn close_operator_account_verify_writable_privileges<'me, 'info>(
+    accounts: CloseOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.operator,
+        accounts.admin,
+        accounts.rent_receiver
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn close_operator_account_verify_signer_privileges<'me, 'info>(
+    accounts: CloseOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.admin] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn close_operator_account_verify_account_privileges<'me, 'info>(
+    accounts: CloseOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    close_operator_account_verify_writable_privileges(accounts)?;
+    close_operator_account_verify_signer_privileges(accounts)?;
+    Ok(())
+}
 pub const CLOSE_POSITION_IX_ACCOUNTS_LEN: usize = 10;
 #[derive(Copy, Clone, Debug)]
 pub struct ClosePositionAccounts<'me, 'info> {
@@ -2703,6 +3000,250 @@ pub fn close_position_verify_account_privileges<'me, 'info>(
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     close_position_verify_writable_privileges(accounts)?;
     close_position_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const CLOSE_TOKEN_BADGE_IX_ACCOUNT_LEN: usize = 6;
+#[derive(Copy, Clone, Debug)]
+pub struct CloseTokenBadgeAccounts<'me, 'info> {
+    pub token_badge: &'me AccountInfo<'info>,
+    pub operator: &'me AccountInfo<'info>,
+    pub whitelisted_address: &'me AccountInfo<'info>,
+    pub rent_receiver: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CloseTokenBadgeKeys {
+    pub token_badge: Pubkey,
+    pub operator: Pubkey,
+    pub whitelisted_address: Pubkey,
+    pub rent_receiver: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey
+}
+impl From<CloseTokenBadgeAccounts<'_,'_>> for CloseTokenBadgeKeys {
+    fn from(accounts: CloseTokenBadgeAccounts) -> Self {
+        Self {
+            token_badge: *accounts.token_badge.key,
+            operator: *accounts.operator.key,
+            whitelisted_address: *accounts.whitelisted_address.key,
+            rent_receiver: *accounts.rent_receiver.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+impl From<[Pubkey; CLOSE_TOKEN_BADGE_IX_ACCOUNT_LEN]> for CloseTokenBadgeKeys {
+    fn from(pubkeys: [Pubkey; CLOSE_TOKEN_BADGE_IX_ACCOUNT_LEN]) -> Self {
+        Self {
+            token_badge: pubkeys[0],
+            operator: pubkeys[1],
+            whitelisted_address: pubkeys[2],
+            rent_receiver: pubkeys[3],
+            event_authority: pubkeys[4],
+            program: pubkeys[5]
+        }
+    }
+}
+impl<'info> From<CloseTokenBadgeAccounts<'_,'info>> for [AccountInfo<'info>; CLOSE_TOKEN_BADGE_IX_ACCOUNT_LEN] {
+    fn from(accounts: CloseTokenBadgeAccounts<'_,'info>) -> Self {
+        [
+            accounts.token_badge.clone(),
+            accounts.operator.clone(),
+            accounts.whitelisted_address.clone(),
+            accounts.rent_receiver.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+impl From<CloseTokenBadgeKeys> for [AccountMeta; CLOSE_TOKEN_BADGE_IX_ACCOUNT_LEN]{
+    fn from(keys: CloseTokenBadgeKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.token_badge,
+                is_signer:false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.operator,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.whitelisted_address,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.rent_receiver,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false
+            }
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; CLOSE_TOKEN_BADGE_IX_ACCOUNT_LEN]> for CloseTokenBadgeAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; CLOSE_TOKEN_BADGE_IX_ACCOUNT_LEN]) -> Self {
+        Self {
+            token_badge: &arr[0],
+            operator: &arr[1],
+            whitelisted_address: &arr[2],
+            rent_receiver: &arr[3],
+            event_authority: &arr[4],
+            program: &arr[5],
+        }
+    }
+}
+
+pub const CLOSE_TOKEN_BADGE_IX_DISCM: [u8; 8] = [108, 146, 86, 110, 179, 254, 10, 104];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CloseTokenBadgeIxArgs {}
+#[derive(Clone, Debug, PartialEq)]
+pub struct CloseTokenBadgeIxData(pub CloseTokenBadgeIxArgs);
+impl From<CloseTokenBadgeIxArgs> for CloseTokenBadgeIxData {
+    fn from(args: CloseTokenBadgeIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl CloseTokenBadgeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLOSE_TOKEN_BADGE_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        CLOSE_TOKEN_BADGE_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(CloseTokenBadgeIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLOSE_TOKEN_BADGE_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn close_token_badge_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CloseTokenBadgeKeys,
+    args: CloseTokenBadgeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLOSE_TOKEN_BADGE_IX_ACCOUNT_LEN] = keys.into();
+    let data: CloseTokenBadgeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn close_token_badge_ix(
+    keys: CloseTokenBadgeKeys,
+    args: CloseTokenBadgeIxArgs,
+) -> std::io::Result<Instruction> {
+    close_token_badge_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn close_token_badge_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseTokenBadgeAccounts<'_, '_>,
+    args: CloseTokenBadgeIxArgs,
+) -> ProgramResult {
+    let keys: CloseTokenBadgeKeys = accounts.into();
+    let ix = close_token_badge_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn close_token_badge_invoke(
+    accounts: CloseTokenBadgeAccounts<'_, '_>,
+    args: CloseTokenBadgeIxArgs,
+) -> ProgramResult {
+    close_token_badge_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn close_token_badge_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseTokenBadgeAccounts<'_, '_>,
+    args: CloseTokenBadgeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CloseTokenBadgeKeys = accounts.into();
+    let ix = close_token_badge_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn close_token_badge_invoke_signed(
+    accounts: CloseTokenBadgeAccounts<'_, '_>,
+    args: CloseTokenBadgeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    close_token_badge_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn close_token_badge_verify_account_keys(
+    accounts: CloseTokenBadgeAccounts<'_, '_>,
+    keys: CloseTokenBadgeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.token_badge.key, keys.token_badge),
+        (*accounts.operator.key, keys.operator),
+        (*accounts.whitelisted_address.key, keys.whitelisted_address),
+        (*accounts.rent_receiver.key, keys.rent_receiver),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn close_token_badge_verify_writable_privileges<'me, 'info>(
+    accounts: CloseTokenBadgeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.token_badge,
+        accounts.whitelisted_address,
+        accounts.rent_receiver,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn close_token_badge_verify_signer_privileges<'me, 'info>(
+    accounts: CloseTokenBadgeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.whitelisted_address] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn close_token_badge_verify_account_privileges<'me, 'info>(
+    accounts: CloseTokenBadgeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    close_token_badge_verify_writable_privileges(accounts)?;
+    close_token_badge_verify_signer_privileges(accounts)?;
     Ok(())
 }
 pub const CREATE_CLAIM_FEE_OPERATOR_IX_ACCOUNTS_LEN: usize = 6;
@@ -3410,6 +3951,263 @@ pub fn create_dynamic_config_verify_account_privileges<'me, 'info>(
     create_dynamic_config_verify_signer_privileges(accounts)?;
     Ok(())
 }
+
+pub const CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN: usize = 7;
+#[derive(Copy, Clone, Debug)]
+pub struct CreateOperatorAccountAccounts<'me, 'info> {
+    pub operator: &'me AccountInfo<'info>,
+    pub whitelisted_address: &'me AccountInfo<'info>,
+    pub admin: &'me AccountInfo<'info>,
+    pub payer: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CreateOperatorAccountKeys {
+    pub operator: Pubkey,
+    pub whitelisted_address: Pubkey,
+    pub admin: Pubkey,
+    pub payer: Pubkey,
+    pub system_program: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+impl From<CreateOperatorAccountAccounts<'_, '_>> for CreateOperatorAccountKeys {
+    fn from(accounts: CreateOperatorAccountAccounts) -> Self {
+        Self {
+            operator: *accounts.operator.key,
+            whitelisted_address: *accounts.whitelisted_address.key,
+            admin: *accounts.admin.key,
+            payer: *accounts.payer.key,
+            system_program: *accounts.system_program.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+impl From<CreateOperatorAccountKeys> for [AccountMeta; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN] {
+    fn from(keys: CreateOperatorAccountKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.operator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.whitelisted_address,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.admin,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.payer,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false
+            }
+        ]
+    }
+}
+impl From<[Pubkey; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]> for CreateOperatorAccountKeys {
+    fn from(pubkeys: [Pubkey; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            operator: pubkeys[0],
+            whitelisted_address: pubkeys[1],
+            admin: pubkeys[2],
+            payer: pubkeys[3],
+            system_program: pubkeys[4],
+            event_authority: pubkeys[5],
+            program: pubkeys[6]
+        }
+    }
+}
+impl<'info> From<CreateOperatorAccountAccounts<'_, 'info>> for [AccountInfo<'info>; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN] {
+    fn from(accounts: CreateOperatorAccountAccounts<'_, 'info>) -> Self {
+        [
+            accounts.operator.clone(),
+            accounts.whitelisted_address.clone(),
+            accounts.admin.clone(),
+            accounts.payer.clone(),
+            accounts.system_program.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]> for CreateOperatorAccountAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            operator: &arr[0],
+            whitelisted_address: &arr[1],
+            admin: &arr[2],
+            payer: &arr[3],
+            system_program: &arr[4],
+            event_authority: &arr[5],
+            program: &arr[6]
+        }
+    }
+}
+pub const CREATE_OPERATOR_ACCOUNT_IX_DISCM: [u8; 8] = [221, 64, 246, 149, 240, 153, 229, 163];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CreateOperatorAccountIxArgs {
+    pub permission: u128,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreateOperatorAccountIxData(pub CreateOperatorAccountIxArgs);
+impl From<CreateOperatorAccountIxArgs> for CreateOperatorAccountIxData {
+    fn from(args: CreateOperatorAccountIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl CreateOperatorAccountIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CREATE_OPERATOR_ACCOUNT_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        CREATE_OPERATOR_ACCOUNT_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(CreateOperatorAccountIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CREATE_OPERATOR_ACCOUNT_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn create_operator_account_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CreateOperatorAccountKeys,
+    args: CreateOperatorAccountIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN] = keys.into();
+    let data: CreateOperatorAccountIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn create_operator_account_ix(
+    keys: CreateOperatorAccountKeys,
+    args: CreateOperatorAccountIxArgs,
+) -> std::io::Result<Instruction> {
+    create_operator_account_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn create_operator_account_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    args: CreateOperatorAccountIxArgs,
+) -> ProgramResult {
+    let keys: CreateOperatorAccountKeys = accounts.into();
+    let ix = create_operator_account_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn create_operator_account_invoke(
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    args: CreateOperatorAccountIxArgs,
+) -> ProgramResult {
+    create_operator_account_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn create_operator_account_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    args: CreateOperatorAccountIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CreateOperatorAccountKeys = accounts.into();
+    let ix = create_operator_account_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn create_operator_account_invoke_signed(
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    args: CreateOperatorAccountIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    create_operator_account_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn create_operator_account_verify_account_keys(
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    keys: CreateOperatorAccountKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.operator.key, keys.operator),
+        (*accounts.whitelisted_address.key, keys.whitelisted_address),
+        (*accounts.admin.key, keys.admin),
+        (*accounts.payer.key, keys.payer),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program)
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn create_operator_account_verify_writable_privileges<'me, 'info>(
+    accounts: CreateOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.admin,
+        accounts.payer,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn create_operator_account_verify_signer_privileges<'me, 'info>(
+    accounts: CreateOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.admin] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn create_operator_account_verify_account_privileges<'me, 'info>(
+    accounts: CreateOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    create_operator_account_verify_writable_privileges(accounts)?;
+    create_operator_account_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
 pub const CREATE_POSITION_IX_ACCOUNTS_LEN: usize = 11;
 #[derive(Copy, Clone, Debug)]
 pub struct CreatePositionAccounts<'me, 'info> {
@@ -3958,8 +4756,225 @@ pub fn create_token_badge_verify_account_privileges<'me, 'info>(
     create_token_badge_verify_signer_privileges(accounts)?;
     Ok(())
 }
-pub const FUND_REWARD_IX_ACCOUNTS_LEN: usize = 8;
 
+pub const DUMMY_IX_ACCOUNTS_LEN: usize = 3;
+#[derive(Copy, Clone, Debug)]
+pub struct DummyIxAccounts<'me, 'info> {
+    pub pod_aligned_fee_time_scheduler: &'me AccountInfo<'info>,
+    pub pod_aligned_fee_rate_limiter: &'me AccountInfo<'info>,
+    pub pod_aligned_fee_market_cap_scheduler: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct DummyIxKeys {
+    pub pod_aligned_fee_time_scheduler: Pubkey,
+    pub pod_aligned_fee_rate_limiter: Pubkey,
+    pub pod_aligned_fee_market_cap_scheduler: Pubkey,
+   
+}
+
+impl From<DummyIxAccounts<'_, '_>> for DummyIxKeys {
+    fn from(accounts: DummyIxAccounts) -> Self {
+        Self {
+            pod_aligned_fee_time_scheduler: *accounts.pod_aligned_fee_time_scheduler.key,
+            pod_aligned_fee_rate_limiter: *accounts.pod_aligned_fee_rate_limiter.key,
+            pod_aligned_fee_market_cap_scheduler: *accounts.pod_aligned_fee_market_cap_scheduler.key,
+        }
+    }
+}
+
+impl From<DummyIxKeys> for [AccountMeta; DUMMY_IX_ACCOUNTS_LEN] {
+    fn from(keys: DummyIxKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.pod_aligned_fee_time_scheduler,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.pod_aligned_fee_rate_limiter,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.pod_aligned_fee_market_cap_scheduler,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; DUMMY_IX_ACCOUNTS_LEN]> for DummyIxKeys {
+    fn from(pubkeys: [Pubkey; DUMMY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pod_aligned_fee_time_scheduler: pubkeys[0],
+            pod_aligned_fee_rate_limiter: pubkeys[1],
+            pod_aligned_fee_market_cap_scheduler: pubkeys[2],
+        }
+    }
+}
+
+impl<'info> From<DummyIxAccounts<'_, 'info>> for [AccountInfo<'info>; DUMMY_IX_ACCOUNTS_LEN] {
+    fn from(accounts: DummyIxAccounts<'_, 'info>) -> Self {
+        [
+            accounts.pod_aligned_fee_time_scheduler.clone(),
+            accounts.pod_aligned_fee_rate_limiter.clone(),
+            accounts.pod_aligned_fee_market_cap_scheduler.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; DUMMY_IX_ACCOUNTS_LEN]> for DummyIxAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; DUMMY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pod_aligned_fee_time_scheduler: &arr[0],
+            pod_aligned_fee_rate_limiter: &arr[1],
+            pod_aligned_fee_market_cap_scheduler: &arr[2],
+        }
+    }
+}
+
+pub const DUMMY_IX_DISCM: [u8; 8] = [234, 95, 176, 185, 7, 42, 35, 159];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DummyIxArgs {
+    pub _ix: DummyParams,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DummyIxData(pub DummyIxArgs);
+
+impl From<DummyIxArgs> for DummyIxData {
+    fn from(args: DummyIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl DummyIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != DUMMY_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    DUMMY_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(DummyIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&DUMMY_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn dummy_ix_with_program_id(
+    program_id: Pubkey,
+    keys: DummyIxKeys,
+    args: DummyIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; DUMMY_IX_ACCOUNTS_LEN] = keys.into();
+    let data: DummyIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn dummy_ix(
+    keys: DummyIxKeys,
+    args: DummyIxArgs,
+) -> std::io::Result<Instruction> {
+    dummy_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn dummy_ix_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: DummyIxAccounts<'_, '_>,
+    args: DummyIxArgs,
+) -> ProgramResult {
+    let keys: DummyIxKeys = accounts.into();
+    let ix = dummy_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn dummy_ix_invoke(
+    accounts: DummyIxAccounts<'_, '_>,
+    args: DummyIxArgs,
+) -> ProgramResult {
+    dummy_ix_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn dummy_ix_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: DummyIxAccounts<'_, '_>,
+    args: DummyIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: DummyIxKeys = accounts.into();
+    let ix = dummy_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn dummy_ix_invoke_signed(
+    accounts: DummyIxAccounts<'_, '_>,
+    args: DummyIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    dummy_ix_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn dummy_ix_verify_account_keys(
+    accounts: DummyIxAccounts<'_, '_>,
+    keys: DummyIxKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pod_aligned_fee_time_scheduler.key, keys.pod_aligned_fee_time_scheduler),
+        (*accounts.pod_aligned_fee_rate_limiter.key, keys.pod_aligned_fee_rate_limiter),
+        (*accounts.pod_aligned_fee_market_cap_scheduler.key, keys.pod_aligned_fee_market_cap_scheduler),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn dummy_ix_verify_writable_privileges<'me, 'info>(
+    accounts: DummyIxAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    Ok(())
+}
+
+pub fn dummy_ix_verify_signer_privileges<'me, 'info>(
+    accounts: DummyIxAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    Ok(())
+}
+
+pub fn dummy_ix_verify_account_privileges<'me, 'info>(
+    accounts: DummyIxAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    dummy_ix_verify_writable_privileges(accounts)?;
+    dummy_ix_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const FUND_REWARD_IX_ACCOUNTS_LEN: usize = 8;
 #[derive(Copy, Clone, Debug)]
 pub struct FundRewardAccounts<'me, 'info> {
     pub pool: &'me AccountInfo<'info>,
@@ -7042,7 +8057,6 @@ pub fn remove_all_liquidity_verify_account_privileges<'me, 'info>(
 }
 
 pub const REMOVE_LIQUIDITY_IX_ACCOUNTS_LEN: usize = 15;
-
 #[derive(Copy, Clone, Debug)]
 pub struct RemoveLiquidityAccounts<'me, 'info> {
     pub pool_authority: &'me AccountInfo<'info>,
@@ -7664,8 +8678,618 @@ pub fn set_pool_status_verify_account_privileges<'me, 'info>(
     Ok(())
 }
 
-pub const SWAP_IX_ACCOUNTS_LEN: usize = 14;
+pub const SPLIT_POSITION_IX_ACCOUNTS_LEN: usize = 9;
 
+#[derive(Copy, Clone, Debug)]
+pub struct SplitPositionAccounts<'me, 'info> {
+    pub pool: &'me AccountInfo<'info>,
+    pub first_position: &'me AccountInfo<'info>,
+    pub first_position_nft_account: &'me AccountInfo<'info>,
+    pub second_position: &'me AccountInfo<'info>,
+    pub second_position_nft_account: &'me AccountInfo<'info>,
+    pub first_owner: &'me AccountInfo<'info>,
+    pub second_owner: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SplitPositionKeys {
+    pub pool: Pubkey,
+    pub first_position: Pubkey,
+    pub first_position_nft_account: Pubkey,
+    pub second_position: Pubkey,
+    pub second_position_nft_account: Pubkey,
+    pub first_owner: Pubkey,
+    pub second_owner: Pubkey,
+    pub event_authority: Pubkey, 
+    pub program: Pubkey, 
+}
+
+impl From<SplitPositionAccounts<'_, '_>> for SplitPositionKeys {
+    fn from(accounts: SplitPositionAccounts) -> Self {
+        Self {
+            pool: *accounts.pool.key,
+            first_position: *accounts.first_position.key,
+            first_position_nft_account: *accounts.first_position_nft_account.key,
+            second_position: *accounts.second_position.key,
+            second_position_nft_account: *accounts.second_position_nft_account.key,
+            first_owner: *accounts.first_owner.key,
+            second_owner: *accounts.second_owner.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<SplitPositionKeys> for [AccountMeta; SPLIT_POSITION_IX_ACCOUNTS_LEN] {
+    fn from(keys: SplitPositionKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.first_position,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.first_position_nft_account,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.second_position,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.second_position_nft_account,
+                is_signer: false,
+                is_writable: false
+            },
+            AccountMeta {
+                pubkey: keys.first_owner,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.second_owner,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false
+            }
+        ]
+    }
+}
+
+impl From<[Pubkey; SPLIT_POSITION_IX_ACCOUNTS_LEN]> for SplitPositionKeys {
+    fn from(pubkeys: [Pubkey; SPLIT_POSITION_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: pubkeys[0],
+            first_position: pubkeys[1],
+            first_position_nft_account: pubkeys[2],
+            second_position: pubkeys[3],
+            second_position_nft_account: pubkeys[4],
+            first_owner: pubkeys[5],
+            second_owner: pubkeys[6],
+            event_authority: pubkeys[7],
+            program: pubkeys[8]
+        }
+    }
+}
+
+impl<'info> From<SplitPositionAccounts<'_, 'info>> for [AccountInfo<'info>; SPLIT_POSITION_IX_ACCOUNTS_LEN] {
+    fn from(accounts: SplitPositionAccounts<'_, 'info>) -> Self {
+        [
+            accounts.pool.clone(),
+            accounts.first_position.clone(),
+            accounts.first_position_nft_account.clone(),
+            accounts.second_position.clone(),
+            accounts.second_position_nft_account.clone(),
+            accounts.first_owner.clone(),
+            accounts.second_owner.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone()
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SPLIT_POSITION_IX_ACCOUNTS_LEN]> for SplitPositionAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; SPLIT_POSITION_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: &arr[0],
+            first_position: &arr[1],
+            first_position_nft_account: &arr[2],
+            second_position: &arr[3],
+            second_position_nft_account: &arr[4],
+            first_owner: &arr[5],
+            second_owner: &arr[6],
+            event_authority: &arr[7],
+            program: &arr[8]
+        }
+    }
+}
+
+pub const SPLIT_POSITION_IX_DISCM: [u8; 8] = [172, 241, 221, 138, 161, 29, 253, 42];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SplitPositionIxArgs {
+    pub params: SplitPositionParameters,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SplitPositionIxData(pub SplitPositionIxArgs);
+
+impl From<SplitPositionIxArgs> for SplitPositionIxData {
+    fn from(args: SplitPositionIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl SplitPositionIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SPLIT_POSITION_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SPLIT_POSITION_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(SplitPositionIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SPLIT_POSITION_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn split_position_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SplitPositionKeys,
+    args:SplitPositionIxArgs ,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SPLIT_POSITION_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SplitPositionIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn split_position_ix(
+    keys: SplitPositionKeys,
+    args: SplitPositionIxArgs,
+) -> std::io::Result<Instruction> {
+    split_position_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn split_position_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SplitPositionAccounts<'_, '_>,
+    args: SplitPositionIxArgs,
+) -> ProgramResult {
+    let keys: SplitPositionKeys = accounts.into();
+    let ix = split_position_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn split_position_invoke(
+    accounts: SplitPositionAccounts<'_, '_>,
+    args: SplitPositionIxArgs,
+) -> ProgramResult {
+    split_position_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn split_position_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SplitPositionAccounts<'_, '_>,
+    args: SplitPositionIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SplitPositionKeys = accounts.into();
+    let ix = split_position_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn split_position_invoke_signed(
+    accounts: SplitPositionAccounts<'_, '_>,
+    args: SplitPositionIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    split_position_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn split_position_verify_account_keys(
+    accounts: SplitPositionAccounts<'_, '_>,
+    keys: SplitPositionKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pool.key, keys.pool),
+        (*accounts.first_position.key, keys.first_position),
+        (*accounts.first_position_nft_account.key, keys.first_position_nft_account),
+        (*accounts.second_position.key, keys.second_position),
+        (*accounts.second_position_nft_account.key, keys.second_position_nft_account),
+        (*accounts.first_owner.key, keys.first_owner),
+        (*accounts.second_owner.key, keys.second_owner),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn split_position_verify_writable_privileges<'me, 'info>(
+    accounts: SplitPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.pool,
+        accounts.first_position,
+        accounts.second_position,
+        accounts.first_owner,
+        accounts.second_owner,
+        ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn split_position_verify_signer_privileges<'me, 'info>(
+    accounts: SplitPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.first_owner, accounts.second_owner] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn split_position_verify_account_privileges<'me, 'info>(
+    accounts: SplitPositionAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    split_position_verify_writable_privileges(accounts)?;
+    split_position_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+
+pub const SPLIT_POSITION_V2_IX_ACCOUNTS_LEN: usize = 9;
+
+#[derive(Copy, Clone, Debug)]
+pub struct SplitPositionV2Accounts<'me, 'info> {
+    pub pool: &'me AccountInfo<'info>,
+    pub first_position: &'me AccountInfo<'info>,
+    pub first_position_nft_account: &'me AccountInfo<'info>,
+    pub second_position: &'me AccountInfo<'info>,
+    pub second_position_nft_account: &'me AccountInfo<'info>,
+    pub first_owner: &'me AccountInfo<'info>,
+    pub second_owner: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SplitPositionV2Keys {
+    pub pool: Pubkey,
+    pub first_position: Pubkey,
+    pub first_position_nft_account: Pubkey,
+    pub second_position: Pubkey,
+    pub second_position_nft_account: Pubkey,
+    pub first_owner: Pubkey,
+    pub second_owner: Pubkey,
+    pub event_authority: Pubkey, 
+    pub program: Pubkey, 
+}
+
+impl From<SplitPositionV2Accounts<'_, '_>> for SplitPositionV2Keys {
+    fn from(accounts: SplitPositionV2Accounts) -> Self {
+        Self {
+            pool: *accounts.pool.key,
+            first_position: *accounts.first_position.key,
+            first_position_nft_account: *accounts.first_position_nft_account.key,
+            second_position: *accounts.second_position.key,
+            second_position_nft_account: *accounts.second_position_nft_account.key,
+            first_owner: *accounts.first_owner.key,
+            second_owner: *accounts.second_owner.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<SplitPositionV2Keys> for [AccountMeta; SPLIT_POSITION_V2_IX_ACCOUNTS_LEN] {
+    fn from(keys: SplitPositionV2Keys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.first_position,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.first_position_nft_account,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.second_position,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.second_position_nft_account,
+                is_signer: false,
+                is_writable: false
+            },
+            AccountMeta {
+                pubkey: keys.first_owner,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.second_owner,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false
+            }
+        ]
+    }
+}
+
+impl From<[Pubkey; SPLIT_POSITION_V2_IX_ACCOUNTS_LEN]> for SplitPositionV2Keys {
+    fn from(pubkeys: [Pubkey; SPLIT_POSITION_V2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: pubkeys[0],
+            first_position: pubkeys[1],
+            first_position_nft_account: pubkeys[2],
+            second_position: pubkeys[3],
+            second_position_nft_account: pubkeys[4],
+            first_owner: pubkeys[5],
+            second_owner: pubkeys[6],
+            event_authority: pubkeys[7],
+            program: pubkeys[8]
+        }
+    }
+}
+
+impl<'info> From<SplitPositionV2Accounts<'_, 'info>> for [AccountInfo<'info>; SPLIT_POSITION_V2_IX_ACCOUNTS_LEN] {
+    fn from(accounts: SplitPositionV2Accounts<'_, 'info>) -> Self {
+        [
+            accounts.pool.clone(),
+            accounts.first_position.clone(),
+            accounts.first_position_nft_account.clone(),
+            accounts.second_position.clone(),
+            accounts.second_position_nft_account.clone(),
+            accounts.first_owner.clone(),
+            accounts.second_owner.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone()
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SPLIT_POSITION_V2_IX_ACCOUNTS_LEN]> for SplitPositionV2Accounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; SPLIT_POSITION_V2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: &arr[0],
+            first_position: &arr[1],
+            first_position_nft_account: &arr[2],
+            second_position: &arr[3],
+            second_position_nft_account: &arr[4],
+            first_owner: &arr[5],
+            second_owner: &arr[6],
+            event_authority: &arr[7],
+            program: &arr[8]
+        }
+    }
+}
+
+pub const SPLIT_POSITION_V2_IX_DISCM: [u8; 8] = [221, 147, 228, 207, 140, 212, 17, 119];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SplitPositionV2IxArgs {
+    pub numerator: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SplitPositionV2IxData(pub SplitPositionV2IxArgs);
+
+impl From<SplitPositionV2IxArgs> for SplitPositionV2IxData {
+    fn from(args: SplitPositionV2IxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl SplitPositionV2IxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SPLIT_POSITION_V2_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SPLIT_POSITION_V2_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(SplitPositionV2IxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SPLIT_POSITION_V2_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn split_position_v2_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SplitPositionV2Keys,
+    args: SplitPositionV2IxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SPLIT_POSITION_V2_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SplitPositionV2IxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn split_position_v2_ix(
+    keys: SplitPositionV2Keys,
+    args: SplitPositionV2IxArgs,
+) -> std::io::Result<Instruction> {
+    split_position_v2_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn split_position_v2_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SplitPositionV2Accounts<'_, '_>,
+    args: SplitPositionV2IxArgs,
+) -> ProgramResult {
+    let keys: SplitPositionV2Keys = accounts.into();
+    let ix = split_position_v2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn split_position_v2_invoke(
+    accounts: SplitPositionV2Accounts<'_, '_>,
+    args: SplitPositionV2IxArgs,
+) -> ProgramResult {
+    split_position_v2_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn split_position_v2_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SplitPositionV2Accounts<'_, '_>,
+    args: SplitPositionV2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SplitPositionV2Keys = accounts.into();
+    let ix = split_position_v2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn split_position_v2_invoke_signed(
+    accounts: SplitPositionV2Accounts<'_, '_>,
+    args: SplitPositionV2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    split_position_v2_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn split_position_v2_verify_account_keys(
+    accounts: SplitPositionV2Accounts<'_, '_>,
+    keys: SplitPositionV2Keys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pool.key, keys.pool),
+        (*accounts.first_position.key, keys.first_position),
+        (*accounts.first_position_nft_account.key, keys.first_position_nft_account),
+        (*accounts.second_position.key, keys.second_position),
+        (*accounts.second_position_nft_account.key, keys.second_position_nft_account),
+        (*accounts.first_owner.key, keys.first_owner),
+        (*accounts.second_owner.key, keys.second_owner),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn split_position_v2_verify_writable_privileges<'me, 'info>(
+    accounts: SplitPositionV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.pool,
+        accounts.first_position,
+        accounts.second_position,
+        accounts.first_owner,
+        accounts.second_owner,
+        ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn split_position_v2_verify_signer_privileges<'me, 'info>(
+    accounts: SplitPositionV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.first_owner, accounts.second_owner] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn split_position_v2_verify_account_privileges<'me, 'info>(
+    accounts: SplitPositionV2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    split_position_v2_verify_writable_privileges(accounts)?;
+    split_position_v2_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const SWAP_IX_ACCOUNTS_LEN: usize = 14;
 #[derive(Copy, Clone, Debug)]
 pub struct SwapAccounts<'me, 'info> {
     pub pool_authority: &'me AccountInfo<'info>,
@@ -8025,6 +9649,601 @@ pub fn swap_verify_account_privileges<'me, 'info>(
     swap_verify_signer_privileges(accounts)?;
     Ok(())
 }
+
+
+pub const swap_2_IX_ACCOUNTS_LEN: usize = 14;
+#[derive(Copy, Clone, Debug)]
+pub struct Swap2Accounts<'me, 'info> {
+    pub pool_authority: &'me AccountInfo<'info>,
+    pub pool: &'me AccountInfo<'info>,
+    pub input_token_account: &'me AccountInfo<'info>,
+    pub output_token_account: &'me AccountInfo<'info>,
+    pub token_a_vault: &'me AccountInfo<'info>,
+    pub token_b_vault: &'me AccountInfo<'info>,
+    pub token_a_mint: &'me AccountInfo<'info>,
+    pub token_b_mint: &'me AccountInfo<'info>,
+    pub payer: &'me AccountInfo<'info>,
+    pub token_a_program: &'me AccountInfo<'info>,
+    pub token_b_program: &'me AccountInfo<'info>,
+    pub referral_token_account: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Swap2Keys {
+    pub pool_authority: Pubkey,
+    pub pool: Pubkey,
+    pub input_token_account: Pubkey,
+    pub output_token_account: Pubkey,
+    pub token_a_vault: Pubkey,
+    pub token_b_vault: Pubkey,
+    pub token_a_mint: Pubkey,
+    pub token_b_mint: Pubkey,
+    pub payer: Pubkey,
+    pub token_a_program: Pubkey,
+    pub token_b_program: Pubkey,
+    pub referral_token_account: Option<Pubkey>,  // Change to Option
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<Swap2Accounts<'_, '_>> for Swap2Keys {
+    fn from(accounts: Swap2Accounts) -> Self {
+        Self {
+            pool_authority: *accounts.pool_authority.key,
+            pool: *accounts.pool.key,
+            input_token_account: *accounts.input_token_account.key,
+            output_token_account: *accounts.output_token_account.key,
+            token_a_vault: *accounts.token_a_vault.key,
+            token_b_vault: *accounts.token_b_vault.key,
+            token_a_mint: *accounts.token_a_mint.key,
+            token_b_mint: *accounts.token_b_mint.key,
+            payer: *accounts.payer.key,
+            token_a_program: *accounts.token_a_program.key,
+            token_b_program: *accounts.token_b_program.key,
+            referral_token_account: Some(*accounts.referral_token_account.key),
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<Swap2Keys> for [AccountMeta; swap_2_IX_ACCOUNTS_LEN] {
+    fn from(keys: Swap2Keys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.pool_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.input_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.output_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.token_a_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.token_b_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.token_a_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_b_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.payer,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_a_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_b_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.referral_token_account.unwrap_or(Pubkey::default()),
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; swap_2_IX_ACCOUNTS_LEN]> for Swap2Keys {
+    fn from(pubkeys: [Pubkey; swap_2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool_authority: pubkeys[0],
+            pool: pubkeys[1],
+            input_token_account: pubkeys[2],
+            output_token_account: pubkeys[3],
+            token_a_vault: pubkeys[4],
+            token_b_vault: pubkeys[5],
+            token_a_mint: pubkeys[6],
+            token_b_mint: pubkeys[7],
+            payer: pubkeys[8],
+            token_a_program: pubkeys[9],
+            token_b_program: pubkeys[10],
+            referral_token_account: Some(pubkeys[11]),
+            event_authority: pubkeys[12],
+            program: pubkeys[13],
+        }
+    }
+}
+
+impl<'info> From<Swap2Accounts<'_, 'info>> for [AccountInfo<'info>; swap_2_IX_ACCOUNTS_LEN] {
+    fn from(accounts: Swap2Accounts<'_, 'info>) -> Self {
+        [
+            accounts.pool_authority.clone(),
+            accounts.pool.clone(),
+            accounts.input_token_account.clone(),
+            accounts.output_token_account.clone(),
+            accounts.token_a_vault.clone(),
+            accounts.token_b_vault.clone(),
+            accounts.token_a_mint.clone(),
+            accounts.token_b_mint.clone(),
+            accounts.payer.clone(),
+            accounts.token_a_program.clone(),
+            accounts.token_b_program.clone(),
+            accounts.referral_token_account.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; swap_2_IX_ACCOUNTS_LEN]> for Swap2Accounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; swap_2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool_authority: &arr[0],
+            pool: &arr[1],
+            input_token_account: &arr[2],
+            output_token_account: &arr[3],
+            token_a_vault: &arr[4],
+            token_b_vault: &arr[5],
+            token_a_mint: &arr[6],
+            token_b_mint: &arr[7],
+            payer: &arr[8],
+            token_a_program: &arr[9],
+            token_b_program: &arr[10],
+            referral_token_account: &arr[11],
+            event_authority: &arr[12],
+            program: &arr[13],
+        }
+    }
+}
+
+pub const SWAP_2_IX_DISCM: [u8; 8] =  [65, 75, 63, 76, 235, 91, 91, 136];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Swap2IxArgs {
+    pub _params: SwapParameters2,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct Swap2IxData(pub Swap2IxArgs);
+
+impl From<Swap2IxArgs> for Swap2IxData {
+    fn from(args: Swap2IxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl Swap2IxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SWAP_2_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SWAP_2_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(Swap2IxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SWAP_2_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+
+pub fn swap_2_ix_with_program_id(
+    program_id: Pubkey,
+    keys: Swap2Keys,
+    args: Swap2IxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; swap_2_IX_ACCOUNTS_LEN] = keys.into();
+    let data: Swap2IxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn swap_2_ix(keys: Swap2Keys, args: Swap2IxArgs) -> std::io::Result<Instruction> {
+    swap_2_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn swap_2_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: Swap2Accounts<'_, '_>,
+    args: Swap2IxArgs,
+) -> ProgramResult {
+    let keys: Swap2Keys = accounts.into();
+    let ix = swap_2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn swap_2_invoke(accounts: Swap2Accounts<'_, '_>, args: Swap2IxArgs) -> ProgramResult {
+    swap_2_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn swap_2_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: Swap2Accounts<'_, '_>,
+    args: Swap2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: Swap2Keys = accounts.into();
+    let ix = swap_2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn swap_2_invoke_signed(
+    accounts: Swap2Accounts<'_, '_>,
+    args: Swap2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    swap_2_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn swap_2_verify_account_keys(
+    accounts: Swap2Accounts<'_, '_>,
+    keys: Swap2Keys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pool_authority.key, keys.pool_authority),
+        (*accounts.pool.key, keys.pool),
+        (*accounts.input_token_account.key, keys.input_token_account),
+        (*accounts.output_token_account.key, keys.output_token_account),
+        (*accounts.token_a_vault.key, keys.token_a_vault),
+        (*accounts.token_b_vault.key, keys.token_b_vault),
+        (*accounts.token_a_mint.key, keys.token_a_mint),
+        (*accounts.token_b_mint.key, keys.token_b_mint),
+        (*accounts.payer.key, keys.payer),
+        (*accounts.token_a_program.key, keys.token_a_program),
+        (*accounts.token_b_program.key, keys.token_b_program),
+        (
+            *accounts.referral_token_account.key,
+            keys.referral_token_account.expect("REASON"),
+        ),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn swap_2_verify_writable_privileges<'me, 'info>(
+    accounts: Swap2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.pool,
+        accounts.input_token_account,
+        accounts.output_token_account,
+        accounts.token_a_vault,
+        accounts.token_b_vault,
+        accounts.referral_token_account,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn swap_2_verify_signer_privileges<'me, 'info>(
+    accounts: Swap2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.payer] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn swap_2_verify_account_privileges<'me, 'info>(
+    accounts: Swap2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    swap_2_verify_writable_privileges(accounts)?;
+    swap_2_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const UPDATE_POOL_FEES_IX_ACCOUNTS_LEN: usize = 5;
+#[derive(Copy, Clone, Debug)]
+pub struct UpdatePoolFeesAccounts<'me, 'info> {
+    pub pool: &'me AccountInfo<'info>,
+    pub operator: &'me AccountInfo<'info>,
+    pub whitelisted_address: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct UpdatePoolFeesKeys {
+    pub pool: Pubkey,
+    pub operator: Pubkey,
+    pub whitelisted_address: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+impl From<UpdatePoolFeesAccounts<'_,'_>> for UpdatePoolFeesKeys {
+    fn from(accounts: UpdatePoolFeesAccounts) -> Self {
+        Self {
+            pool: *accounts.pool.key,
+            operator: *accounts.operator.key,
+            whitelisted_address: *accounts.whitelisted_address.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key
+        }
+    }
+}
+impl From<UpdatePoolFeesKeys> for [AccountMeta; UPDATE_POOL_FEES_IX_ACCOUNTS_LEN]{
+    fn from(keys:UpdatePoolFeesKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey:keys.operator,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.whitelisted_address,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable:false
+            }
+        ]
+    }
+}
+impl From<[Pubkey; UPDATE_POOL_FEES_IX_ACCOUNTS_LEN]> for UpdatePoolFeesKeys {
+    fn from(pubkeys: [Pubkey; UPDATE_POOL_FEES_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: pubkeys[0],
+            operator: pubkeys[1],
+            whitelisted_address: pubkeys[2],
+            event_authority: pubkeys[3],
+            program: pubkeys[4]
+        }
+    }
+}
+impl<'info> From<UpdatePoolFeesAccounts<'_,'info>> for [AccountInfo<'info>; UPDATE_POOL_FEES_IX_ACCOUNTS_LEN]{
+    fn from(accounts: UpdatePoolFeesAccounts<'_,'info>) -> Self {
+        [
+            accounts.pool.clone(),
+            accounts.operator.clone(),
+            accounts.whitelisted_address.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; UPDATE_POOL_FEES_IX_ACCOUNTS_LEN]> for UpdatePoolFeesAccounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; UPDATE_POOL_FEES_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: &arr[0],
+            operator: &arr[1],
+            whitelisted_address: &arr[2],
+            event_authority: &arr[3],
+            program: &arr[4]
+        }
+    }
+}
+pub const UPDATE_POOL_FEE_IX_DISCM: [u8; 8] = [118, 217, 203, 179, 60, 8, 70, 89];
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct UpdatePoolFeesIxArgs {
+    params: UpdatePoolFeesParameters
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct UpdatePoolFeesIxData(pub UpdatePoolFeesIxArgs);
+impl From<UpdatePoolFeesIxArgs> for UpdatePoolFeesIxData {
+    fn from(args: UpdatePoolFeesIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl UpdatePoolFeesIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != UPDATE_POOL_FEE_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        UPDATE_POOL_FEE_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(UpdatePoolFeesIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&UPDATE_POOL_FEE_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn update_pool_fees_ix_with_program_id(
+    program_id: Pubkey,
+    keys: UpdatePoolFeesKeys,
+    args: UpdatePoolFeesIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; UPDATE_POOL_FEES_IX_ACCOUNTS_LEN] = keys.into();
+    let data: UpdatePoolFeesIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn update_pool_fees_ix(
+    keys: UpdatePoolFeesKeys,
+    args: UpdatePoolFeesIxArgs,
+) -> std::io::Result<Instruction> {
+    update_pool_fees_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn update_pool_fees_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: UpdatePoolFeesAccounts<'_, '_>,
+    args: UpdatePoolFeesIxArgs,
+) -> ProgramResult {
+    let keys: UpdatePoolFeesKeys = accounts.into();
+    let ix = update_pool_fees_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn update_pool_fees_invoke(
+    accounts: UpdatePoolFeesAccounts<'_, '_>,
+    args: UpdatePoolFeesIxArgs,
+) -> ProgramResult {
+    update_pool_fees_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn update_pool_fees_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: UpdatePoolFeesAccounts<'_, '_>,
+    args: UpdatePoolFeesIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: UpdatePoolFeesKeys = accounts.into();
+    let ix = update_pool_fees_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn update_pool_fees_invoke_signed(
+    accounts: UpdatePoolFeesAccounts<'_, '_>,
+    args: UpdatePoolFeesIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    update_pool_fees_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn update_pool_fees_verify_account_keys(
+    accounts: UpdatePoolFeesAccounts<'_, '_>,
+    keys: UpdatePoolFeesKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pool.key, keys.pool),
+        (*accounts.operator.key, keys.operator),
+        (*accounts.whitelisted_address.key, keys.whitelisted_address),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+pub fn update_pool_fees_verify_writable_privileges<'me, 'info>(
+    accounts: UpdatePoolFeesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.pool,
+        accounts.whitelisted_address
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn update_pool_fees_verify_signer_privileges<'me, 'info>(
+    accounts: UpdatePoolFeesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.whitelisted_address] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn update_pool_fees_verify_account_privileges<'me, 'info>(
+    accounts: UpdatePoolFeesAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    update_pool_fees_verify_writable_privileges(accounts)?;
+    update_pool_fees_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
 
 pub const UPDATE_REWARD_DURATION_IX_ACCOUNTS_LEN: usize = 4;
 
