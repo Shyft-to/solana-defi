@@ -1573,7 +1573,6 @@ pub const BUY_EXACT_SOL_IN_IX_DISCM: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 
 pub struct BuyExactSolInIxArgs {
     pub spendable_sol_in: u64,
     pub min_tokens_out: u64,
-    pub track_volume: OptionBool,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuyExactSolInIxData(pub BuyExactSolInIxArgs);

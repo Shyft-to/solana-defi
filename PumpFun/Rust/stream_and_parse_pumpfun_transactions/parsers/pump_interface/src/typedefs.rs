@@ -18,6 +18,18 @@ pub struct OpenPositionWithMetadataBumps {
 pub struct OptionBool {
     pub value: u8,
 }
+
+impl OptionBool {
+    pub fn none() -> Self {
+        Self { value: 0 } 
+    }
+    
+    pub fn some(value: bool) -> Self {
+        Self { 
+            value: if value { 1 } else { 2 }  
+        }
+    }
+}
 #[derive(Default, Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WhirlpoolBumps {
