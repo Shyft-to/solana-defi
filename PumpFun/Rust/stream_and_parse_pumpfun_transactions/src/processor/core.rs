@@ -72,16 +72,15 @@ impl TransactionProcessor {
                 meta,
                 block_time,
             )?;
-
+         
             let decoded_event = self.extract_decoded_event(&confirmed_txn);
             let instructions = self.extract_all_instructions(&confirmed_txn)?;
-
             let (decoded_compiled, decoded_inner) = self.decode_instructions(
                 &instructions.compiled,
                 &instructions.inner,
                 &decoded_event,
              )?;
-
+           
             let parsed_txn = Self::build_parsed_transaction(
                 slot,
                 &confirmed_txn,
@@ -89,13 +88,11 @@ impl TransactionProcessor {
                 decoded_inner,
                 block_time,
             )?;
-
-            Ok(Some(parsed_txn))
+        Ok(Some(parsed_txn))
         } else {
             Ok(None)
-     }
-}
-
+         }
+    }
 
     pub fn parse_signature(signature: &[u8]) -> anyhow::Result<Signature> {
         if signature.len() != 64 {
@@ -122,11 +119,9 @@ impl TransactionProcessor {
                         Ok(decoded_bytes) => match decode_event_data(&decoded_bytes) {
                             Ok(event) => return Some(event),
                             Err(err) => {
-                                eprintln!("❌ Failed to decode account data: {}", err.message);
                             }
                         },
                         Err(err) => {
-                            eprintln!("❌ Failed to decode base64 log message: {}", err);
                         }
                     }
                 }
