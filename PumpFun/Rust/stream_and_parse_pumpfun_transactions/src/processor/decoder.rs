@@ -2,31 +2,37 @@ use super::types::*;
 
 use crate::processor::models::mapper::{
     instruction::InstructionAccountMapper,
-    event::{DecodedEvent},
+    event::DecodedEvent,
 };
 use crate::processor::models::serialize::token_serializable::convert_to_serializable;
 use pump_interface::instructions::PumpProgramIx;
 use spl_token::instruction::TokenInstruction;
 use crate::TransactionProcessor;
 
-impl TransactionProcessor{
+impl TransactionProcessor {
     pub fn decode_instructions(
         &self,
         compiled_instructions: &[TransactionInstructionWithParent],
         inner_instructions: &[TransactionInstructionWithParent],
-        decoded_event: &Option<DecodedEvent>,
-    ) -> anyhow::Result<(Vec<DecodedInstruction>, Vec<DecodedInstruction>)> {
+        decoded_events: &[DecodedEvent],
+     ) -> anyhow::Result<(Vec<DecodedInstruction>, Vec<DecodedInstruction>)> {
         let mut decoded_compiled = Vec::new();
         let mut decoded_inner = Vec::new();
 
+        let mut event_iter = decoded_events.iter();
+
         for instruction in compiled_instructions {
-            if let Some(decoded) = self.decode_single_instruction(instruction, decoded_event)? {
+            if let Some(decoded) =
+                self.decode_single_instruction(instruction, &mut event_iter)?
+            {
                 decoded_compiled.push(decoded);
             }
         }
 
         for instruction in inner_instructions {
-            if let Some(decoded) = self.decode_single_instruction(instruction, decoded_event)? {
+            if let Some(decoded) =
+                self.decode_single_instruction(instruction, &mut event_iter)?
+            {
                 decoded_inner.push(decoded);
             }
         }
@@ -37,10 +43,10 @@ impl TransactionProcessor{
     pub fn decode_single_instruction(
         &self,
         instruction: &TransactionInstructionWithParent,
-        decoded_event: &Option<DecodedEvent>,
-    ) -> anyhow::Result<Option<DecodedInstruction>> {
+        event_iter: &mut std::slice::Iter<DecodedEvent>,
+     ) -> anyhow::Result<Option<DecodedInstruction>> {
         if instruction.instruction.program_id == self.pumpfun_program_id {
-            self.decode_pumpfun_instruction(instruction, decoded_event)
+            self.decode_pumpfun_instruction(instruction, event_iter)
         } else if instruction.instruction.program_id == self.token_program_id {
             self.decode_token_instruction(instruction)
         } else {
@@ -51,37 +57,39 @@ impl TransactionProcessor{
     pub fn decode_pumpfun_instruction(
         &self,
         instruction: &TransactionInstructionWithParent,
-        decoded_event: &Option<DecodedEvent>,
-    ) -> anyhow::Result<Option<DecodedInstruction>> {
+        event_iter: &mut std::slice::Iter<DecodedEvent>,
+     ) -> anyhow::Result<Option<DecodedInstruction>> {
         match PumpProgramIx::deserialize(&instruction.instruction.data) {
             Ok(decoded_ix) => {
+                let ix_name = decoded_ix.name().to_string();
+
                 let mapped_accounts = self.pumpfun_idl.map_accounts(
                     &instruction.instruction.accounts,
-                    &decoded_ix.name().to_string(),
+                    &ix_name,
                 )?;
 
                 let data = serde_json::to_value(&decoded_ix)
                     .map_err(|e| anyhow::anyhow!("Failed to serialize ix data: {:?}", e))?;
 
+                let event = event_iter.next().cloned();
+
                 Ok(Some(DecodedInstruction {
-                    name: decoded_ix.name().to_string(),
+                    name: ix_name,
                     accounts: mapped_accounts,
                     data,
-                    event: decoded_event.clone(),
+                    event,
                     program_id: instruction.instruction.program_id,
                     parent_program_id: instruction.parent_program_id,
                 }))
             }
-            Err(e) => {
-                Ok(None)
-            }
+            Err(_) => Ok(None),
         }
     }
 
     pub fn decode_token_instruction(
         &self,
         instruction: &TransactionInstructionWithParent,
-    ) -> anyhow::Result<Option<DecodedInstruction>> {
+     ) -> anyhow::Result<Option<DecodedInstruction>> {
         match TokenInstruction::unpack(&instruction.instruction.data) {
             Ok(decoded_ix) => {
                 let ix_name = self.get_instruction_name_with_typename(&decoded_ix);
@@ -99,14 +107,12 @@ impl TransactionProcessor{
                     name: ix_name,
                     accounts: mapped_accounts,
                     data,
-                    event: None,
+                    event: None, 
                     program_id: instruction.instruction.program_id,
                     parent_program_id: instruction.parent_program_id,
                 }))
             }
-            Err(_) => {
-                Ok(None)
-            }
+            Err(_) => Ok(None),
         }
     }
 }
