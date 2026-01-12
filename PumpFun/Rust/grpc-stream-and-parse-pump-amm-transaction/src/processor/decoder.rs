@@ -14,33 +14,39 @@ impl TransactionProcessor{
         &self,
         compiled_instructions: &[TransactionInstructionWithParent],
         inner_instructions: &[TransactionInstructionWithParent],
-        decoded_event: &Option<DecodedEvent>,
+        decoded_events: &[DecodedEvent],
     ) -> anyhow::Result<(Vec<DecodedInstruction>, Vec<DecodedInstruction>)> {
         let mut decoded_compiled = Vec::new();
         let mut decoded_inner = Vec::new();
+        
+       
+        let mut event_iter = decoded_events.iter();
 
         for instruction in compiled_instructions {
-            if let Some(decoded) = self.decode_single_instruction(instruction, decoded_event)? {
+            if let Some(decoded) =
+                self.decode_single_instruction(instruction, &mut event_iter)?
+            {
                 decoded_compiled.push(decoded);
             }
         }
 
         for instruction in inner_instructions {
-            if let Some(decoded) = self.decode_single_instruction(instruction, decoded_event)? {
+            if let Some(decoded) =
+                self.decode_single_instruction(instruction, &mut event_iter)?
+            {
                 decoded_inner.push(decoded);
             }
         }
 
         Ok((decoded_compiled, decoded_inner))
     }
-
     pub fn decode_single_instruction(
         &self,
         instruction: &TransactionInstructionWithParent,
-        decoded_event: &Option<DecodedEvent>,
+        event_iter: &mut std::slice::Iter<DecodedEvent>,
     ) -> anyhow::Result<Option<DecodedInstruction>> {
         if instruction.instruction.program_id == self.pumpfun_program_id {
-            self.decode_pumpfun_instruction(instruction, decoded_event)
+            self.decode_pumpfun_instruction(instruction, event_iter)
         } else if instruction.instruction.program_id == self.token_program_id {
             self.decode_token_instruction(instruction)
         } else {
@@ -51,32 +57,35 @@ impl TransactionProcessor{
     pub fn decode_pumpfun_instruction(
         &self,
         instruction: &TransactionInstructionWithParent,
-        decoded_event: &Option<DecodedEvent>,
+        event_iter: &mut std::slice::Iter<DecodedEvent>,
     ) -> anyhow::Result<Option<DecodedInstruction>> {
         match PumpfunAmmProgramIx::deserialize(&instruction.instruction.data) {
-            Ok(decoded_ix) => {
+              Ok(decoded_ix) => {
+                let ix_name = decoded_ix.name().to_string();
+
                 let mapped_accounts = self.pumpfun_idl.map_accounts(
                     &instruction.instruction.accounts,
-                    &decoded_ix.name().to_string(),
+                    &ix_name,
                 )?;
 
                 let data = serde_json::to_value(&decoded_ix)
                     .map_err(|e| anyhow::anyhow!("Failed to serialize ix data: {:?}", e))?;
 
+                let event = event_iter.next().cloned();
+
                 Ok(Some(DecodedInstruction {
-                    name: decoded_ix.name().to_string(),
+                    name: ix_name,
                     accounts: mapped_accounts,
                     data,
-                    event: decoded_event.clone(),
+                    event,
                     program_id: instruction.instruction.program_id,
                     parent_program_id: instruction.parent_program_id,
                 }))
             }
-            Err(e) => {
-                Ok(None)
-            }
+            Err(_) => Ok(None),
         }
     }
+
 
     pub fn decode_token_instruction(
         &self,

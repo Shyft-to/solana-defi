@@ -37,17 +37,17 @@ pub fn convert_to_discm(base64_string: &str) -> Result<Vec<u8>, base64::DecodeEr
     general_purpose::STANDARD.decode(base64_string)
 }
 
-pub fn extract_log_message(logs: &[String]) -> Option<String> {
+pub fn extract_all_log_messages(logs: &[String]) -> Vec<String> {
     logs.iter()
-        .find_map(|message| {
-            if message.starts_with("Program data: ") {
-                let encoded = message.trim_start_matches("Program data: ").trim();
-                Some(encoded.to_string())
-            } else {
-                None
-            }
+        .filter_map(|message| {
+            message
+                .strip_prefix("Program data: ")
+                .map(|s| s.trim().to_string())
         })
+        .collect()
 }
+
+
 pub fn decode_event_data(buf: &[u8]) -> Result<DecodedEvent, AccountEventError> {
     if buf.len() < 8 {
         return Err(AccountEventError {
