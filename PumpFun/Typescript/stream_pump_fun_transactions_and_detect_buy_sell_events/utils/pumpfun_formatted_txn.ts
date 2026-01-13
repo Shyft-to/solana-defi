@@ -1,5 +1,5 @@
 export function parseSwapTransactionOutput(parsedInstruction) {
-  const innerInstructions = parsedInstruction.inner_ixs.pumpfun_inner_ixs ?? [];
+  const innerInstructions = parsedInstruction?.inner_ixs.pumpfun_inner_ixs ?? [];
    let swapInstruction = 
         parsedInstruction?.instructions?.pumpAmmIxs?.find(
         instruction => instruction.name === 'buy' || instruction.name === 'sell' || instruction.name === 'buy_exact_sol_in'
