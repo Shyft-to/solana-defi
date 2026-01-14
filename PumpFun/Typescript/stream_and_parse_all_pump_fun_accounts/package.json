@@ -15,7 +15,7 @@
     "@solana/buffer-layout": "^4.0.1",
     "@solana/buffer-layout-utils": "^0.2.0",
     "@solana/web3.js": "^1.90.0",
-    "@triton-one/yellowstone-grpc": "^0.4.0",
+    "@triton-one/yellowstone-grpc": "^4.0.2",
     "bs58": "^5.0.0",
     "dotenv": "^16.4.5",
     "lodash": "^4.17.21"
