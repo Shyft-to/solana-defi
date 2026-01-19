@@ -2,6 +2,14 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 use std::io;
 
+
+#[derive(Default, Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct OptionBool {
+    pub value: bool,
+}
+
+
 pub const BUY_EVENT_EVENT_DISCM: [u8; 8] = [103, 244, 82, 31, 44, 245, 119, 119];
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 pub struct BuyEvent {

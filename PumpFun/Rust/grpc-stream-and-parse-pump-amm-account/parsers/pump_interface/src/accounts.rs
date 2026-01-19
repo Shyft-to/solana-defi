@@ -19,6 +19,8 @@ pub struct BondingCurve {
     pub token_total_supply: u64,
     pub complete : bool,
     pub creator: Pubkey,
+    pub is_mayhem_mode: bool,
+
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -66,6 +68,16 @@ pub struct GlobalConfig {
     pub protocol_fee_basis_points: u64,
     pub disable_flags: u8,
     pub protocol_fee_recipients: [Pubkey; 8],
+    
+    pub coin_creator_fee_basis_points: u64,
+    pub admin_set_coin_creator_authority: Pubkey,
+
+    pub whitelist_pda: Pubkey,
+    pub reserved_fee_recipient: Pubkey,
+
+    pub mayhem_mode_enabled: bool,
+
+    pub reserved_fee_recipients: [Pubkey; 7],
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -121,6 +133,8 @@ pub struct Pool {
 
     pub lp_supply: u64,
     pub coin_creator: Pubkey,
+    pub is_mayhem_mode: bool,
+
 }
 
 #[derive(Clone, Debug, PartialEq)]
