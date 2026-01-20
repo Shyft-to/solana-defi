@@ -3,14 +3,13 @@ use serde::{Deserialize, Serialize};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use solana_sdk::instruction::AccountMeta;
 
-
-#[derive(Debug,Deserialize)]
+#[derive(Debug, Deserialize)]
 struct IdlInstruction {
     name: String,
     accounts: Vec<IdlAccount>,
 }
 
-#[derive(Debug,Deserialize)]
+#[derive(Debug, Deserialize)]
 struct IdlAccount {
     name: String,
     #[serde(default, rename = "is_writable")]
@@ -18,7 +17,8 @@ struct IdlAccount {
     #[serde(default, rename = "is_signer")]
     is_signer: Option<bool>, 
 }
-#[derive(Debug,Deserialize)]
+
+#[derive(Debug, Deserialize)]
 pub struct Idl {
     instructions: Vec<IdlInstruction>,
 }
@@ -31,6 +31,49 @@ pub struct AccountMetadata {
     pub is_signer: bool,
     pub name: String,
 }
+
+fn to_camel_case(s: &str) -> String {
+    s.split('_')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first_char) => first_char.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect()
+}
+
+fn to_snake_case(s: &str) -> String {
+    let mut result = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && c.is_uppercase() {
+            result.push('_');
+        }
+        result.push(c.to_lowercase().next().unwrap());
+    }
+    result
+}
+fn to_anchor_snake_case(s: &str) -> String {
+    let mut out = String::new();
+    let mut prev_is_lower = false;
+
+    for c in s.chars() {
+        if c.is_uppercase() {
+            if prev_is_lower {
+                out.push('_');
+            }
+            out.push(c.to_ascii_lowercase());
+            prev_is_lower = false;
+        } else {
+            out.push(c);
+            prev_is_lower = c.is_ascii_lowercase();
+        }
+    }
+
+    out
+}
+
 
 pub trait InstructionAccountMapper<'info> {
     fn map_accounts<'me>(
@@ -46,11 +89,19 @@ impl<'info> InstructionAccountMapper<'info> for Idl {
         accounts: &[AccountMeta],
         instruction_name: &str,
     ) -> Result<Vec<AccountMetadata>, ProgramError> {
+        let normalized_name = instruction_name.to_string();
         let instruction = self
             .instructions
             .iter()
-            .find(|ix| ix.name.to_lowercase() == instruction_name.to_lowercase())
+            .find(|ix| {
+                ix.name == normalized_name || 
+                ix.name.to_lowercase() == normalized_name.to_lowercase() ||
+                to_camel_case(&ix.name) == normalized_name ||
+                to_snake_case(&normalized_name) == ix.name ||
+                to_anchor_snake_case(&ix.name) == to_anchor_snake_case(instruction_name)
+            })
             .ok_or(ProgramError::InvalidArgument)?;
+        
         let mut account_metadata: Vec<AccountMetadata> = accounts
             .iter()
             .take(instruction.accounts.len())
