@@ -15,7 +15,7 @@ use {
     },
     std::vec::Vec,
 };
-use crate::processor::core::PumpAmmSwapOutput;
+use crate::processor::core::PumpFunOutput;
 
 impl TransactionProcessor {
     pub fn parse_transaction_accounts(
@@ -65,7 +65,7 @@ impl TransactionProcessor {
 pub fn parsed_pump_txn(
     &self,
     original: ParsedConfirmedTransactionWithStatusMeta,
-) -> Option<PumpAmmSwapOutput> {
+) -> Option<PumpFunOutput> {
     const SOL_MINT: &str = "So11111111111111111111111111111111111111112";
     let meta = &original.meta;
     let tx = &original.transaction;
@@ -120,7 +120,7 @@ pub fn parsed_pump_txn(
             virtual_token_reserve,
             decimal
         ).to_string() + " SOL";
-    let output = PumpAmmSwapOutput  {
+    let output = PumpFunOutput  {
                      bonding_curve: bonding_curve,
                      virtual_sol_reserves: virtual_sol_reserve,
                      virtual_token_reserves: virtual_token_reserve,
