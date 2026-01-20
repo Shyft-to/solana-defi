@@ -12,6 +12,7 @@ use pump_interface::events::{
     SetCreatorEvent, SetCreatorEventEvent, SET_CREATOR_EVENT_DISCM,
     SetMetaplexCreatorEvent, SetMetaplexCreatorEventEvent, SET_METAPLEX_CREATOR_EVENT_DISCM,
     UpdateGlobalAuthorityEvent, UpdateGlobalAuthorityEventEvent, UPDATE_GLOBAL_AUTHORITY_EVENT_DISCM,
+    InitUserVolumeAccumulatorEvent,InitUserVolumeAccumulatorEventEvent,INIT_USER_VOLUME_ACCUMULATOR_EVENT_DISCM,
  };
 
 #[derive(Debug, Clone, Serialize,PartialEq)]
@@ -26,6 +27,7 @@ pub enum DecodedEvent {
     SetCreatorEvent(SetCreatorEvent),
     SetMetaplexCreatorEvent(SetMetaplexCreatorEvent),
     UpdateGlobalAuthorityEvent(UpdateGlobalAuthorityEvent),
+    InitUserVolumeAccumulatorEvent(InitUserVolumeAccumulatorEvent),
 }
 
 #[derive(Debug)]
@@ -36,18 +38,16 @@ pub struct AccountEventError {
 pub fn convert_to_discm(base64_string: &str) -> Result<Vec<u8>, base64::DecodeError> {
     general_purpose::STANDARD.decode(base64_string)
 }
-
-pub fn extract_log_message(logs: &[String]) -> Option<String> {
+pub fn extract_all_log_messages(logs: &[String]) -> Vec<String> {
     logs.iter()
-        .find_map(|message| {
-            if message.starts_with("Program data: ") {
-                let encoded = message.trim_start_matches("Program data: ").trim();
-                Some(encoded.to_string())
-            } else {
-                None
-            }
+        .filter_map(|message| {
+            message
+                .strip_prefix("Program data: ")
+                .map(|s| s.trim().to_string())
         })
+        .collect()
 }
+
 pub fn decode_event_data(buf: &[u8]) -> Result<DecodedEvent, AccountEventError> {
     if buf.len() < 8 {
         return Err(AccountEventError {
@@ -105,6 +105,12 @@ pub fn decode_event_data(buf: &[u8]) -> Result<DecodedEvent, AccountEventError> 
             message: format!("Failed to deserialize SetCreatorEvent: {}", e),
         })?;
         Ok(DecodedEvent::SetCreatorEvent(data.0))
+    }
+    INIT_USER_VOLUME_ACCUMULATOR_EVENT_DISCM => {
+        let data = InitUserVolumeAccumulatorEventEvent::deserialize(&mut &buf[..]).map_err(|e| AccountEventError {
+            message: format!("Failed to deserialize InitUserVolumeAccumulatorEvent: {}", e),
+        })?;
+        Ok(DecodedEvent::InitUserVolumeAccumulatorEvent(data.0))
     }
     SET_METAPLEX_CREATOR_EVENT_DISCM => {
         let data = SetMetaplexCreatorEventEvent::deserialize(&mut &buf[..]).map_err(|e| AccountEventError {

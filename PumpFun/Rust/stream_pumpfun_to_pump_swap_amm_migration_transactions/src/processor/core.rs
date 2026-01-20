@@ -72,7 +72,7 @@ impl TransactionProcessor {
                 block_time,
             )?;
 
-            let decoded_event = self.extract_decoded_event(&confirmed_txn);
+            let decoded_event = self.extract_decoded_events(&confirmed_txn);
             let instructions = self.extract_all_instructions(&confirmed_txn)?;
 
             let (decoded_compiled, decoded_inner) = self.decode_instructions(
@@ -95,8 +95,7 @@ impl TransactionProcessor {
      }
 }
 
-
-    pub fn parse_signature(signature: &[u8]) -> anyhow::Result<Signature> {
+  pub fn parse_signature(signature: &[u8]) -> anyhow::Result<Signature> {
         if signature.len() != 64 {
             anyhow::bail!("Signature must be exactly 64 bytes");
         }
@@ -110,28 +109,31 @@ impl TransactionProcessor {
         ))
     }
 
-    pub fn extract_decoded_event(
-        &self,
-        confirmed_txn: &ConfirmedTransactionWithStatusMeta,
-    ) -> Option<DecodedEvent> {
-        if let TransactionWithStatusMeta::Complete(versioned_meta) = &confirmed_txn.tx_with_meta {
-            if let Some(logs) = &versioned_meta.meta.log_messages {
-                if let Some(data_msg) = event::extract_log_message(logs) {
-                    match base64::decode(&data_msg) {
-                        Ok(decoded_bytes) => match decode_event_data(&decoded_bytes) {
-                            Ok(event) => return Some(event),
-                            Err(err) => {
-                            }
-                        },
-                        Err(err) => {
-                            eprintln!("❌ Failed to decode base64 log message: {}", err);
+    pub fn extract_decoded_events(
+     &self,
+     confirmed_txn: &ConfirmedTransactionWithStatusMeta,
+     ) -> Vec<DecodedEvent> {
+     let mut events = Vec::new();
+
+     if let TransactionWithStatusMeta::Complete(versioned_meta) = &confirmed_txn.tx_with_meta {
+        if let Some(logs) = &versioned_meta.meta.log_messages {
+            let data_logs = event::extract_all_log_messages(logs);
+            for data_msg in data_logs {
+                if let Ok(decoded_bytes) = base64::decode(&data_msg) {
+                    match decode_event_data(&decoded_bytes) {
+                        Ok(event) => events.push(event),
+                        Err(_) => {
+                            
                         }
                     }
                 }
             }
         }
-        None
+     }
+
+     events
     }
+
 
     pub fn extract_all_instructions(
         &self,
@@ -154,10 +156,10 @@ impl TransactionProcessor {
     pub fn get_instruction_name_with_typename(&self,instruction: &TokenInstruction) -> String {
     let debug_string = format!("{:?}", instruction);
     if let Some(first_brace) = debug_string.find(" {") {
-        let name = &debug_string[..first_brace]; // Extract name before `{`
+        let name = &debug_string[..first_brace];
         self.to_camel_case(name)
     } else {
-        self.to_camel_case(&debug_string) // Directly convert unit variant names
+        self.to_camel_case(&debug_string) 
     }
     }
 
