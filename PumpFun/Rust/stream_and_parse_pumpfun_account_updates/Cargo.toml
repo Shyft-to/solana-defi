@@ -1,5 +1,5 @@
 [package]
-name = "pump_fun_grpc_txn_stream_n_parse"
+name = "stream_and_parse_pumpfun_account_updates"
 version = "0.1.0"
 edition = "2021"
 

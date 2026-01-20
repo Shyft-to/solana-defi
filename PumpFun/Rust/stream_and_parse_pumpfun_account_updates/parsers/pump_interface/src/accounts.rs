@@ -1,8 +1,45 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
-use crate::*;
 
+// Account discriminators
 pub const GLOBAL_ACCOUNT_DISCM: [u8; 8] = [167, 232, 232, 177, 200, 108, 114, 127];
+pub const BONDING_CURVE_ACCOUNT_DISCM: [u8; 8] = [23, 183, 248, 55, 96, 216, 172, 96];
+pub const FEE_CONFIG_ACCOUNT_DISCM: [u8; 8] = [143, 52, 146, 187, 219, 123, 76, 155];
+pub const GLOBAL_VOLUME_ACCUMULATOR_ACCOUNT_DISCM: [u8; 8] = [202, 42, 246, 43, 142, 190, 30, 255];
+pub const SHARING_CONFIG_ACCOUNT_DISCM: [u8; 8] = [216, 74, 9, 0, 56, 140, 93, 75];
+pub const USER_VOLUME_ACCUMULATOR_ACCOUNT_DISCM: [u8; 8] = [86, 255, 112, 14, 102, 53, 154, 250];
+
+// Types
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ConfigStatus {
+    Paused,
+    Active,
+}
+
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Fees {
+    pub lp_fee_bps: u64,
+    pub protocol_fee_bps: u64,
+    pub creator_fee_bps: u64,
+}
+
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct FeeTier {
+    pub market_cap_lamports_threshold: u128,
+    pub fees: Fees,
+}
+
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Shareholder {
+    pub address: Pubkey,
+    pub share_bps: u16,
+}
+
+// Global Account
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Global {
@@ -21,6 +58,11 @@ pub struct Global {
     pub fee_recipients: [Pubkey; 7],
     pub set_creator_authority: Pubkey,
     pub admin_set_creator_authority: Pubkey,
+    pub create_v2_enabled: bool,
+    pub whitelist_pda: Pubkey,
+    pub reserved_fee_recipient: Pubkey,
+    pub mayhem_mode_enabled: bool,
+    pub reserved_fee_recipients: [Pubkey; 7],
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -58,7 +100,7 @@ impl GlobalAccount {
     }
 }
 
-pub const BONDING_CURVE_ACCOUNT_DISCM: [u8; 8] = [23, 183, 248, 55, 96, 216, 172, 96];
+// BondingCurve Account
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BondingCurve {
@@ -69,6 +111,7 @@ pub struct BondingCurve {
     pub token_total_supply: u64,
     pub complete: bool,
     pub creator: Pubkey,
+    pub is_mayhem_mode: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -106,7 +149,7 @@ impl BondingCurveAccount {
     }
 }
 
-pub const FEE_CONFIG_DISCM: [u8; 8] = [143, 52, 146, 187, 219, 123, 76, 155];
+// FeeConfig Account
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FeeConfig {
@@ -125,13 +168,13 @@ impl FeeConfigAccount {
         let mut reader = buf;
         let mut maybe_discm = [0u8; 8];
         reader.read_exact(&mut maybe_discm)?;
-        if maybe_discm != FEE_CONFIG_DISCM {
+        if maybe_discm != FEE_CONFIG_ACCOUNT_DISCM {
             return Err(
                 std::io::Error::new(
                     std::io::ErrorKind::Other,
                     format!(
                         "discm does not match. Expected: {:?}. Received: {:?}",
-                        FEE_CONFIG_DISCM, maybe_discm
+                        FEE_CONFIG_ACCOUNT_DISCM, maybe_discm
                     ),
                 ),
             );
@@ -140,7 +183,7 @@ impl FeeConfigAccount {
     }
 
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        writer.write_all(&FEE_CONFIG_DISCM)?;
+        writer.write_all(&FEE_CONFIG_ACCOUNT_DISCM)?;
         self.0.serialize(&mut writer)
     }
 
@@ -151,7 +194,7 @@ impl FeeConfigAccount {
     }
 }
 
-pub const GLOBAL_VOLUME_ACCUMULATOR_DISCM: [u8; 8] = [202, 42, 246, 43, 142, 190, 30, 255];
+// GlobalVolumeAccumulator Account
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GlobalVolumeAccumulator {
@@ -172,13 +215,13 @@ impl GlobalVolumeAccumulatorAccount {
         let mut reader = buf;
         let mut maybe_discm = [0u8; 8];
         reader.read_exact(&mut maybe_discm)?;
-        if maybe_discm != GLOBAL_VOLUME_ACCUMULATOR_DISCM {
+        if maybe_discm != GLOBAL_VOLUME_ACCUMULATOR_ACCOUNT_DISCM {
             return Err(
                 std::io::Error::new(
                     std::io::ErrorKind::Other,
                     format!(
                         "discm does not match. Expected: {:?}. Received: {:?}",
-                        GLOBAL_VOLUME_ACCUMULATOR_DISCM, maybe_discm
+                        GLOBAL_VOLUME_ACCUMULATOR_ACCOUNT_DISCM, maybe_discm
                     ),
                 ),
             );
@@ -187,7 +230,7 @@ impl GlobalVolumeAccumulatorAccount {
     }
 
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        writer.write_all(&GLOBAL_VOLUME_ACCUMULATOR_DISCM)?;
+        writer.write_all(&GLOBAL_VOLUME_ACCUMULATOR_ACCOUNT_DISCM)?;
         self.0.serialize(&mut writer)
     }
 
@@ -198,7 +241,55 @@ impl GlobalVolumeAccumulatorAccount {
     }
 }
 
-pub const USER_VOLUME_ACCUMULATOR_DISCM: [u8; 8] = [86, 255, 112, 14, 102, 53, 154, 250];
+// SharingConfig Account
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SharingConfig {
+    pub bump: u8,
+    pub version: u8,
+    pub status: ConfigStatus,
+    pub mint: Pubkey,
+    pub admin: Pubkey,
+    pub admin_revoked: bool,
+    pub shareholders: Vec<Shareholder>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SharingConfigAccount(pub SharingConfig);
+
+impl SharingConfigAccount {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        use std::io::Read;
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != SHARING_CONFIG_ACCOUNT_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        SHARING_CONFIG_ACCOUNT_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(SharingConfig::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SHARING_CONFIG_ACCOUNT_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+// UserVolumeAccumulator Account
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserVolumeAccumulator {
@@ -220,13 +311,13 @@ impl UserVolumeAccumulatorAccount {
         let mut reader = buf;
         let mut maybe_discm = [0u8; 8];
         reader.read_exact(&mut maybe_discm)?;
-        if maybe_discm != USER_VOLUME_ACCUMULATOR_DISCM {
+        if maybe_discm != USER_VOLUME_ACCUMULATOR_ACCOUNT_DISCM {
             return Err(
                 std::io::Error::new(
                     std::io::ErrorKind::Other,
                     format!(
                         "discm does not match. Expected: {:?}. Received: {:?}",
-                        USER_VOLUME_ACCUMULATOR_DISCM, maybe_discm
+                        USER_VOLUME_ACCUMULATOR_ACCOUNT_DISCM, maybe_discm
                     ),
                 ),
             );
@@ -235,7 +326,7 @@ impl UserVolumeAccumulatorAccount {
     }
 
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        writer.write_all(&USER_VOLUME_ACCUMULATOR_DISCM)?;
+        writer.write_all(&USER_VOLUME_ACCUMULATOR_ACCOUNT_DISCM)?;
         self.0.serialize(&mut writer)
     }
 

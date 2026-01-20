@@ -12,13 +12,16 @@ use {
         GLOBAL_ACCOUNT_DISCM,
         FeeConfig,
         FeeConfigAccount,
-        FEE_CONFIG_DISCM,
+        FEE_CONFIG_ACCOUNT_DISCM,
         GlobalVolumeAccumulator,
         GlobalVolumeAccumulatorAccount,
-        GLOBAL_VOLUME_ACCUMULATOR_DISCM,
+        GLOBAL_VOLUME_ACCUMULATOR_ACCOUNT_DISCM,
         UserVolumeAccumulator, 
         UserVolumeAccumulatorAccount,
-        USER_VOLUME_ACCUMULATOR_DISCM
+        USER_VOLUME_ACCUMULATOR_ACCOUNT_DISCM,
+        SHARING_CONFIG_ACCOUNT_DISCM,
+        SharingConfig,
+        SharingConfigAccount,
      },serde::Serialize, std::{
         collections::HashMap, env, sync::Arc, time::Duration
     }, tokio::sync::Mutex, tonic::transport::channel::ClientTlsConfig, yellowstone_grpc_client::{GeyserGrpcClient, Interceptor}, yellowstone_grpc_proto::{
@@ -128,6 +131,7 @@ pub enum DecodedAccount {
     FeeConfig(FeeConfig),
     GlobalVolumeAccumulator(GlobalVolumeAccumulator),
     UserVolumeAccumulator(UserVolumeAccumulator),
+    SharingConfig(SharingConfig)
 }
 
 #[derive(Debug)]
@@ -281,26 +285,33 @@ pub fn decode_account_data(buf: &[u8]) -> Result<DecodedAccount, AccountDecodeEr
                 })?;
             Ok(DecodedAccount::Global(data.0)) 
         }
-        FEE_CONFIG_DISCM => {
+        FEE_CONFIG_ACCOUNT_DISCM => {
             let data = FeeConfigAccount::deserialize(buf)
                 .map_err(|e| AccountDecodeError {
                     message: format!("Failed to deserialize Fee Config Structure: {}", e),
                 })?;
              Ok(DecodedAccount::FeeConfig(data.0))   
         }
-        GLOBAL_VOLUME_ACCUMULATOR_DISCM => {
+        GLOBAL_VOLUME_ACCUMULATOR_ACCOUNT_DISCM => {
             let data = GlobalVolumeAccumulatorAccount::deserialize(buf)
                 .map_err(|e| AccountDecodeError {
                     message: format!("Failed to deserialize Global Volume Accumulator: {}", e),
                 })?;
             Ok(DecodedAccount::GlobalVolumeAccumulator(data.0)) 
         }
-        USER_VOLUME_ACCUMULATOR_DISCM => {
+        USER_VOLUME_ACCUMULATOR_ACCOUNT_DISCM => {
             let data = UserVolumeAccumulatorAccount::deserialize(buf)
                 .map_err(|e| AccountDecodeError {
                     message: format!("Failed to deserialize User Volume Accumulator: {}", e),
                 })?;
             Ok(DecodedAccount::UserVolumeAccumulator(data.0)) 
+        }
+        SHARING_CONFIG_ACCOUNT_DISCM => {
+            let data = SharingConfigAccount::deserialize(buf)
+                .map_err(|e| AccountDecodeError {
+                    message: format!("Failed to deserialize User Volume Accumulator: {}", e),
+                })?;
+            Ok(DecodedAccount::SharingConfig(data.0)) 
         }
         _ => Err(AccountDecodeError {
             message: "Account discriminator not found.".to_string(),
