@@ -1,19 +1,11 @@
 import "dotenv/config";
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 
 import * as fs from 'fs';
 import { BorshAccountsCoder } from "@coral-xyz/anchor";
-
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import bs58 from 'bs58';
 
@@ -22,19 +14,6 @@ const PUMP_PROGRAM_ID = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 const program_idl = JSON.parse(fs.readFileSync('./Idl/pump_0.1.0.json', 'utf8'));
 
 const accountCoder = new BorshAccountsCoder(program_idl);
-
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
 
 async function handleStream(client: Client, args: SubscribeRequest) {
  console.log("Subscribing to account updates...");
@@ -73,7 +52,6 @@ const stream = await client.subscribe();
           lamports: data.account.account.lamports,
           executable: data.account.account.executable,
           rentEpoch: data.account.account.rentEpoch,
-          //slot: data.account.account.slot
         };
         
         console.log("Decoded Account Info for ", bs58.encode(data.account.account.pubkey));
@@ -125,14 +103,14 @@ const req: SubscribeRequest = {
   "pumpfun": {
     "account": [],
     "filters": [],
-    "owner": [PUMP_PROGRAM_ID] // pumpfun program id to subscribe to
+    "owner": [PUMP_PROGRAM_ID] 
   }
 },
 "transactions": {},
 "blocks": {},
 "blocksMeta": {},
 "accountsDataSlice": [],
-"commitment": CommitmentLevel.PROCESSED, // Subscribe to processed blocks for the fastest updates
+"commitment": CommitmentLevel.PROCESSED, 
 entry: {},
 transactionsStatus: {}
 }

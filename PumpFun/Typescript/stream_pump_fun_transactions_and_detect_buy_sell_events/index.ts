@@ -72,8 +72,9 @@ async function handleStream(client: Client, args: SubscribeRequest) {
         Date.now(),
       );
       const parsedTxn = pumpFunDecoder.decodePumpFunTxn(txn);
-
+      
       const parsedPumpfunTxn = parseSwapTransactionOutput(parsedTxn)
+      if(!parsedPumpfunTxn) return;
        console.log(
         new Date(),
         ":",

@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
+    "@shyft-to/ladybug-sdk": "^0.0.4",
     "@shyft-to/solana-transaction-parser": "^2.0.0",
     "@solana/web3.js": "^1.93.0",
     "@triton-one/yellowstone-grpc": "^4.0.2",
