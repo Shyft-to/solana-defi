@@ -1,151 +1,66 @@
 import "dotenv/config";
-import Client, {
-  CommitmentLevel,
-  SubscribeRequest,
-} from "@triton-one/yellowstone-grpc";
-import { TransactionFormatter } from "./utils/transaction-formatter";
-import { pumpFunParsedTransaction } from "./utils/pump-fun-parsed-transaction";
-import { PUMP_FUN_PROGRAM_ID } from "./utils/type";
-import { PumpFunDecoder } from "./utils/decode-parser";
+import * as anchor from "@coral-xyz/anchor";
+import { Idl } from "@coral-xyz/anchor";
+import { Parser, TransactionStreamer } from "@shyft-to/ladybug-sdk";
+import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
+import pumpFunIdl from "./idls/pump_0.1.0.json";
 
+// 🔁 Toggle IDL source here
+// true  = fetch IDL from chain
+// false = use local JSON IDL
+const USE_ONCHAIN_IDL = false;
 
-const originalConsoleWarn = console.warn;
-const originalConsoleLog = console.log;
-const originalConsoleError = console.error;
-
-console.warn = (message?: any, ...optionalParams: any[]) => {
-  if (
-    typeof message === "string" &&
-    message.includes("Parser does not matching the instruction args")
-  ) {
-    return;
-  }
-  originalConsoleWarn(message, ...optionalParams); 
-};
-
-console.log = (message?: any, ...optionalParams: any[]) => {
-  if (
-    typeof message === "string" &&
-    message.includes("Parser does not matching the instruction args")
-  ) {
-    return; 
-  }
-  originalConsoleLog(message, ...optionalParams); 
-};
-
-console.error = (message?: any, ...optionalParams: any[]) => {
-  if (
-    typeof message === "string" &&
-    message.includes("Parser does not matching the instruction args")
-  ) {
-    return; 
-  }
-  originalConsoleError(message, ...optionalParams); 
-};
-
-
-const TXN_FORMATTER = new TransactionFormatter();
-const pumpFunDecoder = new PumpFunDecoder();
-
-async function handleStream(client: Client, args: SubscribeRequest) {
-  console.log("Subscribing to transactions...");
-  const stream = await client.subscribe();
-
-  // Create `error` / `end` handler
-  const streamClosed = new Promise<void>((resolve, reject) => {
-    stream.on("error", (error) => {
-      console.log("ERROR", error);
-      reject(error);
-      stream.end();
-    });
-    stream.on("end", () => {
-      resolve();
-    });
-    stream.on("close", () => {
-      resolve();
-    });
-  });
-
-  // Handle updates
-  stream.on("data", (data) => {
-    if (data?.transaction) {
-      const txn = TXN_FORMATTER.formTransactionFromJson(
-        data.transaction,
-        Date.now()
-      );
-
-      const parsedTxn = pumpFunDecoder.decodePumpFunTxn(txn);
-       if (!parsedTxn) return;
-      const pumpfunParsedTxn = pumpFunParsedTransaction(parsedTxn, txn);
-
-        if (!pumpfunParsedTxn) return;
-
-      console.log(
-        new Date(),
-        ":",
-        `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
-        JSON.stringify(pumpfunParsedTxn, null, 2) + "\n"
-      );
-      console.log(
-        "--------------------------------------------------------------------------------------------------"
-      );
-    }
-  });
-
-  // Send subscribe request
-  await new Promise<void>((resolve, reject) => {
-    stream.write(args, (err: any) => {
-      if (err === null || err === undefined) {
-        resolve();
-      } else {
-        reject(err);
-      }
-    });
-  }).catch((reason) => {
-    console.error(reason);
-    throw reason;
-  });
-
-  await streamClosed;
-}
-
-async function subscribeCommand(client: Client, args: SubscribeRequest) {
-  while (true) {
-    try {
-      await handleStream(client, args);
-    } catch (error) {
-      console.error("Stream error, restarting in 1 second...", error);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-  }
-}
-
-const client = new Client(
-  process.env.GRPC_URL!,
-  process.env.X_TOKEN,
-  undefined
+const PROGRAM_ID = new PublicKey(
+  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 );
 
-const req: SubscribeRequest = {
-  accounts: {},
-  slots: {},
-  transactions: {
-    pumpFun: {
-      vote: false,
-      failed: false,
-      signature: undefined,
-      accountInclude: [PUMP_FUN_PROGRAM_ID.toBase58()],
-      accountExclude: [],
-      accountRequired: [],
-    },
-  },
-  transactionsStatus: {},
-  entry: {},
-  blocks: {},
-  blocksMeta: {},
-  accountsDataSlice: [],
-  ping: undefined,
-  commitment: CommitmentLevel.CONFIRMED,
-};
+/* ------------------------------------------------------------------ */
+/*                       IDL FETCHER                                  */
+/* ------------------------------------------------------------------ */
+async function fetchOnchainIdl(programId: PublicKey): Promise<Idl> {
+  const connection = new Connection(clusterApiUrl("mainnet-beta"));
+  const wallet = new anchor.Wallet(anchor.web3.Keypair.generate());
 
-subscribeCommand(client, req);
+  const provider = new anchor.AnchorProvider(connection, wallet, {});
+  anchor.setProvider(provider);
+
+  const idl = await anchor.Program.fetchIdl(programId, provider);
+
+  if (!idl) {
+    throw new Error("IDL not found on-chain for this program");
+  }
+
+  return idl;
+}
+async function main() {
+  const idl: Idl = USE_ONCHAIN_IDL
+    ? await fetchOnchainIdl(PROGRAM_ID)
+    : (pumpFunIdl as Idl);
+
+  const parser = new Parser();
+  parser.addIDL(PROGRAM_ID, idl);
+
+  const streamer = new TransactionStreamer(
+    process.env.ENDPOINT!,
+    process.env.X_TOKEN!
+  );
+
+  streamer.addParser(parser);
+  streamer.addAddresses([PROGRAM_ID.toBase58()]);
+  streamer.onData(processData);
+
+  streamer.start();
+}
+async function processData(tx: any) {
+  console.log(
+    new Date(),
+    ":",
+    `New transaction https://translator.shyft.to/tx/${tx.transaction.signatures[0]}\n`,
+    JSON.stringify(tx, null, 2),
+    "\n"
+  );
+  console.log(
+    "--------------------------------------------------------------------------------------------------"
+  );
+}
+main().catch(console.error);
