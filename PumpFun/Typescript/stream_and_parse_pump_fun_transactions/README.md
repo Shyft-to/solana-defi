@@ -25,7 +25,9 @@ This project works with any Solana gRPC provider.
 The .env file requires the following values:
 
 * ENDPOINT – Your Solana gRPC endpoint
-* X_TOKEN – Access token (leave blank if not required)
+* X_TOKEN – Access token
+  
+if you do not have access token please visit https://shyft.to
 
 ### 2. Clone the Repository
 
