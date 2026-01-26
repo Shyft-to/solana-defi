@@ -95,18 +95,15 @@ impl TransactionProcessor {
 
         let decoded_event = self.extract_decoded_event(&confirmed_txn);
         let instructions = self.extract_all_instructions(&confirmed_txn)?;
-
-        let (decoded_compiled, decoded_inner) = self.decode_instructions(
+        
+        let decoded_compiled = self.decode_instructions(
             &instructions.compiled,
-            &instructions.inner,
             &decoded_event,
         )?;
-
         let parsed_txn = Self::build_parsed_transaction(
             slot,
             &confirmed_txn,
             decoded_compiled,
-            decoded_inner,
             block_time,
         )?;
 
@@ -294,5 +291,5 @@ impl TransactionProcessor {
         Some(first_char) => first_char.to_lowercase().collect::<String>() + chars.as_str(),
         None => String::new(),
     }
-}
+  }
 }
