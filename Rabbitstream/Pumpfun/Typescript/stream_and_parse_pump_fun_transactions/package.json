@@ -1,5 +1,5 @@
 {
-  "name": "stream-and-parse-pump-fun-transaction-instructions-via-grpc",
+  "name": "stream-and-parse-pump-fun-transaction-instructions-via-rabbitstream",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -11,7 +11,7 @@
   "author": "shyft-to",
   "keywords": [
     "solana",
-    "grpc",
+    "rabbitstream",
     "pump.fun",
     "amm",
     "transaction",

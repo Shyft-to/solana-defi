@@ -1,5 +1,5 @@
 {
-  "name": "grpc-stream-and-parse-pump-swap-amm-transaction",
+  "name": "stream-and-parse-pump-swap-amm-transaction",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
@@ -11,7 +11,7 @@
   "author": "shyft-to",
   "keywords": [
     "solana",
-    "grpc",
+    "rabbitstream",
     "pump",
     "swap",
     "amm",

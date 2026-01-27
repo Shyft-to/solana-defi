@@ -208,7 +208,6 @@ impl TransactionProcessor {
         slot: u64,
         confirmed_txn: &ConfirmedTransactionWithStatusMeta,
         decoded_compiled: Vec<DecodedInstruction>,
-        decoded_inner: Vec<DecodedInstruction>,
         block_time: i64,
     ) -> anyhow::Result<ParsedConfirmedTransactionWithStatusMeta> {
         match &confirmed_txn.tx_with_meta {
@@ -220,7 +219,7 @@ impl TransactionProcessor {
                         fee: versioned_tx_with_meta.meta.fee,
                         pre_balances: versioned_tx_with_meta.meta.pre_balances.clone(),
                         post_balances: versioned_tx_with_meta.meta.post_balances.clone(),
-                        inner_instructions: decoded_inner,
+                        inner_instructions: [].to_vec(),
                         log_messages: versioned_tx_with_meta.meta.log_messages.clone(),
                         pre_token_balances: versioned_tx_with_meta.meta.pre_token_balances.clone(),
                         post_token_balances: versioned_tx_with_meta.meta.post_token_balances.clone(),

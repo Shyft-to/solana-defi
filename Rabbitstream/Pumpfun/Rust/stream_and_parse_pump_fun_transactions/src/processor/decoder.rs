@@ -13,11 +13,9 @@ impl TransactionProcessor{
     pub fn decode_instructions(
         &self,
         compiled_instructions: &[TransactionInstructionWithParent],
-        inner_instructions: &[TransactionInstructionWithParent],
         decoded_event: &Option<DecodedEvent>,
-    ) -> anyhow::Result<(Vec<DecodedInstruction>, Vec<DecodedInstruction>)> {
+     ) -> anyhow::Result<Vec<DecodedInstruction>> {
         let mut decoded_compiled = Vec::new();
-        let mut decoded_inner = Vec::new();
 
         for instruction in compiled_instructions {
             if let Some(decoded) = self.decode_single_instruction(instruction, decoded_event)? {
@@ -25,20 +23,14 @@ impl TransactionProcessor{
             }
         }
 
-        for instruction in inner_instructions {
-            if let Some(decoded) = self.decode_single_instruction(instruction, decoded_event)? {
-                decoded_inner.push(decoded);
-            }
-        }
 
-        Ok((decoded_compiled, decoded_inner))
+        Ok(decoded_compiled)
     }
-
     pub fn decode_single_instruction(
         &self,
         instruction: &TransactionInstructionWithParent,
         decoded_event: &Option<DecodedEvent>,
-    ) -> anyhow::Result<Option<DecodedInstruction>> {
+     ) -> anyhow::Result<Option<DecodedInstruction>> {
         if instruction.instruction.program_id == self.pumpfun_program_id {
             self.decode_pumpfun_instruction(instruction, decoded_event)
         } else if instruction.instruction.program_id == self.token_program_id {
@@ -47,7 +39,6 @@ impl TransactionProcessor{
             Ok(None)
         }
     }
-
     pub fn decode_pumpfun_instruction(
         &self,
         instruction: &TransactionInstructionWithParent,
@@ -78,11 +69,10 @@ impl TransactionProcessor{
             }
         }
     }
-
     pub fn decode_token_instruction(
         &self,
         instruction: &TransactionInstructionWithParent,
-    ) -> anyhow::Result<Option<DecodedInstruction>> {
+     ) -> anyhow::Result<Option<DecodedInstruction>> {
         match TokenInstruction::unpack(&instruction.instruction.data) {
             Ok(decoded_ix) => {
                 let ix_name = self.get_instruction_name_with_typename(&decoded_ix);
