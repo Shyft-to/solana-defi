@@ -11,7 +11,7 @@ import { TransactionFormatter } from "./utils/transaction-formatter";
 import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import pumpFunAmmIdl from "./idls/pump_0.1.0.json";
-import { pumpFunParsedTransaction } from "./utils/pump-fun-parsed-transaction";
+import { decodePumpBuyExactSolIn,pumpFunParsedTransaction,isPumpBuyInstruction,decodePumpBuy,isPumpBuyExactSolInInstruction} from "./utils/pump-fun-parsed-transaction";
 
 
 const originalConsoleWarn = console.warn;
@@ -98,7 +98,6 @@ async function handleStream(client: Client, args: SubscribeRequest) {
      if (!parsedTxn) return;
      const pumpfunParsedTxn = pumpFunParsedTransaction(parsedTxn, txn);
 
-     //if (!pumpfunParsedTxn) return;
 
       console.log(
         new Date(),
@@ -170,37 +169,78 @@ const req: SubscribeRequest = {
 
 subscribeCommand(client, req);
 
-function decodePumpFunTxn(tx: VersionedTransactionResponse) {
-  if (tx.meta?.err) return;
-   try{
-    const hydratedTx = hydrateLoadedAddresses(tx);
+function decodePumpFunTxn(
+  tx: VersionedTransactionResponse,
+) {
+  try {
+    const loadedAddresses = buildLoadedAddresses(tx);
+
+    const hydratedTx = hydrateTxWithLoadedAddresses(tx, loadedAddresses);
+
     const parsedInnerIxs = PUMP_FUN_IX_PARSER.parseTransactionWithInnerInstructions(hydratedTx);
-    const pumpfun_amm_inner_ixs = parsedInnerIxs.filter((ix) =>
-       ix.programId.equals(PUMP_FUN_PROGRAM_ID) || 
-      ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
-     );
-  if (pumpfun_amm_inner_ixs.length === 0) return;
-   const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
-   const result = {  inner_ixs: pumpfun_amm_inner_ixs, events };
-   bnLayoutFormatter(result);
+
+    const pumpfunInnerIxs = parsedInnerIxs
+      .filter(
+        (ix) =>
+          ix.programId.equals(PUMP_FUN_PROGRAM_ID) ||
+          ix.programId.equals(new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+      )
+      .map((ix) => {
+        if (isPumpBuyInstruction(ix, PUMP_FUN_PROGRAM_ID)) {
+          return decodePumpBuy(ix);
+        }
+        if (isPumpBuyExactSolInInstruction(ix, PUMP_FUN_PROGRAM_ID)) {
+          return decodePumpBuyExactSolIn(ix);
+        }
+        return ix;
+      });
+
+    if (pumpfunInnerIxs.length === 0) return null;
+
+    const events = PUMP_FUN_EVENT_PARSER.parseEvent(tx);
+
+    const result = {
+      inner_ixs: pumpfunInnerIxs,
+      events,
+    };
+
+    bnLayoutFormatter(result);
+
     return result;
-  }catch(err){
+
+  } catch (err) {
+    console.error("PumpFun decode error:", err);
+    return null;
   }
 }
+function buildLoadedAddresses(tx: VersionedTransactionResponse) {
+  const writable: PublicKey[] = [];
+  const readonly: PublicKey[] = [];
 
-function hydrateLoadedAddresses(tx: VersionedTransactionResponse): VersionedTransactionResponse {
-  const loaded = tx.meta?.loadedAddresses;
-  if (!loaded) return tx;
-  function ensurePublicKey(arr: (Buffer | PublicKey)[]) {
-    return arr.map(item =>
-      item instanceof PublicKey ? item : new PublicKey(item)
-    );
+  tx.transaction.message.staticAccountKeys.forEach((key) => {
+    writable.push(new PublicKey(key));
+  });
+
+  if (tx.transaction.message.addressTableLookups) {
+    tx.transaction.message.addressTableLookups.forEach((lookup) => {
+      const tableKey = new PublicKey(lookup.accountKey);
+
+      lookup.writableIndexes?.forEach(() => writable.push(tableKey));
+      lookup.readonlyIndexes?.forEach(() => readonly.push(tableKey));
+    });
   }
 
-  tx.meta.loadedAddresses = {
-    writable: ensurePublicKey(loaded.writable),
-    readonly: ensurePublicKey(loaded.readonly),
-  };
-
-  return tx;
+  return { writable, readonly };
+}
+function hydrateTxWithLoadedAddresses(
+  tx: VersionedTransactionResponse,
+  loadedAddresses: { writable: PublicKey[]; readonly: PublicKey[] }
+): VersionedTransactionResponse {
+  return {
+    ...tx,
+    meta: {
+      ...tx.meta,
+      loadedAddresses, 
+    },
+  } as VersionedTransactionResponse;
 }
