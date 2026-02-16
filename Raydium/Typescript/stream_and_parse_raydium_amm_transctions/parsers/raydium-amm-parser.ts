@@ -277,6 +277,13 @@ export class RaydiumAmmParser {
       case 15: {
         return this.parseUpdateConfigAccountIx(instruction);
       }
+      case 16: {
+       return this.parseSwapBaseIn2Ix(instruction);
+      }
+      case 17: {
+       return this.parseSwapBaseOut2Ix(instruction);
+      }
+
       default:
         return this.parseUnknownInstruction(instruction);
     }
@@ -878,6 +885,80 @@ export class RaydiumAmmParser {
       programId: instruction.programId,
     };
   }
+  private parseSwapBaseIn2Ix(instruction: TransactionInstruction) {
+   const accounts = instruction.keys;
+   const instructionData = instruction.data;
+   const args = SwapBaseInArgsLayout.decode(instructionData);
+
+   return {
+    name: "swapBaseIn2",
+    accounts: accounts.map((account, index) => {
+      switch (index) {
+        case 1:
+          return { ...account, name: "tokenProgram" };
+        case 2:
+          return { ...account, name: "amm" };
+        case 3:
+          return { ...account, name: "ammAuthority" };
+        case 4:
+          return { ...account, name: "ammCoinVault" };
+        case 5:
+          return { ...account, name: "ammPcVault" };
+        case 6:
+          return { ...account, name: "userSourceTokenAccount" };
+        case 8:
+          return { ...account, name: "userDestTokenAccount" };
+        case 9:
+          return { ...account, name: "userWalletAccount" };
+        default:
+          return account;
+      }
+    }),
+    args: {
+      amountIn: Number(args.amountIn),
+      minimumAmountOut: Number(args.minimumAmountOut),
+    },
+    programId: instruction.programId,
+   };
+  }
+  private parseSwapBaseOut2Ix(instruction: TransactionInstruction) {
+   const accounts = instruction.keys;
+   const instructionData = instruction.data;
+   const args = SwapBaseOutArgsLayout.decode(instructionData);
+
+   return {
+    name: "swapBaseOut2",
+    accounts: accounts.map((account, index) => {
+      switch (index) {
+        case 1:
+          return { ...account, name: "tokenProgram" };
+        case 2:
+          return { ...account, name: "amm" };
+        case 3:
+          return { ...account, name: "ammAuthority" };
+        case 4:
+          return { ...account, name: "ammCoinVault" };
+        case 5:
+          return { ...account, name: "ammPcVault" };
+        case 6:
+          return { ...account, name: "userSourceTokenAccount" };
+        case 8:
+          return { ...account, name: "userDestTokenAccount" };
+        case 9:
+          return { ...account, name: "userWalletAccount" };
+        default:
+          return account;
+      }
+    }),
+    args: {
+      maxAmountIn: Number(args.maxAmountIn),
+      amountOut: Number(args.amountOut),
+    },
+    programId: instruction.programId,
+   };
+  }
+
+
 
   private parseSimulateInfoIx(instruction: TransactionInstruction) {
     const accounts = instruction.keys;
