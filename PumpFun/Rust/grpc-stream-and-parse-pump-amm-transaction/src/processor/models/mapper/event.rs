@@ -12,6 +12,7 @@ use pumpfun_amm_interface::events::{
     UpdateAdminEvent, UpdateAdminEventEvent, UPDATE_ADMIN_EVENT_EVENT_DISCM,
     UpdateFeeConfigEvent, UpdateFeeConfigEventEvent, UPDATE_FEE_CONFIG_EVENT_EVENT_DISCM,
     WithdrawEvent, WithdrawEventEvent, WITHDRAW_EVENT_EVENT_DISCM,
+    MigratePoolCoinCreatorEvent,MigratePoolCoinCreatorEventEvent,MIGRATE_POOL_COIN_CREATOR_EVENT_DISCM
  };
 
 #[derive(Debug, Clone, Serialize,PartialEq)]
@@ -23,6 +24,7 @@ pub enum DecodedEvent {
     DisableEvent(DisableEvent),
     ExtendAccountEvent(ExtendAccountEvent),
     SellEvent(SellEvent),
+    MigratePoolCoinCreatorEvent(MigratePoolCoinCreatorEvent),
     UpdateAdminEvent(UpdateAdminEvent),
     UpdateFeeConfigEvent(UpdateFeeConfigEvent),
     WithdrawEvent(WithdrawEvent),
@@ -93,6 +95,12 @@ pub fn decode_event_data(buf: &[u8]) -> Result<DecodedEvent, AccountEventError> 
             message: format!("Failed to deserialize CompletePumpAmmMigrationEvent: {}", e),
         })?;
         Ok(DecodedEvent::ExtendAccountEvent(data.0))
+    }
+    MIGRATE_POOL_COIN_CREATOR_EVENT_DISCM => {
+       let data = MigratePoolCoinCreatorEventEvent::deserialize(&mut &buf[..]).map_err(|e| AccountEventError {
+            message: format!("Failed to deserialize MigratePoolCoinCreatorEvent: {}", e),
+        })?;
+        Ok(DecodedEvent::MigratePoolCoinCreatorEvent(data.0))
     }
     SELL_EVENT_EVENT_DISCM => {
         let data = SellEventEvent::deserialize(&mut &buf[..]).map_err(|e| AccountEventError {

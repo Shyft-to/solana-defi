@@ -313,7 +313,7 @@ impl SellEventEvent {
 }
 pub const MIGRATE_POOL_COIN_CREATOR_EVENT_DISCM: [u8;8] = [170,221,82,199,147,165,247,46];
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
-struct MigratePoolCoinCreatorEvent {
+pub struct MigratePoolCoinCreatorEvent {
     pub timestamp: i64,
     pub base_mint: Pubkey,
     pub pool: Pubkey,
