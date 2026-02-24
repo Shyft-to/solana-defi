@@ -20,6 +20,7 @@ pub enum PumpfunAmmProgramIx {
     AdminUpdateTokenIncentives(AdminUpdateTokenIncentivesIxArgs),
     Buy(BuyIxArgs),
     BuyExactQuoteIn(BuyExactQuoteInIxArgs),
+    ClaimCashback, // new
     ClaimTokenIncentives,
     CloseUserVolumeAccumulator,
     CollectCoinCreatorFee(CollectCoinCreatorFeeIxArgs),
@@ -29,11 +30,14 @@ pub enum PumpfunAmmProgramIx {
     Disable(DisableIxArgs),
     ExtendAccount(ExtendAccountIxArgs),
     InitUserVolumeAccumulator,
+    MigratePoolCoinCreator, //new 
     Sell(SellIxArgs),
     SetCoinCreator(SetCoinCreatorIxArgs),
     SetReservedFeeRecipients(SetReservedFeeRecipientsIxArgs),
     SyncUserVolumeAccumulator,
+    ToggleCashbackEnabled(ToggleCashbackEnabledIxArgs), //new
     ToggleMayhemMode(ToggleMayhemModeIxArgs),
+    TransferCreatorFeesToPump, //new
     UpdateAdmin(UpdateAdminIxArgs),
     UpdateFeeConfig(UpdateFeeConfigIxArgs),
     Withdraw(WithdrawIxArgs),
@@ -45,6 +49,7 @@ impl PumpfunAmmProgramIx {
             Self::AdminUpdateTokenIncentives(_) => "AdminUpdateTokenIncentives",
             Self::Buy(_) => "Buy",
             Self::BuyExactQuoteIn(_) => "BuyExactQuoteIn",
+            Self::ClaimCashback => "ClaimCashback",
             Self::ClaimTokenIncentives => "ClaimTokenIncentives",
             Self::CloseUserVolumeAccumulator => "CloseUserVolumeAccumulator",
             Self::CollectCoinCreatorFee(_) => "CollectCoinCreatorFee",
@@ -54,11 +59,14 @@ impl PumpfunAmmProgramIx {
             Self::Disable(_) => "Disable",
             Self::ExtendAccount(_) => "ExtendAccount",
             Self::InitUserVolumeAccumulator => "InitUserVolumeAccumulator",
+            Self::MigratePoolCoinCreator => "MigratePoolCoinCreator",
             Self::Sell(_) => "Sell",
             Self::SetCoinCreator(_) => "SetCoinCreator",
             Self::SetReservedFeeRecipients(_) => "SetReservedFeeRecipients",
             Self::SyncUserVolumeAccumulator => "SyncUserVolumeAccumulator",
+            Self::ToggleCashbackEnabled(_) => "ToggleCashbackEnabled",
             Self::ToggleMayhemMode(_) => "ToggleMayhemMode",
+            Self::TransferCreatorFeesToPump => "TransferCreatorFeesToPump",
             Self::UpdateAdmin(_) => "UpdateAdmin",
             Self::UpdateFeeConfig(_) => "UpdateFeeConfig",
             Self::Withdraw(_) => "Withdraw",
@@ -97,6 +105,9 @@ impl PumpfunAmmProgramIx {
                         BuyExactQuoteInIxArgs::deserialize(&mut reader)?,
                     ),
                 )
+            }
+            CLAIM_CASHBACK_IX_DISCM => {
+                Ok(Self::ClaimCashback)
             }
             CLAIM_TOKEN_INCENTIVES_IX_DISCM => {
                 Ok(Self::ClaimTokenIncentives)
@@ -142,6 +153,9 @@ impl PumpfunAmmProgramIx {
             INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM => {
                 Ok(Self::InitUserVolumeAccumulator)
             }
+            MIGRATE_POOL_COIN_CREATOR_IX_DISCM => {
+                Ok(Self::MigratePoolCoinCreator)
+            }
             SELL_IX_DISCM => {
                 Ok(Self::Sell(SellIxArgs::deserialize(&mut reader)?))
             }
@@ -154,8 +168,14 @@ impl PumpfunAmmProgramIx {
             SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM => {
                 Ok(Self::SyncUserVolumeAccumulator)
             }
+            TOGGLE_CASHBACK_ENABLED_IX_DISCM => {
+                Ok(Self::ToggleCashbackEnabled(ToggleCashbackEnabledIxArgs::deserialize(&mut reader)?))
+            }
             TOGGLE_MAYHEM_MODE_IX_DISCM => {
              Ok(Self::ToggleMayhemMode(ToggleMayhemModeIxArgs::deserialize(&mut reader)?))
+            }
+            TRANSFER_CREATOR_FEES_TO_PUMP_IX_DISCM => {
+             Ok(Self::TransferCreatorFeesToPump)
             }
             UPDATE_ADMIN_IX_DISCM => {
                 Ok(Self::UpdateAdmin(UpdateAdminIxArgs::deserialize(&mut reader)?))
@@ -194,6 +214,7 @@ impl PumpfunAmmProgramIx {
                 writer.write_all(&BUY_EXACT_QUOTE_IN_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
+            Self::ClaimCashback => writer.write_all(&CLAIM_CASHBACK_IX_DISCM),
             Self::ClaimTokenIncentives  =>  writer.write_all(&CLAIM_TOKEN_INCENTIVES_IX_DISCM),
             Self::CloseUserVolumeAccumulator => writer.write_all(&CLOSE_USER_VOLUME_ACCUMULATOR_IX_DISCM),
             Self::CollectCoinCreatorFee(args) => {
@@ -221,7 +242,7 @@ impl PumpfunAmmProgramIx {
                 args.serialize(&mut writer)
             }
             Self::InitUserVolumeAccumulator => writer.write_all(&INIT_USER_VOLUME_ACCUMULATOR_IX_DISCM),
-        
+            Self::MigratePoolCoinCreator => writer.write_all(&MIGRATE_POOL_COIN_CREATOR_IX_DISCM),
             Self::Sell(args) => {
                 writer.write_all(&SELL_IX_DISCM)?;
                 args.serialize(&mut writer)
@@ -235,10 +256,15 @@ impl PumpfunAmmProgramIx {
                 args.serialize(&mut writer)
             }
             Self::SyncUserVolumeAccumulator => writer.write_all(&SYNC_USER_VOLUME_ACCUMULATOR_IX_DISCM),
+            Self::ToggleCashbackEnabled(args) => {
+                writer.write_all(&TOGGLE_CASHBACK_ENABLED_IX_DISCM)?;
+                args.serialize(&mut writer)
+            }
             Self::ToggleMayhemMode(args) => {
                 writer.write_all(&TOGGLE_MAYHEM_MODE_IX_DISCM)?;
                 args.serialize(&mut writer)
             }
+            Self::TransferCreatorFeesToPump => writer.write_all(&TRANSFER_CREATOR_FEES_TO_PUMP_IX_DISCM),
             Self::UpdateAdmin(args) => {
                 writer.write_all(&UPDATE_ADMIN_IX_DISCM)?;
                 args.serialize(&mut writer)
@@ -1786,6 +1812,305 @@ pub fn buy_exact_quote_in_verify_account_privileges<'me, 'info>(
     buy_exact_quote_in_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
+
+
+pub const CLAIM_CASHBACK_IX_ACCOUNTS_LEN: usize = 9;
+
+#[derive(Copy, Clone, Debug)]
+pub struct ClaimCashbackAccounts<'me, 'info> {
+    pub user: &'me AccountInfo<'info>,
+    pub user_volume_accumulator: &'me AccountInfo<'info>,
+    pub quote_mint: &'me AccountInfo<'info>,
+    pub quote_token_program: &'me AccountInfo<'info>,
+    pub user_volume_accumulator_wsol_token_account: &'me AccountInfo<'info>,
+    pub user_wsol_token_account: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ClaimCashbackKeys {
+    pub user: Pubkey,
+    pub user_volume_accumulator: Pubkey,
+    pub quote_mint: Pubkey,
+    pub quote_token_program: Pubkey,
+    pub user_volume_accumulator_wsol_token_account: Pubkey,
+    pub user_wsol_token_account: Pubkey,
+    pub system_program: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<ClaimCashbackAccounts<'_, '_>> for ClaimCashbackKeys {
+    fn from(accounts: ClaimCashbackAccounts) -> Self {
+        Self {
+            user: *accounts.user.key,
+            user_volume_accumulator: *accounts.user_volume_accumulator.key,
+            quote_mint: *accounts.quote_mint.key,
+            quote_token_program: *accounts.quote_token_program.key,
+            user_volume_accumulator_wsol_token_account: *accounts.user_volume_accumulator_wsol_token_account.key,
+            user_wsol_token_account: *accounts.user_wsol_token_account.key,
+            system_program: *accounts.system_program.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<ClaimCashbackKeys> for [AccountMeta; CLAIM_CASHBACK_IX_ACCOUNTS_LEN] {
+    fn from(keys: ClaimCashbackKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.user,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.quote_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.quote_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.user_volume_accumulator_wsol_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_wsol_token_account,
+                is_signer: false,
+                is_writable: true
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; CLAIM_CASHBACK_IX_ACCOUNTS_LEN]> for ClaimCashbackKeys {
+    fn from(pubkeys: [Pubkey; CLAIM_CASHBACK_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            user: pubkeys[0],
+            user_volume_accumulator: pubkeys[1],
+            quote_mint: pubkeys[2],
+            quote_token_program: pubkeys[3],
+            user_volume_accumulator_wsol_token_account: pubkeys[4],
+            user_wsol_token_account: pubkeys[5],
+            system_program: pubkeys[6],
+            event_authority: pubkeys[7],
+            program: pubkeys[8],
+        }
+    }
+}
+
+impl<'info> From<ClaimCashbackAccounts<'_, 'info>> for [AccountInfo<'info>; CLAIM_CASHBACK_IX_ACCOUNTS_LEN] {
+    fn from(accounts: ClaimCashbackAccounts<'_, 'info>) -> Self {
+        [
+            accounts.user.clone(),
+            accounts.user_volume_accumulator.clone(),
+            accounts.quote_mint.clone(),
+            accounts.quote_token_program.clone(),
+            accounts.user_volume_accumulator_wsol_token_account.clone(),
+            accounts.user_wsol_token_account.clone(),
+            accounts.system_program.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; CLAIM_CASHBACK_IX_ACCOUNTS_LEN]>
+    for ClaimCashbackAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; CLAIM_CASHBACK_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            user: &arr[0],
+            user_volume_accumulator: &arr[1],
+            quote_mint: &arr[2],
+            quote_token_program: &arr[3],
+            user_volume_accumulator_wsol_token_account: &arr[4],
+            user_wsol_token_account: &arr[5],
+            system_program: &arr[6],
+            event_authority: &arr[7],
+            program: &arr[8],
+        }
+    }
+}
+
+pub const CLAIM_CASHBACK_IX_DISCM: [u8; 8] = [37, 58, 35, 126, 190, 53, 228, 197];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ClaimCashbackIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClaimCashbackIxData(pub ClaimCashbackIxArgs);
+
+impl From<ClaimCashbackIxArgs> for ClaimCashbackIxData {
+    fn from(args: ClaimCashbackIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl ClaimCashbackIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLAIM_CASHBACK_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CLAIM_CASHBACK_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(ClaimCashbackIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLAIM_CASHBACK_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn claim_cashback_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ClaimCashbackKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLAIM_CASHBACK_IX_ACCOUNTS_LEN] = keys.into();
+    let data: ClaimCashbackIxData = ClaimCashbackIxArgs {}.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn claim_cashback_ix(keys: ClaimCashbackKeys) -> std::io::Result<Instruction> {
+    claim_cashback_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn claim_cashback_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ClaimCashbackAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: ClaimCashbackKeys = accounts.into();
+    let ix = claim_cashback_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn claim_cashback_invoke(accounts: ClaimCashbackAccounts<'_, '_>) -> ProgramResult {
+    claim_cashback_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn claim_cashback_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ClaimCashbackAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: ClaimCashbackKeys = accounts.into();
+    let ix = claim_cashback_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn claim_cashback_invoke_signed(
+    accounts: ClaimCashbackAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    claim_cashback_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn claim_cashback_verify_account_keys(
+    accounts: ClaimCashbackAccounts<'_, '_>,
+    keys: ClaimCashbackKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.user.key, keys.user),
+        (*accounts.user_volume_accumulator.key, keys.user_volume_accumulator),
+        (*accounts.quote_mint.key, keys.quote_mint),
+        (*accounts.quote_token_program.key, keys.quote_token_program),
+        (*accounts.user_volume_accumulator_wsol_token_account.key, keys.user_volume_accumulator_wsol_token_account),
+        (*accounts.user_wsol_token_account.key, keys.user_wsol_token_account),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn claim_cashback_verify_writable_privileges<'me, 'info>(
+    accounts: ClaimCashbackAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.user,
+        accounts.user_volume_accumulator,
+        accounts.user_volume_accumulator_wsol_token_account,
+        accounts.user_wsol_token_account,
+
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn claim_cashback_verify_signer_privileges<'me, 'info>(
+    accounts: ClaimCashbackAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [
+        accounts.user,
+    ] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn claim_cashback_verify_account_privileges<'me, 'info>(
+    accounts: ClaimCashbackAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    claim_cashback_verify_writable_privileges(accounts)?;
+    claim_cashback_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
 
 pub const CLAIM_TOKEN_INCENTIVES_IX_ACCOUNTS_LEN: usize = 12;
 #[derive(Copy, Clone, Debug)]
@@ -4349,6 +4674,237 @@ pub fn init_user_volume_accumulator_verify_account_privileges<'me, 'info>(
     Ok(())
 }
 
+pub const MIGRATE_POOL_COIN_CREATOR_IX_ACCOUNTS_LEN: usize = 4;
+
+#[derive(Copy, Clone, Debug)]
+pub struct MigratePoolCoinCreatorAccounts<'me, 'info> {
+    pub pool: &'me AccountInfo<'info>,
+    pub sharing_config: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct MigratePoolCoinCreatorKeys {
+    pub pool: Pubkey,
+    pub sharing_config: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<MigratePoolCoinCreatorAccounts<'_, '_>> for MigratePoolCoinCreatorKeys {
+    fn from(accounts: MigratePoolCoinCreatorAccounts) -> Self {
+        Self {
+            pool: *accounts.pool.key,
+            sharing_config: *accounts.sharing_config.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<MigratePoolCoinCreatorKeys> for [AccountMeta; MIGRATE_POOL_COIN_CREATOR_IX_ACCOUNTS_LEN] {
+    fn from(keys: MigratePoolCoinCreatorKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.sharing_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; MIGRATE_POOL_COIN_CREATOR_IX_ACCOUNTS_LEN]> for MigratePoolCoinCreatorKeys {
+    fn from(pubkeys: [Pubkey; MIGRATE_POOL_COIN_CREATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: pubkeys[0],
+            sharing_config: pubkeys[1],
+            event_authority: pubkeys[2],
+            program: pubkeys[3],
+        }
+    }
+}
+
+impl<'info> From<MigratePoolCoinCreatorAccounts<'_, 'info>>
+    for [AccountInfo<'info>; MIGRATE_POOL_COIN_CREATOR_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: MigratePoolCoinCreatorAccounts<'_, 'info>) -> Self {
+        [
+            accounts.pool.clone(),
+            accounts.sharing_config.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; MIGRATE_POOL_COIN_CREATOR_IX_ACCOUNTS_LEN]>
+    for MigratePoolCoinCreatorAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; MIGRATE_POOL_COIN_CREATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool: &arr[0],
+            sharing_config: &arr[1],
+            event_authority: &arr[2],
+            program: &arr[3],
+        }
+    }
+}
+
+pub const MIGRATE_POOL_COIN_CREATOR_IX_DISCM: [u8; 8] = [208, 8, 159, 4, 74, 175, 16, 58];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MigratePoolCoinCreatorIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MigratePoolCoinCreatorIxData(pub MigratePoolCoinCreatorIxArgs);
+
+impl From<MigratePoolCoinCreatorIxArgs> for MigratePoolCoinCreatorIxData {
+    fn from(args: MigratePoolCoinCreatorIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl MigratePoolCoinCreatorIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != MIGRATE_POOL_COIN_CREATOR_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    MIGRATE_POOL_COIN_CREATOR_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(MigratePoolCoinCreatorIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&MIGRATE_POOL_COIN_CREATOR_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn migrate_pool_coin_creator_ix_with_program_id(
+    program_id: Pubkey,
+    keys: MigratePoolCoinCreatorKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; MIGRATE_POOL_COIN_CREATOR_IX_ACCOUNTS_LEN] = keys.into();
+    let data: MigratePoolCoinCreatorIxData = MigratePoolCoinCreatorIxArgs {}.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn migrate_pool_coin_creator_ix(keys: MigratePoolCoinCreatorKeys) -> std::io::Result<Instruction> {
+    migrate_pool_coin_creator_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn migrate_pool_coin_creator_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: MigratePoolCoinCreatorAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: MigratePoolCoinCreatorKeys = accounts.into();
+    let ix = migrate_pool_coin_creator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn migrate_pool_coin_creator_invoke(
+    accounts: MigratePoolCoinCreatorAccounts<'_, '_>,
+) -> ProgramResult {
+    migrate_pool_coin_creator_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn migrate_pool_coin_creator_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: MigratePoolCoinCreatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: MigratePoolCoinCreatorKeys = accounts.into();
+    let ix = migrate_pool_coin_creator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn migrate_pool_coin_creator_invoke_signed(
+    accounts: MigratePoolCoinCreatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    migrate_pool_coin_creator_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn migrate_pool_coin_creator_verify_account_keys(
+    accounts: MigratePoolCoinCreatorAccounts<'_, '_>,
+    keys: MigratePoolCoinCreatorKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pool.key, keys.pool),
+        (*accounts.sharing_config.key, keys.sharing_config),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn migrate_pool_coin_creator_verify_writable_privileges<'me, 'info>(
+    accounts: MigratePoolCoinCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.pool,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn migrate_pool_coin_creator_verify_signer_privileges<'me, 'info>(
+    _accounts: MigratePoolCoinCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    Ok(())
+}
+
+pub fn migrate_pool_coin_creator_verify_account_privileges<'me, 'info>(
+    accounts: MigratePoolCoinCreatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    migrate_pool_coin_creator_verify_writable_privileges(accounts)?;
+    migrate_pool_coin_creator_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+
 pub const SELL_IX_ACCOUNTS_LEN: usize = 21;
 #[derive(Copy, Clone, Debug)]
 pub struct SellAccounts<'me, 'info> {
@@ -5485,6 +6041,255 @@ pub fn sync_user_volume_accumulator_verify_account_privileges<'me, 'info>(
     Ok(())
 }
 
+pub const TOGGLE_CASHBACK_ENABLED_IX_ACCOUNTS_LEN: usize = 4;
+
+#[derive(Copy, Clone, Debug)]
+pub struct ToggleCashbackEnabledAccounts<'me, 'info> {
+    pub admin: &'me AccountInfo<'info>,
+    pub global_config: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ToggleCashbackEnabledKeys {
+    pub admin: Pubkey,
+    pub global_config: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<ToggleCashbackEnabledAccounts<'_, '_>> for ToggleCashbackEnabledKeys {
+    fn from(accounts: ToggleCashbackEnabledAccounts) -> Self {
+        Self {
+            admin: *accounts.admin.key,
+            global_config: *accounts.global_config.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<ToggleCashbackEnabledKeys> for [AccountMeta; TOGGLE_CASHBACK_ENABLED_IX_ACCOUNTS_LEN] {
+    fn from(keys: ToggleCashbackEnabledKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.admin,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.global_config,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; TOGGLE_CASHBACK_ENABLED_IX_ACCOUNTS_LEN]> for ToggleCashbackEnabledKeys {
+    fn from(pubkeys: [Pubkey; TOGGLE_CASHBACK_ENABLED_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            admin: pubkeys[0],
+            global_config: pubkeys[1],
+            event_authority: pubkeys[2],
+            program: pubkeys[3],
+        }
+    }
+}
+
+impl<'info> From<ToggleCashbackEnabledAccounts<'_, 'info>>
+    for [AccountInfo<'info>; TOGGLE_CASHBACK_ENABLED_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: ToggleCashbackEnabledAccounts<'_, 'info>) -> Self {
+        [
+            accounts.admin.clone(),
+            accounts.global_config.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; TOGGLE_CASHBACK_ENABLED_IX_ACCOUNTS_LEN]>
+    for ToggleCashbackEnabledAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; TOGGLE_CASHBACK_ENABLED_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            admin: &arr[0],
+            global_config: &arr[1],
+            event_authority: &arr[2],
+            program: &arr[3],
+        }
+    }
+}
+
+pub const TOGGLE_CASHBACK_ENABLED_IX_DISCM: [u8; 8] = [115, 103, 224, 255, 189, 89, 86, 195];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ToggleCashbackEnabledIxArgs {
+    pub enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ToggleCashbackEnabledIxData(pub ToggleCashbackEnabledIxArgs);
+
+impl From<ToggleCashbackEnabledIxArgs> for ToggleCashbackEnabledIxData {
+    fn from(args: ToggleCashbackEnabledIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl ToggleCashbackEnabledIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != TOGGLE_CASHBACK_ENABLED_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    TOGGLE_CASHBACK_ENABLED_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(ToggleCashbackEnabledIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&TOGGLE_CASHBACK_ENABLED_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn toggle_cashback_enabled_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ToggleCashbackEnabledKeys,
+    args: ToggleCashbackEnabledIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; TOGGLE_CASHBACK_ENABLED_IX_ACCOUNTS_LEN] = keys.into();
+    let data: ToggleCashbackEnabledIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn toggle_cashback_enabled_ix(
+    keys: ToggleCashbackEnabledKeys,
+    args: ToggleCashbackEnabledIxArgs,
+) -> std::io::Result<Instruction> {
+    toggle_cashback_enabled_ix_with_program_id(crate::ID, keys, args)
+}
+
+pub fn toggle_cashback_enabled_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ToggleCashbackEnabledAccounts<'_, '_>,
+    args: ToggleCashbackEnabledIxArgs,
+) -> ProgramResult {
+    let keys: ToggleCashbackEnabledKeys = accounts.into();
+    let ix = toggle_cashback_enabled_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn toggle_cashback_enabled_invoke(
+    accounts: ToggleCashbackEnabledAccounts<'_, '_>,
+    args: ToggleCashbackEnabledIxArgs,
+) -> ProgramResult {
+    toggle_cashback_enabled_invoke_with_program_id(crate::ID, accounts, args)
+}
+
+pub fn toggle_cashback_enabled_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ToggleCashbackEnabledAccounts<'_, '_>,
+    args: ToggleCashbackEnabledIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: ToggleCashbackEnabledKeys = accounts.into();
+    let ix = toggle_cashback_enabled_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn toggle_cashback_enabled_invoke_signed(
+    accounts: ToggleCashbackEnabledAccounts<'_, '_>,
+    args: ToggleCashbackEnabledIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    toggle_cashback_enabled_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+
+pub fn toggle_cashback_enabled_verify_account_keys(
+    accounts: ToggleCashbackEnabledAccounts<'_, '_>,
+    keys: ToggleCashbackEnabledKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.admin.key, keys.admin),
+        (*accounts.global_config.key, keys.global_config),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_cashback_enabled_verify_writable_privileges<'me, 'info>(
+    accounts: ToggleCashbackEnabledAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.global_config,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_cashback_enabled_verify_signer_privileges<'me, 'info>(
+    accounts: ToggleCashbackEnabledAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [
+        accounts.admin,
+    ] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+
+pub fn toggle_cashback_enabled_verify_account_privileges<'me, 'info>(
+    accounts: ToggleCashbackEnabledAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    toggle_cashback_enabled_verify_writable_privileges(accounts)?;
+    toggle_cashback_enabled_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+
+
 pub const TOGGLE_MAYHEM_MODE_IX_ACCOUNTS_LEN: usize = 4;
 #[derive(Copy, Clone, Debug)]
 pub struct ToggleMayhemModeAccounts<'me, 'info> {
@@ -5713,6 +6518,314 @@ pub fn toggle_mayhem_mode_verify_account_privileges<'me, 'info>(
     toggle_mayhem_mode_verify_signer_privileges(accounts)?;
     Ok(())
 }
+
+
+pub const TRANSFER_CREATOR_FEES_TO_PUMP_IX_ACCOUNTS_LEN: usize = 10;
+
+#[derive(Copy, Clone, Debug)]
+pub struct TransferCreatorFeesToPumpAccounts<'me, 'info> {
+    pub wsol_mint: &'me AccountInfo<'info>,
+    pub token_program: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub associated_token_program: &'me AccountInfo<'info>,
+    pub coin_creator: &'me AccountInfo<'info>,
+    pub coin_creator_vault_authority: &'me AccountInfo<'info>,
+    pub coin_creator_vault_ata: &'me AccountInfo<'info>,
+    pub pump_creator_vault: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct TransferCreatorFeesToPumpKeys {
+    pub wsol_mint: Pubkey,
+    pub token_program: Pubkey,
+    pub system_program: Pubkey,
+    pub associated_token_program: Pubkey,
+    pub coin_creator: Pubkey,
+    pub coin_creator_vault_authority: Pubkey,
+    pub coin_creator_vault_ata: Pubkey,
+    pub pump_creator_vault: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+
+impl From<TransferCreatorFeesToPumpAccounts<'_, '_>> for TransferCreatorFeesToPumpKeys {
+    fn from(accounts: TransferCreatorFeesToPumpAccounts) -> Self {
+        Self {
+            wsol_mint: *accounts.wsol_mint.key,
+            token_program: *accounts.token_program.key,
+            system_program: *accounts.system_program.key,
+            associated_token_program: *accounts.associated_token_program.key,
+            coin_creator: *accounts.coin_creator.key,
+            coin_creator_vault_authority: *accounts.coin_creator_vault_authority.key,
+            coin_creator_vault_ata: *accounts.coin_creator_vault_ata.key,
+            pump_creator_vault: *accounts.pump_creator_vault.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+
+impl From<TransferCreatorFeesToPumpKeys> for [AccountMeta; TRANSFER_CREATOR_FEES_TO_PUMP_IX_ACCOUNTS_LEN] {
+    fn from(keys: TransferCreatorFeesToPumpKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.wsol_mint,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.associated_token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_authority,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.coin_creator_vault_ata,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.pump_creator_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.event_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+
+impl From<[Pubkey; TRANSFER_CREATOR_FEES_TO_PUMP_IX_ACCOUNTS_LEN]> for TransferCreatorFeesToPumpKeys {
+    fn from(pubkeys: [Pubkey; TRANSFER_CREATOR_FEES_TO_PUMP_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            wsol_mint: pubkeys[0],
+            token_program: pubkeys[1],
+            system_program: pubkeys[2],
+            associated_token_program: pubkeys[3],
+            coin_creator: pubkeys[4],
+            coin_creator_vault_authority: pubkeys[5],
+            coin_creator_vault_ata: pubkeys[6],
+            pump_creator_vault: pubkeys[7],
+            event_authority: pubkeys[8],
+            program: pubkeys[9],
+        }
+    }
+}
+
+impl<'info> From<TransferCreatorFeesToPumpAccounts<'_, 'info>>
+    for [AccountInfo<'info>; TRANSFER_CREATOR_FEES_TO_PUMP_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: TransferCreatorFeesToPumpAccounts<'_, 'info>) -> Self {
+        [
+            accounts.wsol_mint.clone(),
+            accounts.token_program.clone(),
+            accounts.system_program.clone(),
+            accounts.associated_token_program.clone(),
+            accounts.coin_creator.clone(),
+            accounts.coin_creator_vault_authority.clone(),
+            accounts.coin_creator_vault_ata.clone(),
+            accounts.pump_creator_vault.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+
+impl<'me, 'info> From<&'me [AccountInfo<'info>; TRANSFER_CREATOR_FEES_TO_PUMP_IX_ACCOUNTS_LEN]>
+    for TransferCreatorFeesToPumpAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; TRANSFER_CREATOR_FEES_TO_PUMP_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            wsol_mint: &arr[0],
+            token_program: &arr[1],
+            system_program: &arr[2],
+            associated_token_program: &arr[3],
+            coin_creator: &arr[4],
+            coin_creator_vault_authority: &arr[5],
+            coin_creator_vault_ata: &arr[6],
+            pump_creator_vault: &arr[7],
+            event_authority: &arr[8],
+            program: &arr[9],
+        }
+    }
+}
+
+pub const TRANSFER_CREATOR_FEES_TO_PUMP_IX_DISCM: [u8; 8] = [139, 52, 134, 85, 228, 229, 108, 241];
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TransferCreatorFeesToPumpIxArgs {}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TransferCreatorFeesToPumpIxData(pub TransferCreatorFeesToPumpIxArgs);
+
+impl From<TransferCreatorFeesToPumpIxArgs> for TransferCreatorFeesToPumpIxData {
+    fn from(args: TransferCreatorFeesToPumpIxArgs) -> Self {
+        Self(args)
+    }
+}
+
+impl TransferCreatorFeesToPumpIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != TRANSFER_CREATOR_FEES_TO_PUMP_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    TRANSFER_CREATOR_FEES_TO_PUMP_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(TransferCreatorFeesToPumpIxArgs::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&TRANSFER_CREATOR_FEES_TO_PUMP_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
+pub fn transfer_creator_fees_to_pump_ix_with_program_id(
+    program_id: Pubkey,
+    keys: TransferCreatorFeesToPumpKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; TRANSFER_CREATOR_FEES_TO_PUMP_IX_ACCOUNTS_LEN] = keys.into();
+    let data: TransferCreatorFeesToPumpIxData = TransferCreatorFeesToPumpIxArgs {}.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+
+pub fn transfer_creator_fees_to_pump_ix(
+    keys: TransferCreatorFeesToPumpKeys,
+) -> std::io::Result<Instruction> {
+    transfer_creator_fees_to_pump_ix_with_program_id(crate::ID, keys)
+}
+
+pub fn transfer_creator_fees_to_pump_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: TransferCreatorFeesToPumpAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: TransferCreatorFeesToPumpKeys = accounts.into();
+    let ix = transfer_creator_fees_to_pump_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+
+pub fn transfer_creator_fees_to_pump_invoke(
+    accounts: TransferCreatorFeesToPumpAccounts<'_, '_>,
+) -> ProgramResult {
+    transfer_creator_fees_to_pump_invoke_with_program_id(crate::ID, accounts)
+}
+
+pub fn transfer_creator_fees_to_pump_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: TransferCreatorFeesToPumpAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: TransferCreatorFeesToPumpKeys = accounts.into();
+    let ix = transfer_creator_fees_to_pump_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+
+pub fn transfer_creator_fees_to_pump_invoke_signed(
+    accounts: TransferCreatorFeesToPumpAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    transfer_creator_fees_to_pump_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+
+pub fn transfer_creator_fees_to_pump_verify_account_keys(
+    accounts: TransferCreatorFeesToPumpAccounts<'_, '_>,
+    keys: TransferCreatorFeesToPumpKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.wsol_mint.key, keys.wsol_mint),
+        (*accounts.token_program.key, keys.token_program),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.associated_token_program.key, keys.associated_token_program),
+        (*accounts.coin_creator.key, keys.coin_creator),
+        (*accounts.coin_creator_vault_authority.key, keys.coin_creator_vault_authority),
+        (*accounts.coin_creator_vault_ata.key, keys.coin_creator_vault_ata),
+        (*accounts.pump_creator_vault.key, keys.pump_creator_vault),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+
+pub fn transfer_creator_fees_to_pump_verify_writable_privileges<'me, 'info>(
+    accounts: TransferCreatorFeesToPumpAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.coin_creator_vault_authority,
+        accounts.coin_creator_vault_ata,
+        accounts.pump_creator_vault,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+
+pub fn transfer_creator_fees_to_pump_verify_signer_privileges<'me, 'info>(
+    _accounts: TransferCreatorFeesToPumpAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    Ok(())
+}
+
+pub fn transfer_creator_fees_to_pump_verify_account_privileges<'me, 'info>(
+    accounts: TransferCreatorFeesToPumpAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    transfer_creator_fees_to_pump_verify_writable_privileges(accounts)?;
+    transfer_creator_fees_to_pump_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
 
 pub const UPDATE_ADMIN_IX_ACCOUNTS_LEN: usize = 5;
 #[derive(Copy, Clone, Debug)]

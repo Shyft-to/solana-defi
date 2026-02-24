@@ -35,6 +35,9 @@ pub struct BuyEvent {
     pub current_sol_volume: u64,
     pub last_update_timestamp: i64,
     pub min_base_amount_out: u64,
+    pub ix_name: String,
+    pub cashback_fee_basis_points: u64,
+    pub cashback: u64
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -279,6 +282,8 @@ pub struct SellEvent {
     pub coin_creator: Pubkey,
     pub coin_creator_fee_basis_points: u64,
     pub coin_creator_fee: u64,
+    pub cashback_fee_basis_points: u64,
+    pub cashback: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -306,6 +311,42 @@ impl SellEventEvent {
         Ok(Self(SellEvent::deserialize(buf)?))
     }
 }
+pub const MIGRATE_POOL_COIN_CREATOR_EVENT_DISCM: [u8;8] = [170,221,82,199,147,165,247,46];
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
+struct MigratePoolCoinCreatorEvent {
+    pub timestamp: i64,
+    pub base_mint: Pubkey,
+    pub pool: Pubkey,
+    pub sharing_config: Pubkey,
+    pub old_coin_creator: Pubkey,
+    pub new_coin_creator: Pubkey
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MigratePoolCoinCreatorEventEvent(pub MigratePoolCoinCreatorEvent);
+impl BorshSerialize for MigratePoolCoinCreatorEventEvent {
+    fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
+        MIGRATE_POOL_COIN_CREATOR_EVENT_DISCM.serialize(writer)?;
+        self.0.serialize(writer)
+    }
+}
+
+impl MigratePoolCoinCreatorEventEvent {
+    pub fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+        let maybe_discm = <[u8; 8]>::deserialize(buf)?;
+        if maybe_discm != MIGRATE_POOL_COIN_CREATOR_EVENT_DISCM {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    MIGRATE_POOL_COIN_CREATOR_EVENT_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(MigratePoolCoinCreatorEvent::deserialize(buf)?))
+    }
+}
+
 pub const UPDATE_ADMIN_EVENT_EVENT_DISCM: [u8; 8] = [225, 152, 171, 87, 246, 63, 66, 234];
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, serde::Serialize)]
