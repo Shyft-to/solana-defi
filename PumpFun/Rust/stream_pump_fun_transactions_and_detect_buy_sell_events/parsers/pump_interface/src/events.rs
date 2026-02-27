@@ -18,6 +18,9 @@ pub struct CreateEvent {
     pub virtual_sol_reserves: u64,
     pub real_token_reserves: u64,
     pub token_total_supply: u64,
+    pub token_program: Pubkey,
+    pub is_mayhem_mode : bool,
+    pub is_cashback_enabled: bool
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct CreateEventEvent(pub CreateEvent);
@@ -68,6 +71,9 @@ pub struct TradeEvent {
     pub current_sol_volume: u64,
     pub last_update_timestamp: i64,
     pub ix_name : String,
+    pub mayhem_mode: bool,
+    pub cashback_fee_basis_points: u64,
+    pub cashback: u64,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct TradeEventEvent(pub TradeEvent);
