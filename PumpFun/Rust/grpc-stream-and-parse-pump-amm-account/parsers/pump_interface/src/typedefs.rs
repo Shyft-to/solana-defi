@@ -206,3 +206,15 @@ pub struct WithdrawEvent {
     pub user_quote_token_account: Pubkey,
     pub user_pool_token_account: Pubkey,
 }
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ConfigStatus {
+    Paused,
+    Active,
+}
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Shareholder {
+    pub address: Pubkey,
+    pub share_bps: u16,
+}
