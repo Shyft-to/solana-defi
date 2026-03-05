@@ -18,11 +18,14 @@ use {
         GlobalConfigAccount,
         BondingCurveAccount,
         POOL_ACCOUNT_DISCM,
-    GLOBAL_CONFIG_ACCOUNT_DISCM,
-    BONDING_CURVE_ACCOUNT_DISCM,
-    FEE_CONFIG_ACCOUNT_DISCM,
-    GLOBAL_VOLUME_ACCUMULATOR_ACCOUNT_DISCM,
-    USER_VOLUME_ACCUMULATOR_ACCOUNT_DISCM
+        GLOBAL_CONFIG_ACCOUNT_DISCM,
+        BONDING_CURVE_ACCOUNT_DISCM,
+        FEE_CONFIG_ACCOUNT_DISCM,
+        GLOBAL_VOLUME_ACCUMULATOR_ACCOUNT_DISCM,
+        USER_VOLUME_ACCUMULATOR_ACCOUNT_DISCM,
+        SharingConfig,
+        SharingConfigAccount,
+        SHARING_CONFIG_DISCM,
  },serde::Serialize, std::{
         collections::HashMap, env, sync::Arc, time::Duration
     }, tokio::sync::Mutex,
@@ -134,6 +137,7 @@ pub enum DecodedAccount {
     BondingCurve(BondingCurve),
     UserVolumeAccumulator(UserVolumeAccumulator),
     GlobalVolumeAccumulator(GlobalVolumeAccumulator),
+    SharingConfig(SharingConfig),
 }
 
 #[derive(Debug)]
@@ -311,6 +315,13 @@ pub fn decode_account_data(buf: &[u8]) -> Result<DecodedAccount, AccountDecodeEr
                     message: format!("Failed to deserialize Global Volume Accumulator: {}", e),
                 })?;
             Ok(DecodedAccount::GlobalVolumeAccumulator(data.0))
+        }
+        SHARING_CONFIG_DISCM => {
+            let data = SharingConfigAccount::deserialize(buf)
+                .map_err(|e| AccountDecodeError {
+                     message: format!("Failed to deserialize Sharing Config Structure: {}", e),
+                })?;
+             Ok(DecodedAccount::SharingConfig(data.0))
         }
         _ => Err(AccountDecodeError {
             message: "Account discriminator not found.".to_string(),

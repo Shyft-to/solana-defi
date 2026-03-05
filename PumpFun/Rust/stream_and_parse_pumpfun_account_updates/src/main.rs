@@ -18,7 +18,10 @@ use {
         GLOBAL_VOLUME_ACCUMULATOR_DISCM,
         UserVolumeAccumulator, 
         UserVolumeAccumulatorAccount,
-        USER_VOLUME_ACCUMULATOR_DISCM
+        USER_VOLUME_ACCUMULATOR_DISCM,
+        SharingConfig,
+        SharingConfigAccount,
+        SHARING_CONFIG_DISCM,
      },serde::Serialize, std::{
         collections::HashMap, env, sync::Arc, time::Duration
     }, tokio::sync::Mutex, tonic::transport::channel::ClientTlsConfig, yellowstone_grpc_client::{GeyserGrpcClient, Interceptor}, yellowstone_grpc_proto::{
@@ -128,6 +131,7 @@ pub enum DecodedAccount {
     FeeConfig(FeeConfig),
     GlobalVolumeAccumulator(GlobalVolumeAccumulator),
     UserVolumeAccumulator(UserVolumeAccumulator),
+    SharingConfig(SharingConfig),
 }
 
 #[derive(Debug)]
@@ -301,6 +305,13 @@ pub fn decode_account_data(buf: &[u8]) -> Result<DecodedAccount, AccountDecodeEr
                     message: format!("Failed to deserialize User Volume Accumulator: {}", e),
                 })?;
             Ok(DecodedAccount::UserVolumeAccumulator(data.0)) 
+        }
+        SHARING_CONFIG_DISCM => {
+            let data = SharingConfigAccount::deserialize(buf)
+                .map_err(|e| AccountDecodeError {
+                     message: format!("Failed to deserialize Sharing Config Structure: {}", e),
+                })?;
+             Ok(DecodedAccount::SharingConfig(data.0))
         }
         _ => Err(AccountDecodeError {
             message: "Account discriminator not found.".to_string(),

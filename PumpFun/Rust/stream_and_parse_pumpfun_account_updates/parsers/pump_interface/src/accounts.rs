@@ -21,6 +21,12 @@ pub struct Global {
     pub fee_recipients: [Pubkey; 7],
     pub set_creator_authority: Pubkey,
     pub admin_set_creator_authority: Pubkey,
+    pub create_v2_enabled: bool,
+    pub whitelist_pda: Pubkey,
+    pub reserved_fee_recipient: Pubkey,
+    pub mayhem_mode_enabled: bool,
+    pub reserved_fee_recipients: [Pubkey; 7],
+    pub is_cashback_enabled: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -69,6 +75,8 @@ pub struct BondingCurve {
     pub token_total_supply: u64,
     pub complete: bool,
     pub creator: Pubkey,
+    pub is_mayhem_mode: bool,
+    pub is_cashback_coin: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -197,6 +205,53 @@ impl GlobalVolumeAccumulatorAccount {
         Ok(data)
     }
 }
+
+pub const SHARING_CONFIG_DISCM: [u8;8] = [216,74,9,0,56,140,93,75];
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SharingConfig {
+    pub bump: u8,
+    pub version: u8,
+    pub status: ConfigStatus,
+    pub mint: Pubkey,
+    pub admin: Pubkey,
+    pub admin_revoked: bool,
+    pub share_holders: Shareholder,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct SharingConfigAccount(pub SharingConfig);
+
+impl SharingConfigAccount {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        use std::io::Read;
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?; if maybe_discm != SHARING_CONFIG_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        SHARING_CONFIG_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(SharingConfig::deserialize(&mut reader)?))
+    }
+
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&SHARING_CONFIG_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+
 
 pub const USER_VOLUME_ACCUMULATOR_DISCM: [u8; 8] = [86, 255, 112, 14, 102, 53, 154, 250];
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
