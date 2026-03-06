@@ -122,7 +122,6 @@ export class PumpAmmDecoder {
         }
         else if (this.idlMap.has(discHex)) {
           const instructionName = this.idlMap.get(discHex);
-          console.log(`🔄 Updating unknown instruction to: ${instructionName}`);
           updatedIx = {
             ...ix,
             name: instructionName
