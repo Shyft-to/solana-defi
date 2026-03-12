@@ -43,6 +43,12 @@ pub struct RemainingAccountsInfo {
 }
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Shareholder {
+    pub address: Pubkey,
+    pub share_bps: u16,
+}
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CurrIndex {
     Below,
     Inside,
@@ -53,6 +59,12 @@ pub enum CurrIndex {
 pub enum TickLabel {
     Upper,
     Lower,
+}
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ConfigStatus {
+    Paused,
+    Active,
 }
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
