@@ -7,7 +7,6 @@ import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
-import { SolanaEventParser } from "./utils/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import raydiumClmmIdl from "./idls/raydium_clmm..json";
 import { raydiumClmmFormatter } from "./utils/raydium-clmm-transaction-formatter";
@@ -56,11 +55,6 @@ const TOKEN_PROGRAM_ID = new PublicKey(
 );
 const RAYDIUM_CLMM_IX_PARSER = new SolanaParser([]);
 RAYDIUM_CLMM_IX_PARSER.addParserFromIdl(
-  RAYDIUM_CLMM_PROGRAM_ID.toBase58(),
-  raydiumClmmIdl as Idl
-);
-const RAYDIUM_CLMM_EVENT_PARSER = new SolanaEventParser([], console);
-RAYDIUM_CLMM_EVENT_PARSER.addParserFromIdl(
   RAYDIUM_CLMM_PROGRAM_ID.toBase58(),
   raydiumClmmIdl as Idl
 );
@@ -177,10 +171,8 @@ function decodeRaydiumClmmTxn(tx: VersionedTransactionResponse) {
    );
 
   if (raydium_clmm_inner_ixs.length === 0) return;
-  const events = RAYDIUM_CLMM_EVENT_PARSER.parseEvent(tx);
   const result = { 
    innerInstructions: raydium_clmm_inner_ixs,
-   events 
  }; 
   bnLayoutFormatter(result);
   return result;
