@@ -46,7 +46,7 @@ const TXN_FORMATTER = new TransactionFormatter();
 const METEORADLMM_PARSER = new MeteoraDlmmDecoder();
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  console.log("Streaming Token Price on Meteora Dlmm");
+  console.log("Streaming Meteora Dlmm Txn");
   const stream = await client.subscribe();
 
   const streamClosed = new Promise<void>((resolve, reject) => {
