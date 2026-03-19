@@ -10,7 +10,7 @@ import { TransactionFormatter } from "./utils/transaction-formatter";
 import meteoraDAMMIdl from "./idls/meteora_damm.json";
 import { SolanaEventParser } from "./utils/event/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import { meteoradammTransaction } from "./utils/meteora_damm_transaction_output";
+import { meteoradammV2Price } from "./utils/meteora_damm_transaction_output";
 
 
 const originalConsoleWarn = console.warn;
@@ -63,7 +63,7 @@ METEORA_DAMM_EVENT_PARSER.addParserFromIdl(
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
+  console.log("Streaming Meteora Damm v2 Token Price...")
   const stream = await client.subscribe();
 
   // Create `error` / `end` handler
@@ -91,7 +91,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       const parsedInstruction = decodeMeteoraDAMM(txn);
 
       if (!parsedInstruction) return;
-      const parsedMeteoraDamm = meteoradammTransaction(parsedInstruction,txn)
+      const parsedMeteoraDamm = meteoradammV2Price(parsedInstruction)
       if (!parsedMeteoraDamm) return;
      console.log(
         JSON.stringify(parsedMeteoraDamm, null, 2) + "\n"
