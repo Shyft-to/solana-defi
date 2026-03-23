@@ -3,7 +3,7 @@ export function meteoradbcTransactionOutput(parsedInstruction, txn) {
   const events = inner_ixs?.events || [];
   const innerSwapIxns = inner_ixs?.meteroa_dbc_inner_ixs || [];
 
-  if (!events.length || !innerSwapIxns.length) return txn;
+  if (!events.length || !innerSwapIxns.length) return;
 
   const swapEvent = events[0].data;
 
@@ -17,7 +17,7 @@ export function meteoradbcTransactionOutput(parsedInstruction, txn) {
 
   return { mint, source, destination, decimal };
   });
-  if (!swapTxn) return txn;
+  if (!swapTxn) return;
 
   const baseMint = swapTxn.accounts.find(acc => acc.name === 'base_mint')?.pubkey;
   const quoteMint = swapTxn.accounts.find(acc => acc.name === 'quote_mint')?.pubkey;
@@ -30,10 +30,12 @@ export function meteoradbcTransactionOutput(parsedInstruction, txn) {
 
   const sqrtPrice = swapResult.nextSqrtPrice;
   const calculatePrice = sqrtPriceX64ToPrice(sqrtPrice,baseDecimal,quoteDecimal);
+  const formattedPrice = calculatePrice.toFixed(12).replace(/\.?0+$/, '');
+
   const priceData = {
     Token_A: baseMint,
     Token_B: quoteMint,
-    Price: calculatePrice + " SOL"
+    Price: formattedPrice + " SOL"
   };
 
 
