@@ -8,7 +8,7 @@ import { Idl } from "@coral-xyz/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import meteoradammV2Idl from "./idls/meteora_dammV2.json";
-import { SolanaEventParser } from "./utils/event-parser";
+import { SolanaEventParser } from "./utils/event/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
 import { meteoradammV2TransactionOutput } from "./utils/meteora_dammV2_transaction_output";
 
