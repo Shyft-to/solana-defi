@@ -3,12 +3,12 @@ export function meteoradbcTransactionOutput(parsedInstruction, txn) {
   const events = inner_ixs?.events || [];
   const innerSwapIxns = inner_ixs?.meteroa_dbc_inner_ixs || [];
 
-  if (!events.length || !innerSwapIxns.length) return txn;
+  if (!events.length || !innerSwapIxns.length) return;
 
   const swapEvent = events[0].data;
 
   const swapTxn = innerSwapIxns.find(ix => ix.name === 'swap');
-  if (!swapTxn) return txn;
+  if (!swapTxn) return;
 
   const baseMint = swapTxn.accounts.find(acc => acc.name === 'base_mint')?.pubkey;
   const payer = swapTxn.accounts.find(acc => acc.name === 'payer')?.pubkey;
@@ -32,23 +32,5 @@ export function meteoradbcTransactionOutput(parsedInstruction, txn) {
     out_amount: amountOut,
   };
 
-  if (txn.version === 0) {
-    return {
-      ...txn,
-      meta: {
-        ...txn.meta,
-        innerInstructions: inner_ixs,
-      },
-      transaction: {
-        ...txn.transaction,
-        message: {
-          ...txn.transaction.message,
-          compiledInstructions: instructions,
-        },
-      },
-      TradeEvent: tradeData,
-    };
-  }
-
-  return txn;
+  return tradeData;
 }

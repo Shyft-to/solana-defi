@@ -1,31 +1,12 @@
 import "dotenv/config";
 import Client, {
     CommitmentLevel,
-    SubscribeRequestAccountsDataSlice,
-    SubscribeRequestFilterAccounts,
-    SubscribeRequestFilterBlocks,
-    SubscribeRequestFilterBlocksMeta,
-    SubscribeRequestFilterEntry,
-    SubscribeRequestFilterSlots,
-    SubscribeRequestFilterTransactions,
+    SubscribeRequest
   } from "@triton-one/yellowstone-grpc";
-  import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 import { meteoraDbcParsedAccount } from "./utils/meteora-dbc-parsed-account";
  
-  interface SubscribeRequest {
-    accounts: { [key: string]: SubscribeRequestFilterAccounts };
-    slots: { [key: string]: SubscribeRequestFilterSlots };
-    transactions: { [key: string]: SubscribeRequestFilterTransactions };
-    transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-    blocks: { [key: string]: SubscribeRequestFilterBlocks };
-    blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-    entry: { [key: string]: SubscribeRequestFilterEntry };
-    commitment?: CommitmentLevel | undefined;
-    accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-    ping?: SubscribeRequestPing | undefined;
-  } 
    
-   const METEORA_DBC_PROGRAM_ID = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN';
+  const METEORA_DBC_PROGRAM_ID = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN';
     console.log("Streaming Meteora Dbc accounts updates...");
     async function handleStream(client: Client, args: SubscribeRequest) {
 
