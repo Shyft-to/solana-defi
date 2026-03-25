@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@triton-one/yellowstone-grpc": "^0.4.0",
+    "@triton-one/yellowstone-grpc": "^4.0.2",
     "@solana/web3.js": "^1.90.0",
     "@project-serum/anchor": "^0.26.0",
     "@shyft-to/solana-transaction-parser": "^1.1.17",
