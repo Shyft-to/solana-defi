@@ -1,36 +1,17 @@
 require('dotenv').config()
 import Client, {
   CommitmentLevel,
-  SubscribeRequestAccountsDataSlice,
-  SubscribeRequestFilterAccounts,
-  SubscribeRequestFilterBlocks,
-  SubscribeRequestFilterBlocksMeta,
-  SubscribeRequestFilterEntry,
-  SubscribeRequestFilterSlots,
-  SubscribeRequestFilterTransactions,
+  SubscribeRequest,
 } from "@triton-one/yellowstone-grpc";
-import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 import { Idl } from "@project-serum/anchor";
 import { SolanaParser } from "@shyft-to/solana-transaction-parser";
 import { TransactionFormatter } from "./utils/transaction-formatter";
 import meteoraPoolIdl from "./idls/meteora_pools.json";
-import { SolanaEventParser } from "./utils/event-parser";
+import { SolanaEventParser } from "./utils/event/event-parser";
 import { bnLayoutFormatter } from "./utils/bn-layout-formatter";
-import { transactionOutput } from "./utils/transactionOutput";
+import { meteoraPoolTxn } from "./utils/meteora-pool-transaction";
 
-interface SubscribeRequest {
-  accounts: { [key: string]: SubscribeRequestFilterAccounts };
-  slots: { [key: string]: SubscribeRequestFilterSlots };
-  transactions: { [key: string]: SubscribeRequestFilterTransactions };
-  transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-  blocks: { [key: string]: SubscribeRequestFilterBlocks };
-  blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-  entry: { [key: string]: SubscribeRequestFilterEntry };
-  commitment?: CommitmentLevel | undefined;
-  accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-  ping?: SubscribeRequestPing | undefined;
-}
 
 const TXN_FORMATTER = new TransactionFormatter();
 const METEORA_POOL_PROGRAM_ID = new PublicKey(
@@ -48,10 +29,9 @@ METEORA_POOL_EVENT_PARSER.addParserFromIdl(
 );
 
 async function handleStream(client: Client, args: SubscribeRequest) {
-  // Subscribe for events
+  console.log("Streaming Meteora Pool TXN...")
   const stream = await client.subscribe();
 
-  // Create `error` / `end` handler
   const streamClosed = new Promise<void>((resolve, reject) => {
     stream.on("error", (error) => {
       console.log("ERROR", error);
@@ -76,8 +56,17 @@ async function handleStream(client: Client, args: SubscribeRequest) {
       const parsedInstructions = decodeMeteoraPool(txn);
 
       if (!parsedInstructions) return;
-      const tOutput = transactionOutput(parsedInstructions,txn)
-      console.log(JSON.stringify(tOutput));
+      const parsedTxn = meteoraPoolTxn(parsedInstructions,txn)
+      if(!parsedTxn)return;
+        console.log(
+        new Date(),
+         ":",
+         `New transaction https://translator.shyft.to/tx/${txn.transaction.signatures[0]} \n`,
+         JSON.stringify(parsedTxn, null, 2) + "\n"
+       );
+       console.log(
+         "--------------------------------------------------------------------------------------------------"
+       );
     }
   });
 
@@ -127,8 +116,8 @@ const req: SubscribeRequest = {
       accountRequired: [],
     },
   },
-  transactionsStatus: {},
   entry: {},
+  transactionsStatus: {},
   blocks: {},
   blocksMeta: {},
   accountsDataSlice: [],
@@ -159,7 +148,7 @@ function decodeMeteoraPool(tx: VersionedTransactionResponse) {
 
   if (meteora_pool_Ixs.length === 0) return;
   const events = METEORA_POOL_EVENT_PARSER.parseEvent(tx);
-  const result = { instructions: meteora_pool_Ixs, inner_ixs: meteora_pool_inner_ixs, events };
+  const result = { instructions: meteora_pool_Ixs, inner_ixs: {meteora_pool_inner_ixs, events} };
   bnLayoutFormatter(result);
   return result;
 }
