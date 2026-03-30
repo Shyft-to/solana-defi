@@ -78,6 +78,7 @@ async function handleStream(client: Client, args: SubscribeRequest) {
 
       if (!parsedInstruction) return;
       const parsedMeteoraDbc = meteoradbcTransactionOutput(parsedInstruction,txn)
+      if(!parsedMeteoraDbc) return;
      console.log(
         new Date(),
         ":",
