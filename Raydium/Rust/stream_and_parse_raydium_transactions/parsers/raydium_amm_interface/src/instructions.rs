@@ -28,14 +28,16 @@ pub enum RaydiumAmmProgramIx {
     SwapBaseIn(SwapBaseInIxArgs),
     PreInitialize(PreInitializeIxArgs),
     SwapBaseOut(SwapBaseOutIxArgs),
+    SwapBaseIn2(SwapBaseIn2IxArgs),
+    SwapBaseOut2(SwapBaseOut2IxArgs),
     SimulateInfo(SimulateInfoIxArgs),
     AdminCancelOrders(AdminCancelOrdersIxArgs),
     CreateConfigAccount,
     UpdateConfigAccount(UpdateConfigAccountIxArgs),
 }
+
 impl RaydiumAmmProgramIx {
     pub fn name(&self) -> String {
-        // Use the ToString derived method to get the enum variant name
         self.to_string().to_camel_case()
     }
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
@@ -75,6 +77,12 @@ impl RaydiumAmmProgramIx {
             }
             SWAP_BASE_OUT_IX_DISCM => {
                 Ok(Self::SwapBaseOut(SwapBaseOutIxArgs::deserialize(&mut reader)?))
+            }
+            SWAP_BASE_IN_2_IX_DISCM => {
+                Ok(Self::SwapBaseIn2(SwapBaseIn2IxArgs::deserialize(&mut reader)?))
+            }
+            SWAP_BASE_OUT_2_IX_DISCM => {
+                Ok(Self::SwapBaseOut2(SwapBaseOut2IxArgs::deserialize(&mut reader)?))
             }
             SIMULATE_INFO_IX_DISCM => {
                 Ok(Self::SimulateInfo(SimulateInfoIxArgs::deserialize(&mut reader)?))
@@ -146,6 +154,14 @@ impl RaydiumAmmProgramIx {
             }
             Self::SwapBaseOut(args) => {
                 writer.write_all(&[SWAP_BASE_OUT_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
+            Self::SwapBaseIn2(args) => {
+                writer.write_all(&[SWAP_BASE_IN_2_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
+            Self::SwapBaseOut2(args) => {
+                writer.write_all(&[SWAP_BASE_OUT_2_IX_DISCM])?;
                 args.serialize(&mut writer)
             }
             Self::SimulateInfo(args) => {
@@ -4844,6 +4860,560 @@ pub fn swap_base_out_verify_account_privileges<'me, 'info>(
     swap_base_out_verify_signer_privileges(accounts)?;
     Ok(())
 }
+
+
+pub const SWAP_BASE_IN_2_IX_ACCOUNTS_LEN: usize = 8;
+#[derive(Copy, Clone, Debug)]
+pub struct SwapBaseIn2Accounts<'me, 'info> {
+    pub token_program: &'me AccountInfo<'info>,
+    pub amm: &'me AccountInfo<'info>,
+    pub amm_authority: &'me AccountInfo<'info>,
+    pub amm_coin_vault: &'me AccountInfo<'info>,
+    pub amm_pc_vault: &'me AccountInfo<'info>,
+    pub user_token_source_account: &'me AccountInfo<'info>,
+    pub user_destination_token_account: &'me AccountInfo<'info>,
+    pub user_wallet_account: &'me AccountInfo<'info>
+}
+#[derive(Copy, Clone, Debug)]
+pub struct SwapBaseIn2Keys {
+    pub token_program: Pubkey,
+    pub amm: Pubkey,
+    pub amm_authority: Pubkey,
+    pub amm_coin_vault: Pubkey,
+    pub amm_pc_vault: Pubkey,
+    pub user_token_source_account: Pubkey,
+    pub user_destination_token_account: Pubkey,
+    pub user_wallet_account: Pubkey
+}
+impl From<SwapBaseIn2Accounts<'_, '_>> for SwapBaseIn2Keys {
+    fn from(accounts: SwapBaseIn2Accounts) -> Self {
+        Self {
+            token_program: *accounts.token_program.key,
+            amm: *accounts.amm.key,
+            amm_authority: *accounts.amm_authority.key,
+            amm_coin_vault: *accounts.amm_coin_vault.key,
+            amm_pc_vault: *accounts.amm_pc_vault.key,
+            user_token_source_account: *accounts.user_token_source_account.key,
+            user_destination_token_account: *accounts.user_destination_token_account.key,
+            user_wallet_account: *accounts.user_wallet_account.key
+        }
+    }
+}
+impl From<SwapBaseIn2Keys> for [AccountMeta; SWAP_BASE_IN_2_IX_ACCOUNTS_LEN] {
+    fn from(keys: SwapBaseIn2Keys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.amm,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.amm_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.amm_coin_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.amm_pc_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_token_source_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_destination_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_wallet_account,
+                is_signer: true,
+                is_writable: true,
+            }
+        ]
+    }
+}
+impl From<[Pubkey; SWAP_BASE_IN_2_IX_ACCOUNTS_LEN]> for SwapBaseIn2Keys {
+    fn from(pubkeys: [Pubkey; SWAP_BASE_IN_2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            token_program: pubkeys[0],
+            amm: pubkeys[1],
+            amm_authority: pubkeys[2],
+            amm_coin_vault: pubkeys[3],
+            amm_pc_vault: pubkeys[4],
+            user_token_source_account: pubkeys[5],
+            user_destination_token_account: pubkeys[6],
+            user_wallet_account: pubkeys[7]
+        }
+    }
+}
+impl<'info> From<SwapBaseIn2Accounts<'_, 'info>>
+for [AccountInfo<'info>; SWAP_BASE_IN_2_IX_ACCOUNTS_LEN] {
+    fn from(accounts: SwapBaseIn2Accounts<'_, 'info>) -> Self {
+        [
+            accounts.token_program.clone(),
+            accounts.amm.clone(),
+            accounts.amm_authority.clone(),
+            accounts.amm_coin_vault.clone(),
+            accounts.amm_pc_vault.clone(),
+            accounts.user_token_source_account.clone(),
+            accounts.user_destination_token_account.clone(),
+            accounts.user_wallet_account.clone()
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SWAP_BASE_IN_2_IX_ACCOUNTS_LEN]>
+for SwapBaseIn2Accounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; SWAP_BASE_IN_2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            token_program: &arr[0],
+            amm: &arr[1],
+            amm_authority: &arr[2],
+            amm_coin_vault: &arr[3],
+            amm_pc_vault: &arr[4],
+            user_token_source_account: &arr[5],
+            user_destination_token_account: &arr[6],
+            user_wallet_account: &arr[7]
+        }
+    }
+}
+pub const SWAP_BASE_IN_2_IX_DISCM: u8 = 16u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SwapBaseIn2IxArgs {
+    pub amount_in: u64,
+    pub minimum_amount_out: u64,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct SwapBaseIn2IxData(pub SwapBaseIn2IxArgs);
+impl From<SwapBaseIn2IxArgs> for SwapBaseIn2IxData {
+    fn from(args: SwapBaseIn2IxArgs) -> Self {
+        Self(args)
+    }
+}
+impl SwapBaseIn2IxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != SWAP_BASE_IN_2_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        SWAP_BASE_IN_2_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(SwapBaseIn2IxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[SWAP_BASE_IN_2_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn swap_base_in_2_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SwapBaseIn2Keys,
+    args: SwapBaseIn2IxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SWAP_BASE_IN_2_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SwapBaseIn2IxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn swap_base_2_in_ix(
+    keys: SwapBaseIn2Keys,
+    args: SwapBaseIn2IxArgs,
+) -> std::io::Result<Instruction> {
+    swap_base_in_2_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn swap_base_in_2_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SwapBaseIn2Accounts<'_, '_>,
+    args: SwapBaseIn2IxArgs,
+) -> ProgramResult {
+    let keys: SwapBaseIn2Keys = accounts.into();
+    let ix = swap_base_in_2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn swap_base_in_2_invoke(
+    accounts: SwapBaseIn2Accounts<'_, '_>,
+    args: SwapBaseIn2IxArgs,
+) -> ProgramResult {
+    swap_base_in_2_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn swap_base_in_2_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SwapBaseIn2Accounts<'_, '_>,
+    args: SwapBaseIn2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SwapBaseIn2Keys = accounts.into();
+    let ix = swap_base_in_2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn swap_base_in_2_invoke_signed(
+    accounts: SwapBaseIn2Accounts<'_, '_>,
+    args: SwapBaseIn2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    swap_base_in_2_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn swap_base_in_2_verify_account_keys(
+    accounts: SwapBaseIn2Accounts<'_, '_>,
+    keys: SwapBaseIn2Keys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.token_program.key, &keys.token_program),
+        (accounts.amm.key, &keys.amm),
+        (accounts.amm_authority.key, &keys.amm_authority),
+        (accounts.amm_coin_vault.key, &keys.amm_coin_vault),
+        (accounts.amm_pc_vault.key, &keys.amm_pc_vault),
+        (accounts.user_token_source_account.key, &keys.user_token_source_account),
+        (accounts.user_destination_token_account.key, &keys.user_destination_token_account),
+        (accounts.user_wallet_account.key, &keys.user_wallet_account)
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn swap_base_in_2_verify_writable_privileges<'me, 'info>(
+    accounts: SwapBaseIn2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.amm,
+        accounts.amm_coin_vault,
+        accounts.amm_pc_vault,
+        accounts.user_token_source_account,
+        accounts.user_destination_token_account,
+        accounts.user_wallet_account
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn swap_base_in_2_verify_signer_privileges<'me, 'info>(
+    accounts: SwapBaseIn2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.user_wallet_account] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn swap_base_in_2_verify_account_privileges<'me, 'info>(
+    accounts: SwapBaseIn2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    swap_base_in_2_verify_writable_privileges(accounts)?;
+    swap_base_in_2_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
+pub const SWAP_BASE_OUT_2_IX_ACCOUNTS_LEN: usize = 8;
+#[derive(Copy, Clone, Debug)]
+pub struct SwapBaseOut2Accounts<'me, 'info> {
+    pub token_program: &'me AccountInfo<'info>,
+    pub amm: &'me AccountInfo<'info>,
+    pub amm_authority: &'me AccountInfo<'info>,
+    pub amm_coin_vault: &'me AccountInfo<'info>,
+    pub amm_pc_vault: &'me AccountInfo<'info>,
+    pub user_token_source_account: &'me AccountInfo<'info>,
+    pub user_destination_token_account: &'me AccountInfo<'info>,
+    pub user_wallet_account: &'me AccountInfo<'info>
+}
+#[derive(Copy, Clone, Debug)]
+pub struct SwapBaseOut2Keys {
+    pub token_program: Pubkey,
+    pub amm: Pubkey,
+    pub amm_authority: Pubkey,
+    pub amm_coin_vault: Pubkey,
+    pub amm_pc_vault: Pubkey,
+    pub user_token_source_account: Pubkey,
+    pub user_destination_token_account: Pubkey,
+    pub user_wallet_account: Pubkey
+}
+impl From<SwapBaseOut2Accounts<'_, '_>> for SwapBaseOut2Keys {
+    fn from(accounts: SwapBaseOut2Accounts) -> Self {
+        Self {
+            token_program: *accounts.token_program.key,
+            amm: *accounts.amm.key,
+            amm_authority: *accounts.amm_authority.key,
+            amm_coin_vault: *accounts.amm_coin_vault.key,
+            amm_pc_vault: *accounts.amm_pc_vault.key,
+            user_token_source_account: *accounts.user_token_source_account.key,
+            user_destination_token_account: *accounts.user_destination_token_account.key,
+            user_wallet_account: *accounts.user_wallet_account.key
+        }
+    }
+}
+impl From<SwapBaseOut2Keys> for [AccountMeta; SWAP_BASE_OUT_2_IX_ACCOUNTS_LEN] {
+    fn from(keys: SwapBaseOut2Keys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.amm,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.amm_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.amm_coin_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.amm_pc_vault,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_token_source_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_destination_token_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.user_wallet_account,
+                is_signer: true,
+                is_writable: true,
+            }
+        ]
+    }
+}
+impl From<[Pubkey; SWAP_BASE_OUT_2_IX_ACCOUNTS_LEN]> for SwapBaseOut2Keys {
+    fn from(pubkeys: [Pubkey; SWAP_BASE_OUT_2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            token_program: pubkeys[0],
+            amm: pubkeys[1],
+            amm_authority: pubkeys[2],
+            amm_coin_vault: pubkeys[3],
+            amm_pc_vault: pubkeys[4],
+            user_token_source_account: pubkeys[5],
+            user_destination_token_account: pubkeys[6],
+            user_wallet_account: pubkeys[7]
+        }
+    }
+}
+impl<'info> From<SwapBaseOut2Accounts<'_, 'info>>
+for [AccountInfo<'info>; SWAP_BASE_OUT_2_IX_ACCOUNTS_LEN] {
+    fn from(accounts: SwapBaseOut2Accounts<'_, 'info>) -> Self {
+        [
+            accounts.token_program.clone(),
+            accounts.amm.clone(),
+            accounts.amm_authority.clone(),
+            accounts.amm_coin_vault.clone(),
+            accounts.amm_pc_vault.clone(),
+            accounts.user_token_source_account.clone(),
+            accounts.user_destination_token_account.clone(),
+            accounts.user_wallet_account.clone()
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SWAP_BASE_OUT_2_IX_ACCOUNTS_LEN]>
+for SwapBaseOut2Accounts<'me, 'info> {
+    fn from(arr: &'me [AccountInfo<'info>; SWAP_BASE_OUT_2_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            token_program: &arr[0],
+            amm: &arr[1],
+            amm_authority: &arr[2],
+            amm_coin_vault: &arr[3],
+            amm_pc_vault: &arr[4],
+            user_token_source_account: &arr[5],
+            user_destination_token_account: &arr[6],
+            user_wallet_account: &arr[7]
+        }
+    }
+}
+pub const SWAP_BASE_OUT_2_IX_DISCM: u8 = 17u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SwapBaseOut2IxArgs {
+    pub max_amount_in: u64,
+    pub amount_out: u64,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct SwapBaseOut2IxData(pub SwapBaseOut2IxArgs);
+impl From<SwapBaseOut2IxArgs> for SwapBaseOut2IxData {
+    fn from(args: SwapBaseOut2IxArgs) -> Self {
+        Self(args)
+    }
+}
+impl SwapBaseOut2IxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != SWAP_BASE_OUT_2_IX_DISCM {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "discm does not match. Expected: {:?}. Received: {:?}",
+                        SWAP_BASE_OUT_2_IX_DISCM, maybe_discm
+                    ),
+                ),
+            );
+        }
+        Ok(Self(SwapBaseOut2IxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[SWAP_BASE_OUT_2_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn swap_base_out_2_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SwapBaseOut2Keys,
+    args: SwapBaseOut2IxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SWAP_BASE_OUT_2_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SwapBaseOut2IxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn swap_base_out_2_ix(
+    keys: SwapBaseOut2Keys,
+    args: SwapBaseOut2IxArgs,
+) -> std::io::Result<Instruction> {
+    swap_base_out_2_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn swap_base_out_2_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SwapBaseOut2Accounts<'_, '_>,
+    args: SwapBaseOut2IxArgs,
+) -> ProgramResult {
+    let keys: SwapBaseOut2Keys = accounts.into();
+    let ix = swap_base_out_2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn swap_base_out_2_invoke(
+    accounts: SwapBaseOut2Accounts<'_, '_>,
+    args: SwapBaseOut2IxArgs,
+) -> ProgramResult {
+    swap_base_out_2_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn swap_base_out_2_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SwapBaseOut2Accounts<'_, '_>,
+    args: SwapBaseOut2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SwapBaseOut2Keys = accounts.into();
+    let ix = swap_base_out_2_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn swap_base_out_2_invoke_signed(
+    accounts: SwapBaseOut2Accounts<'_, '_>,
+    args: SwapBaseOut2IxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    swap_base_out_2_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn swap_base_out_2_verify_account_keys(
+    accounts: SwapBaseOut2Accounts<'_, '_>,
+    keys: SwapBaseOut2Keys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.token_program.key, &keys.token_program),
+        (accounts.amm.key, &keys.amm),
+        (accounts.amm_authority.key, &keys.amm_authority),
+        (accounts.amm_coin_vault.key, &keys.amm_coin_vault),
+        (accounts.amm_pc_vault.key, &keys.amm_pc_vault),
+        (accounts.user_token_source_account.key, &keys.user_token_source_account),
+        (accounts.user_destination_token_account.key, &keys.user_destination_token_account),
+        (accounts.user_wallet_account.key, &keys.user_wallet_account)
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn swap_base_out_2_verify_writable_privileges<'me, 'info>(
+    accounts: SwapBaseOut2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.amm,
+        accounts.amm_coin_vault,
+        accounts.amm_pc_vault,
+        accounts.user_token_source_account,
+        accounts.user_destination_token_account,
+        accounts.user_wallet_account
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn swap_base_out_2_verify_signer_privileges<'me, 'info>(
+    accounts: SwapBaseOut2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.user_wallet_account] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn swap_base_out_2_verify_account_privileges<'me, 'info>(
+    accounts: SwapBaseOut2Accounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    swap_base_out_2_verify_writable_privileges(accounts)?;
+    swap_base_out_2_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+
 pub const SIMULATE_INFO_IX_ACCOUNTS_LEN: usize = 8;
 #[derive(Copy, Clone, Debug)]
 pub struct SimulateInfoAccounts<'me, 'info> {
