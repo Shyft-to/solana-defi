@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.0",
-    "@triton-one/yellowstone-grpc": "^0.4.0",
+    "@triton-one/yellowstone-grpc": "^4.0.2",
     "bs58": "^5.0.0",
     "lodash": "^4.17.21",
     "dotenv": "^16.4.5"

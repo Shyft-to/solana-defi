@@ -51,7 +51,7 @@ export class SolanaEventParser {
       if (!eventCoder) continue;
       for (const log of allProgramData) {
 
-        if (log.startsWith("6nxw4wyeJdmVBNR2GLm")) {
+        if (log.startsWith("EVM9wLnauu9H41GfKhT")) {
           const buf = Buffer.from(bs58.decode(log)); 
           let decoded: any = decodeEvtSwap(buf.toString("hex"))
            if (decoded) {

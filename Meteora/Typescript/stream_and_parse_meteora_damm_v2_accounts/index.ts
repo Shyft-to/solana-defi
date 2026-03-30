@@ -1,29 +1,10 @@
 import "dotenv/config";
 import Client, {
     CommitmentLevel,
-    SubscribeRequestAccountsDataSlice,
-    SubscribeRequestFilterAccounts,
-    SubscribeRequestFilterBlocks,
-    SubscribeRequestFilterBlocksMeta,
-    SubscribeRequestFilterEntry,
-    SubscribeRequestFilterSlots,
-    SubscribeRequestFilterTransactions,
+    SubscribeRequest
   } from "@triton-one/yellowstone-grpc";
-  import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
 import { getParsedMeteoraDammV2Account } from "./utils/meteora-damm-v2-parsed-account";
  
-  interface SubscribeRequest {
-    accounts: { [key: string]: SubscribeRequestFilterAccounts };
-    slots: { [key: string]: SubscribeRequestFilterSlots };
-    transactions: { [key: string]: SubscribeRequestFilterTransactions };
-    transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-    blocks: { [key: string]: SubscribeRequestFilterBlocks };
-    blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-    entry: { [key: string]: SubscribeRequestFilterEntry };
-    commitment?: CommitmentLevel | undefined;
-    accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-    ping?: SubscribeRequestPing | undefined;
-  } 
    
    const METEORA_DAMM_V2_PROGRAM_ID = 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG';
     console.log("Streaming Meteora Damm V2 accounts updates...");
@@ -46,7 +27,6 @@ import { getParsedMeteoraDammV2Account } from "./utils/meteora-damm-v2-parsed-ac
       });
     });
   
-    // Handle updates
     stream.on("data", async (data) => {
       try{
         const parsed_account = getParsedMeteoraDammV2Account(data);

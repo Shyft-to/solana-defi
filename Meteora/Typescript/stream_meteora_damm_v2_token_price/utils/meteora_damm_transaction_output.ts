@@ -1,45 +1,83 @@
-export function meteoradammTransaction(parsedInstruction,txn){
-   const { inner_ixs, instructions } = parsedInstruction;
-  const events = inner_ixs?.events || [];
-  const innerSwapIxns = inner_ixs?.meteroa_damm_inner_ixs || [];
-  if (!events.length || !innerSwapIxns.length) return;
+const SOL = "So11111111111111111111111111111111111111112";
 
-  const swapEvent = events[0].data;
+export function meteoradammV2Price(parsedInstruction) {
+  const swapInstruction = parsedInstruction.instructions.find(
+    (instruction) => instruction.name === "swap"
+  );
+  if (!swapInstruction) return;
 
-  const swapTxn = innerSwapIxns.find(ix => ix.name === 'swap');
-  const transferCheck = innerSwapIxns.filter(ix => ix.name === 'transferChecked');
-  const transfers = transferCheck.map(ix => {
-  const mint = ix.accounts.find(acc => acc.name === 'mint')?.pubkey;
-  const source = ix.accounts.find(acc => acc.name === 'source')?.pubkey;
-  const destination = ix.accounts.find(acc => acc.name === 'destination')?.pubkey;
-  const decimal = ix.args.decimals;
+  const tradeEvent = parsedInstruction.inner_ixs?.events?.find(
+    (e) => e.name === "TradeEvent"
+  );
+  if (!tradeEvent) return;
 
-  return { mint, source, destination, decimal };
-  });
-  if (!swapTxn) return txn;
+  const { data } = tradeEvent;
 
-  const baseMint = swapTxn.accounts.find(acc => acc.name === 'token_a_mint')?.pubkey;
-  const quoteMint = swapTxn.accounts.find(acc => acc.name === 'token_b_mint')?.pubkey;
-  const baseDecimal = transfers.find(acc => acc.mint === baseMint)?.decimal;
-  const quoteDecimal = transfers.find(acc => acc.mint === quoteMint)?.decimal;
-  const payer = swapTxn.accounts.find(acc => acc.name === 'payer')?.pubkey;
-  const {
-    swapResult 
-  } = swapEvent;
+  const baseMint  = swapInstruction.accounts.find((a) => a.name === "token_a_mint")?.pubkey;
+  const quoteMint = swapInstruction.accounts.find((a) => a.name === "token_b_mint")?.pubkey;
 
-  const sqrtPrice = swapResult.nextSqrtPrice;
-  const calculatePrice = sqrtPriceX64ToPrice(sqrtPrice,baseDecimal,quoteDecimal);
-  const priceData = {
-    Token_A: baseMint,
-    Token_B: quoteMint,
-    Price: parseFloat(calculatePrice.toString()).toFixed(13) + " SOL"  };
-  return priceData;
-}
-function sqrtPriceX64ToPrice(nextSqrtPriceStr: string, decimalsA: number, decimalsB: number) {
-  const sqrtPriceX64 = BigInt(nextSqrtPriceStr);
-  const sqrtPrice = Number(sqrtPriceX64) / 2 ** 64;
-  let price = sqrtPrice * sqrtPrice;
-  const decimalAdjustment = 10 ** (decimalsA - decimalsB);
-  price = price * decimalAdjustment;
-  return price;
+  // Pull actual transferred amounts from transferChecked — ground truth
+  const transfers = parsedInstruction.inner_ixs?.meteroa_damm_inner_ixs
+    ?.filter((ix) => ix.name === "transferChecked")
+    .map((ix) => ({
+      mint:        ix.accounts.find((a) => a.name === "mint")?.pubkey,
+      decimal:     ix.args.decimals,
+      amount:      BigInt(ix.args.amount),
+      source:      ix.accounts.find((a) => a.name === "source")?.pubkey,
+      destination: ix.accounts.find((a) => a.name === "destination")?.pubkey,
+    })) ?? [];
+
+  if (transfers.length < 2) return;
+
+  const baseTransfer  = transfers.find((t) => t.mint === baseMint);
+  const quoteTransfer = transfers.find((t) => t.mint === quoteMint);
+
+  if (!baseTransfer || !quoteTransfer) return;
+
+  const baseDecimal  = baseTransfer.decimal;
+  const quoteDecimal = quoteTransfer.decimal;
+  const baseAmount   = baseTransfer.amount;
+  const quoteAmount  = quoteTransfer.amount;
+
+  const isBuy  = "buy" in data.tradeDirection;
+  const solIsA = baseMint === SOL;
+
+  let solRaw:   bigint;
+  let tokenRaw: bigint;
+  let solDec:   number;
+  let tokenDec: number;
+
+  if (solIsA) {
+    solRaw   = baseAmount;
+    tokenRaw = quoteAmount;
+    solDec   = baseDecimal;
+    tokenDec = quoteDecimal;
+  } else {
+    solRaw   = quoteAmount;
+    tokenRaw = baseAmount;
+    solDec   = quoteDecimal;
+    tokenDec = baseDecimal;
+  }
+
+  const solHuman   = Number(solRaw)   / 10 ** solDec;
+  const tokenHuman = Number(tokenRaw) / 10 ** tokenDec;
+
+  const price = tokenHuman > 0 ? solHuman / tokenHuman : 0;
+
+  return {
+    pool:      data.pool,
+    timestamp: data.currentTimestamp,
+    trade: {
+      direction:  isBuy ? "Buy" : "Sell",
+      amount_in:  data.params.amountIn,
+      amount_out: data.swapResult.outputAmount,
+    },
+    price: price.toFixed(13), // SOL per token
+    mints: {
+      token_a:          baseMint,
+      token_b:          quoteMint,
+      token_a_decimals: baseDecimal,
+      token_b_decimals: quoteDecimal,
+    },
+  };
 }
