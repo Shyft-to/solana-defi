@@ -21,14 +21,14 @@ cargo run
 ┌─────────────────────────┐          ┌──────────────────────────┐
 │  Yellowstone gRPC node  │          │  Solana JSON-RPC node    │
 │  (CommitmentLevel:      │          │  (Confirmed commitment)  │
-│   PROCESSED)            │          │                          │
+│   CONFIRMED)            │          │                          │
 └────────────┬────────────┘          └────────────┬─────────────┘
              │SubscribeUpdate stream              │
-             ▼                                   │
-  ┌──────────────────────┐                       │
-  │   grpc_stream.rs     │  StreamEvent          │
-  │  (reconnects on err) │ ──────────────┐       │
-  └──────────────────────┘               ▼       │
+             ▼                                    │
+  ┌──────────────────────┐                        │
+  │   grpc_stream.rs     │  StreamEvent           │
+  │  (reconnects on err) │ ──────────────┐        │
+  └──────────────────────┘               ▼        │
                                  ┌──────────────────────┐
                                  │     main event loop  │
                                  │  slot_tracker.rs     │◄──── SlotData
@@ -37,7 +37,6 @@ cargo run
                                             ▼
                                  ┌──────────────────────┐
                                  │   reconciler.rs      │────► RPC
-                                 │  getBlock            │
                                  │  getSignaturesFor    │
                                  │  Address (per acct)  │
                                  └──────────────────────┘
