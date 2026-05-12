@@ -8,6 +8,7 @@ use solana_client::{
 use solana_sdk::{
     commitment_config::{CommitmentConfig, CommitmentLevel},
     pubkey::Pubkey,
+    signature::Signature,
 };
 use tracing::{debug, warn};
 
@@ -92,33 +93,68 @@ async fn fetch_rpc_signatures(
     Ok(combined)
 }
 
-/// Fetch transaction signatures touching `pubkey` in exactly `slot`.
+/// Fetch ALL transaction signatures touching `pubkey` in exactly `slot`.
+///
+/// Paginates through pages (newest-first) until the results go older than
+/// `slot`, guaranteeing no transactions are missed due to the page size limit.
 async fn fetch_via_signatures_for_address(
     client: &RpcClient,
     pubkey: &Pubkey,
     slot: u64,
-    limit: usize,
+    page_size: usize,
 ) -> Result<Vec<String>> {
-    let config = GetConfirmedSignaturesForAddress2Config {
-        before: None,
-        until: None,
-        limit: Some(limit),
-        commitment: Some(CommitmentConfig {
-            commitment: CommitmentLevel::Confirmed,
-        }),
-    };
+    let commitment = Some(CommitmentConfig {
+        commitment: CommitmentLevel::Confirmed,
+    });
 
-    let results = client
-        .get_signatures_for_address_with_config(pubkey, config)
-        .await
-        .context("getSignaturesForAddress RPC call failed")?;
+    let mut sigs: Vec<String> = Vec::new();
+    let mut before: Option<Signature> = None;
 
-    // Filter to the exact slot and exclude failed transactions
-    let sigs: Vec<String> = results
-        .into_iter()
-        .filter(|s| s.slot == slot && s.err.is_none())
-        .map(|s| s.signature)
-        .collect();
+    loop {
+        let config = GetConfirmedSignaturesForAddress2Config {
+            before,
+            until: None,
+            limit: Some(page_size),
+            commitment,
+        };
+
+        let page = client
+            .get_signatures_for_address_with_config(pubkey, config)
+            .await
+            .context("getSignaturesForAddress RPC call failed")?;
+
+        if page.is_empty() {
+            break;
+        }
+
+        let mut passed_target = false;
+
+        for item in &page {
+            if item.slot == slot && item.err.is_none() {
+                sigs.push(item.signature.clone());
+            }
+            // Results are newest-first. Once we see a slot older than the
+            // target we have scrolled past it — no need to fetch more pages.
+            if item.slot < slot {
+                passed_target = true;
+                break;
+            }
+        }
+
+        if passed_target {
+            break;
+        }
+
+        // Prepare the cursor for the next page: start just before the oldest
+        // signature returned on this page.
+        before = page
+            .last()
+            .and_then(|item| item.signature.parse::<Signature>().ok());
+
+        if before.is_none() {
+            break;
+        }
+    }
 
     Ok(sigs)
 }

@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
     while let Some(event) = event_rx.recv().await {
         match event {
             StreamEvent::Transaction { slot, signature } => {
-                info!("New transaction received in slot {slot} — signature: {signature}");
+                // info!("New transaction received in slot {slot} — signature: {signature}");
                 tracker.record_transaction(slot, signature);
 
                 if slot > highest_slot_seen {
@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
                         Ok(report) => {
                             if report.is_clean() {
                                 info!(
-                                    "Slot {} verfied cleanly all matched — {} transactions matched between gRPC stream and RPC",
+                                    "\n\nSlot {} verfied cleanly all matched — {} transactions matched between gRPC stream and RPC\n",
                                     report.slot, report.grpc_count
                                 );
                             } else {
