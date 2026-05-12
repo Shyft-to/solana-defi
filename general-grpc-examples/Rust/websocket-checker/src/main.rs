@@ -6,7 +6,7 @@ use tokio_tungstenite::{
 };
 
 // Solana WebSocket endpoint — explicit "/" path required before query string
-const WS_URL: &str = "wss://rpc.shyft.to/?api_key=random";
+const WS_URL: &str = "wss://rpc.shyft.to/?api_key=YOUR_API_KEY";
 
 // A well-known devnet account (the System Program)
 const ACCOUNT_PUBKEY: &str = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
