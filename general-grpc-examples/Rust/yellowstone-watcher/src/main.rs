@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
                         Ok(report) => {
                             if report.is_clean() {
                                 info!(
-                                    "\n\nSlot {} verfied cleanly all matched — {} transactions matched between gRPC stream and RPC\n",
+                                    "----> Slot {} verfied cleanly all matched — {} transactions matched between gRPC stream and RPC <----",
                                     report.slot, report.grpc_count
                                 );
                             } else {
