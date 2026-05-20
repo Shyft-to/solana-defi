@@ -11,8 +11,8 @@ cp .env.example .env
 ```
 
 ```env
-ENDPOINT=https://your-endpoint.solana-mainnet.example.com:10000
-X_TOKEN=your_x_token_here
+ENDPOINT=https://rabbitstream.fra.shyft.to
+X_TOKEN=your_shyft_token
 ACCOUNT_INCLUDE=6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P,pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA
 LOG_SIG=true
 STATS_INTERVAL_SECS=5
@@ -21,7 +21,7 @@ RUN_DURATION_MINS=60
 
 | Variable | Description | Default |
 |---|---|---|
-| `ENDPOINT` | Yellowstone/Rabbitstream gRPC endpoint (must include port) | required |
+| `ENDPOINT` | Yellowstone/Rabbitstream gRPC endpoint | required |
 | `X_TOKEN` | Auth token for the endpoint | required |
 | `ACCOUNT_INCLUDE` | Comma-separated program/account addresses to filter on | required |
 | `LOG_SIG` | `true` to print each transaction signature, `false` to suppress | `true` |
