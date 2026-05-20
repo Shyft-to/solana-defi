@@ -3,7 +3,7 @@ use {
     clap::Parser,
     futures::{sink::SinkExt, stream::StreamExt},
     log::{error, info, warn},
-    std::{collections::HashMap, time::{Duration, Instant}},
+    std::{collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}},
     tonic::transport::channel::ClientTlsConfig,
     yellowstone_grpc_client::{GeyserGrpcClient, Interceptor},
     yellowstone_grpc_proto::prelude::{
@@ -36,6 +36,9 @@ struct Args {
 
     #[clap(long, env = "RUN_DURATION_MINS", help = "Auto-stop after this many minutes (omit to run forever)")]
     run_duration_mins: Option<u64>,
+
+    #[clap(long, env = "STATS_INTERVAL_SECS", default_value = "5", help = "How often to print throughput stats (seconds)")]
+    stats_interval_secs: u64,
 }
 
 impl Args {
@@ -94,6 +97,9 @@ async fn main() -> anyhow::Result<()> {
         info!("Will auto-stop after {} minutes", mins);
     }
 
+    let stats_history: Arc<Mutex<Vec<(f32, f32)>>> = Arc::new(Mutex::new(Vec::new()));
+    let run_start = Instant::now();
+
     let run = retry(ExponentialBackoff::default(), || async {
         info!("Connecting to {}", args.endpoint);
 
@@ -111,7 +117,7 @@ async fn main() -> anyhow::Result<()> {
 
         let mut ping_id: i32 = 0;
         let idle_timeout = Duration::from_secs(30);
-        let stats_interval = Duration::from_secs(5);
+        let stats_interval = Duration::from_secs(args.stats_interval_secs);
         let mut tx_count: u64 = 0;
         let mut total_count: u64 = 0;
         let mut window_start = Instant::now();
@@ -150,6 +156,7 @@ async fn main() -> anyhow::Result<()> {
                         if elapsed >= stats_interval {
                             let tps = tx_count as f64 / elapsed.as_secs_f64();
                             info!("-----> throughput: {:.1} tx/s | total transactions: {} <------\n", tps, total_count);
+                            stats_history.lock().unwrap().push((run_start.elapsed().as_secs_f32(), tps as f32));
                             tx_count = 0;
                             window_start = Instant::now();
                         }
@@ -180,5 +187,27 @@ async fn main() -> anyhow::Result<()> {
         run.await?;
     }
 
+    let history = stats_history.lock().unwrap();
+    print_summary(&history);
+
     Ok(())
+}
+
+fn print_summary(history: &[(f32, f32)]) {
+    if history.len() < 2 {
+        return;
+    }
+
+    let total: f32 = history.iter().map(|p| p.1).sum();
+    let avg = total / history.len() as f32;
+    let peak = history.iter().map(|p| p.1).fold(0.0_f32, f32::max);
+    let min = history.iter().map(|p| p.1).fold(f32::MAX, f32::min);
+    let duration = history.last().unwrap().0;
+
+    println!("\n========== Run Summary ==========");
+    println!("  Duration : {:.0}s", duration);
+    println!("  Avg tx/s : {:.1}", avg);
+    println!("  Peak tx/s: {:.1}", peak);
+    println!("  Min  tx/s: {:.1}", min);
+    println!("=================================\n");
 }
