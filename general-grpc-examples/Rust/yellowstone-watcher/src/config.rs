@@ -16,6 +16,11 @@ pub struct Config {
     pub reconcile_lag_slots: u64,
     /// Maximum number of signatures fetched per `getSignaturesForAddress` page
     pub rpc_signatures_limit: usize,
+    /// Seconds to wait before querying the RPC after a slot is ready,
+    /// giving the node time to index the block.
+    pub rpc_delay_secs: u64,
+    /// When true, reconcile using `getBlock` instead of `getSignaturesForAddress`.
+    pub use_get_block: bool,
 }
 
 impl Config {
@@ -38,6 +43,14 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(1000),
+            rpc_delay_secs: env::var("RPC_DELAY_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(5),
+            use_get_block: env::var("USE_GET_BLOCK")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(false),
         })
     }
 }

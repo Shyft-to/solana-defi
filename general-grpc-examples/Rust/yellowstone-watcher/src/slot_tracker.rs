@@ -21,11 +21,12 @@ impl SlotTracker {
     }
 
     /// Record that a transaction with `signature` was seen in `slot`.
-    pub fn record_transaction(&self, slot: u64, signature: String) {
+    pub fn record_transaction(&self, slot: u64, signature: String, received_at_ms: u64) {
         let mut entry = self.slots.entry(slot).or_insert_with(|| SlotData {
             slot,
             ..Default::default()
         });
+        entry.received_at_ms.insert(signature.clone(), received_at_ms);
         entry.grpc_signatures.insert(signature);
         debug!("tracker: slot={slot} sigs={}", entry.grpc_signatures.len());
     }

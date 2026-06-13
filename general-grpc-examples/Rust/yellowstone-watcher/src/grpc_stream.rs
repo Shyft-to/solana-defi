@@ -19,7 +19,10 @@ pub enum StreamEvent {
     /// A non-vote, non-failed transaction was observed.
     Transaction {
         slot: u64,
+        index: u64,
         signature: String,
+        /// Unix timestamp in milliseconds of when this event was received.
+        received_at_ms: u64,
     },
 }
 
@@ -58,6 +61,7 @@ async fn run_stream(cfg: &Config, tx: mpsc::Sender<StreamEvent>) -> Result<()> {
     info!("Connected. Sending subscribe request …");
 
     let request = build_subscribe_request(cfg);
+    print!("request--: {:?}", request);
     let (mut _sink, mut stream) = client
         .subscribe_with_request(Some(request))
         .await
@@ -92,7 +96,7 @@ fn build_subscribe_request(cfg: &Config) -> SubscribeRequest {
         account_exclude: vec![],
         account_required: vec![],
     };
-
+    
     SubscribeRequest {
         accounts: HashMap::new(),
         slots: HashMap::new(),
@@ -132,9 +136,14 @@ async fn handle_update(update: SubscribeUpdate, tx: &mpsc::Sender<StreamEvent>) 
 
             // Signature is the first 64 bytes of the first signature field
             let sig = signature_from_bytes(&info.signature);
-            debug!("gRPC tx  slot={slot}  sig={sig}");
+            let index = info.index;
+            let received_at_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            debug!("gRPC tx  slot={slot}  index={index}  sig={sig}");
 
-            tx.send(StreamEvent::Transaction { slot, signature: sig })
+            tx.send(StreamEvent::Transaction { slot, index, signature: sig, received_at_ms })
                 .await
                 .ok();
         }
