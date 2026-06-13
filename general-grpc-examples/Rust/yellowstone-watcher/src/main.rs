@@ -8,7 +8,7 @@ use anyhow::Result;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use config::Config;
@@ -62,9 +62,9 @@ async fn main() -> Result<()> {
 
     while let Some(event) = event_rx.recv().await {
         match event {
-            StreamEvent::Transaction { slot, signature } => {
-                // info!("New transaction received in slot {slot} — signature: {signature}");
-                tracker.record_transaction(slot, signature);
+            StreamEvent::Transaction { slot, index, signature, received_at_ms } => {
+                debug!("New transaction received in slot {slot} at index {index} — signature: {signature}");
+                tracker.record_transaction(slot, signature, received_at_ms);
 
                 if slot > highest_slot_seen {
                     highest_slot_seen = slot;
@@ -102,10 +102,19 @@ async fn main() -> Result<()> {
                     match reconciler::reconcile(&rpc, &cfg, &slot_data).await {
                         Ok(report) => {
                             if report.is_clean() {
+                                let latency_summary = match (report.latency_min_ms, report.latency_max_ms, report.latency_avg_ms) {
+                                    (Some(min), Some(max), Some(avg)) => {
+                                        format!(" — latency min={}ms avg={}ms max={}ms", min, avg, max)
+                                    }
+                                    _ => String::new(),
+                                };
                                 info!(
-                                    "----> Slot {} verfied cleanly all matched — {} transactions matched between gRPC stream and RPC <----",
-                                    report.slot, report.grpc_count
+                                    "Slot {} verified cleanly — {} transactions matched{}",
+                                    report.slot, report.grpc_count, latency_summary
                                 );
+                                for (sig, lat_ms) in &report.latencies {
+                                    info!("  {sig}  latency={lat_ms}ms");
+                                }
                             } else {
                                 if !report.missed.is_empty() {
                                     error!(
