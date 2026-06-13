@@ -6,14 +6,29 @@ every completed block against the **Solana JSON-RPC** to detect any gaps.
 
 ## Build & Run
 
-### How to run the project: 
 ```bash
 # Add the details in the .env file and then run
 
-cargo run
+# or, rename the .env.example to .env, add your credentials and then run
 
+cargo run
 ```
 
+### Release build (optional)
+```bash
+# 1. Install the Solana BPF toolchain (needed for solana-* crate linking)
+sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+
+# 2. Build
+cargo build --release
+
+# 3. Run
+cp .env.example .env        # edit as needed
+export $(grep -v '^#' .env | xargs)
+./target/release/yellowstone-watcher
+```
+
+---
 
 ## Architecture
 
@@ -37,6 +52,8 @@ cargo run
                                             ▼
                                  ┌──────────────────────┐
                                  │   reconciler.rs      │────► RPC
+                                 │  getBlock            │
+                                 │    OR                │
                                  │  getSignaturesFor    │
                                  │  Address (per acct)  │
                                  └──────────────────────┘
@@ -44,21 +61,23 @@ cargo run
 
 ### Flow
 
-1. **gRPC stream** subscribes to:
-   - `transactions` — non-vote, non-failed, filtered to `ACCOUNT_INCLUDE`
-   - `slots` — to detect when a block is confirmed / rooted
+1. **gRPC stream** subscribes to `transactions` — non-vote, non-failed, filtered
+   to `ACCOUNT_INCLUDE` at `Confirmed` commitment. Reconnects automatically on error.
 
 2. **SlotTracker** accumulates signatures per slot in a `DashMap`.
 
-3. When a `SlotConfirmed` event arrives and `RECONCILE_LAG_SLOTS` have elapsed,
-   the slot is dequeued and handed to the **reconciler**.
+3. When a transaction arrives in a slot that is at least `RECONCILE_LAG_SLOTS`
+   behind the current chain tip, that slot is dequeued and handed to the **reconciler**.
 
-4. **Reconciler** runs two complementary RPC strategies:
-   - `getBlock` → signatures in the full block
-   - `getSignaturesForAddress` for each watched account (filtered to that slot)
-   Results are unioned, then diffed against the gRPC set.
+4. **Reconciler** fetches the RPC view of that slot using one of two strategies
+   (controlled by `USE_GET_BLOCK`):
+   - `getSignaturesForAddress` (default) — one paginated call per watched account,
+     filtered to the target slot.
+   - `getBlock` — fetches the entire block, then filters locally to transactions
+     touching a watched account (excluding failed and vote transactions).
 
-5. Any signatures present in RPC but absent from gRPC are logged as **MISSED**.
+5. Any signatures present in the RPC result but absent from gRPC are logged as **MISSED**.
+   Signatures seen by gRPC but not confirmed by RPC are logged as **warnings**.
 
 ---
 
@@ -74,34 +93,9 @@ directly.
 | `ACCOUNT_INCLUDE` | ✓ | — | Comma-separated pubkeys to watch |
 | `RPC_ENDPOINT` | | mainnet-beta | Solana JSON-RPC URL |
 | `RECONCILE_LAG_SLOTS` | | 5 | Slots to wait before reconciling |
-| `RPC_SIGNATURES_LIMIT` | | 1000 | Max sigs per `getSignaturesForAddress` |
+| `USE_GET_BLOCK` | | false | Use `getBlock` instead of `getSignaturesForAddress` |
+| `RPC_SIGNATURES_LIMIT` | | 1000 | Max sigs per `getSignaturesForAddress` (ignored when `USE_GET_BLOCK=true`) |
 | `RUST_LOG` | | info | Tracing filter |
-
----
-
-## Build & Run
-
-### How to run the project: 
-```bash
-# Add the details in the .env file and then run
-
-cargo run
-
-```
-
-### Optional
-```bash
-# 1. Install the Solana BPF toolchain (needed for solana-* crate linking)
-sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-
-# 2. Build
-cargo build --release
-
-# 3. Run
-cp .env.example .env        # edit as needed
-export $(grep -v '^#' .env | xargs)
-./target/release/yellowstone-watcher
-```
 
 ---
 
@@ -109,10 +103,12 @@ export $(grep -v '^#' .env | xargs)
 
 ```
 INFO  yellowstone_watcher > Watching 2 accounts  lag=5 slots
-INFO  yellowstone_watcher > Connected. Streaming …
-INFO  yellowstone_watcher > TX  slot=285123456  sig=5KtP…
-INFO  yellowstone_watcher > SLOT confirmed=285123461
-INFO  yellowstone_watcher > ✓ slot=285123456 grpc=3 rpc=3 CLEAN
-ERROR yellowstone_watcher > ✗ slot=285123460 MISSED 1 transactions not seen via gRPC:
-ERROR yellowstone_watcher >   missed sig=3xQr…
+INFO  yellowstone_watcher > Connecting to Yellowstone gRPC at https://…
+INFO  yellowstone_watcher > Subscribed. Streaming …
+INFO  yellowstone_watcher > Chain advanced to slot 285123456 — currently buffering 3 slots waiting for verification
+INFO  yellowstone_watcher > ----> Slot 285123451 verfied cleanly all matched — 3 transactions matched between gRPC stream and RPC <----
+ERROR yellowstone_watcher > Slot 285123450 is missing 1 transaction(s) that the RPC confirmed but the gRPC stream never delivered — possible data loss:
+ERROR yellowstone_watcher >   3xQr…
+WARN  yellowstone_watcher > Slot 285123452 has 1 transaction(s) seen via gRPC that the RPC does not recognise — may be a timing issue:
+WARN  yellowstone_watcher >   7mNz…
 ```

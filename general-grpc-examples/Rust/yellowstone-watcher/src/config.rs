@@ -16,6 +16,8 @@ pub struct Config {
     pub reconcile_lag_slots: u64,
     /// Maximum number of signatures fetched per `getSignaturesForAddress` page
     pub rpc_signatures_limit: usize,
+    /// When true, reconcile using `getBlock` instead of `getSignaturesForAddress`.
+    pub use_get_block: bool,
 }
 
 impl Config {
@@ -38,6 +40,10 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(1000),
+            use_get_block: env::var("USE_GET_BLOCK")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(false),
         })
     }
 }

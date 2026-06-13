@@ -13,8 +13,9 @@ yellowstone-grpc-client = "13.1.0"
 yellowstone-grpc-proto  = "12.3.0"
 
 # Solana RPC + SDK
-solana-client  = "2.3"
-solana-sdk     = "2.3"
+solana-client             = "2.3"
+solana-sdk                = "2.3"
+solana-transaction-status = "2.3"
 
 # Async runtime
 tokio          = { version = "1", features = ["full"] }

@@ -4,11 +4,15 @@ use anyhow::{Context, Result};
 use solana_client::{
     nonblocking::rpc_client::RpcClient,
     rpc_client::GetConfirmedSignaturesForAddress2Config,
+    rpc_config::RpcBlockConfig,
 };
 use solana_sdk::{
     commitment_config::{CommitmentConfig, CommitmentLevel},
     pubkey::Pubkey,
     signature::Signature,
+};
+use solana_transaction_status::{
+    EncodedTransaction, TransactionDetails, UiMessage, UiTransactionEncoding,
 };
 use tracing::{debug, warn};
 
@@ -53,12 +57,16 @@ pub async fn reconcile(
 
 /// Fetch all relevant transaction signatures for `slot` from the RPC.
 ///
-/// Returns a [`HashSet`] of base-58 signature strings.
+/// Delegates to `getBlock` or `getSignaturesForAddress` depending on `cfg.use_get_block`.
 async fn fetch_rpc_signatures(
     client: &RpcClient,
     cfg: &Config,
     slot: u64,
 ) -> Result<HashSet<String>> {
+    if cfg.use_get_block {
+        return fetch_via_get_block(client, cfg, slot).await;
+    }
+
     let mut combined: HashSet<String> = HashSet::new();
 
     for addr_str in &cfg.account_include {
@@ -157,4 +165,75 @@ async fn fetch_via_signatures_for_address(
     }
 
     Ok(sigs)
+}
+
+/// Fetch transaction signatures for `slot` using `getBlock`, filtered to
+/// transactions that touch at least one watched account.
+///
+/// Mirrors the gRPC filters: failed transactions and vote transactions are excluded.
+async fn fetch_via_get_block(
+    client: &RpcClient,
+    cfg: &Config,
+    slot: u64,
+) -> Result<HashSet<String>> {
+    let block = client
+        .get_block_with_config(
+            slot,
+            RpcBlockConfig {
+                encoding: Some(UiTransactionEncoding::JsonParsed),
+                transaction_details: Some(TransactionDetails::Full),
+                rewards: Some(false),
+                commitment: Some(CommitmentConfig {
+                    commitment: CommitmentLevel::Confirmed,
+                }),
+                max_supported_transaction_version: Some(0),
+            },
+        )
+        .await
+        .context("getBlock RPC call failed")?;
+
+    let account_set: HashSet<&str> = cfg.account_include.iter().map(|s| s.as_str()).collect();
+    const VOTE_PROGRAM: &str = "Vote111111111111111111111111111111111111111";
+    let mut result = HashSet::new();
+
+    for tx_with_meta in block.transactions.unwrap_or_default() {
+        // Mirror gRPC filter: failed=false
+        if tx_with_meta
+            .meta
+            .as_ref()
+            .and_then(|m| m.err.as_ref())
+            .is_some()
+        {
+            continue;
+        }
+
+        let ui_tx = match &tx_with_meta.transaction {
+            EncodedTransaction::Json(tx) => tx,
+            _ => continue,
+        };
+
+        let sig = match ui_tx.signatures.first() {
+            Some(s) => s.clone(),
+            None => continue,
+        };
+
+        let accounts: Vec<String> = match &ui_tx.message {
+            UiMessage::Parsed(m) => m.account_keys.iter().map(|k| k.pubkey.clone()).collect(),
+            UiMessage::Raw(m) => m.account_keys.clone(),
+        };
+
+        // Mirror gRPC filter: vote=false
+        if accounts.iter().any(|a| a == VOTE_PROGRAM) {
+            continue;
+        }
+
+        // Only include transactions touching a watched account
+        if !accounts.iter().any(|a| account_set.contains(a.as_str())) {
+            continue;
+        }
+
+        result.insert(sig);
+    }
+
+    Ok(result)
 }
