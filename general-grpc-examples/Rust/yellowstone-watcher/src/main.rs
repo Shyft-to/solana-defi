@@ -1,6 +1,7 @@
 mod config;
 mod grpc_stream;
 mod reconciler;
+mod slack;
 mod slot_tracker;
 mod types;
 
@@ -8,7 +9,7 @@ use anyhow::Result;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use config::Config;
@@ -63,12 +64,12 @@ async fn main() -> Result<()> {
     while let Some(event) = event_rx.recv().await {
         match event {
             StreamEvent::Transaction { slot, signature } => {
-                // info!("New transaction received in slot {slot} — signature: {signature}");
+                info!("TX  slot={slot}  sig={signature}");
                 tracker.record_transaction(slot, signature);
 
                 if slot > highest_slot_seen {
                     highest_slot_seen = slot;
-                    info!(
+                    debug!(
                         "Chain advanced to slot {highest_slot_seen} — currently buffering {} slots waiting for verification",
                         tracker.len()
                     );
@@ -94,7 +95,7 @@ async fn main() -> Result<()> {
                     let slot_data = match tracker.take(target_slot) {
                         Some(d) => d,
                         None => {
-                            info!("Slot {target_slot} had no transactions for watched accounts — nothing to reconcile");
+                            debug!("Slot {target_slot} had no transactions for watched accounts — nothing to reconcile");
                             continue;
                         }
                     };
@@ -116,6 +117,9 @@ async fn main() -> Result<()> {
                                     for sig in &report.missed {
                                         error!("  {sig}");
                                     }
+                                    if let Some(url) = &cfg.slack_webhook_url {
+                                        slack::notify_missed(url, report.slot, &report.missed).await;
+                                    }
                                 }
                                 if !report.extra.is_empty() {
                                     warn!(
@@ -125,6 +129,9 @@ async fn main() -> Result<()> {
                                     );
                                     for sig in &report.extra {
                                         warn!("  {sig}");
+                                    }
+                                    if let Some(url) = &cfg.slack_webhook_url {
+                                        slack::notify_extra(url, report.slot, &report.extra).await;
                                     }
                                 }
                             }
