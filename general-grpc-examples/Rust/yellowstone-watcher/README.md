@@ -96,6 +96,7 @@ directly.
 | `USE_GET_BLOCK` | | false | Use `getBlock` instead of `getSignaturesForAddress` |
 | `RPC_SIGNATURES_LIMIT` | | 1000 | Max sigs per `getSignaturesForAddress` (ignored when `USE_GET_BLOCK=true`) |
 | `RUST_LOG` | | info | Tracing filter |
+| `SLACK_WEBHOOK_URL` | | - | If Slack webhook is added, the events will be delivered to a slack channel, else will only print on console |
 
 ---
 
