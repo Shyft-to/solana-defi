@@ -16,6 +16,11 @@ pub struct Config {
     pub reconcile_lag_slots: u64,
     /// Maximum number of signatures fetched per `getSignaturesForAddress` page
     pub rpc_signatures_limit: usize,
+    /// When true, reconcile using `getBlock` instead of `getSignaturesForAddress`.
+    pub use_get_block: bool,
+    /// Optional Slack incoming-webhook URL. When set, missed and extra events
+    /// are posted to Slack in addition to being logged locally.
+    pub slack_webhook_url: Option<String>,
 }
 
 impl Config {
@@ -38,6 +43,11 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(1000),
+            use_get_block: env::var("USE_GET_BLOCK")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(false),
+            slack_webhook_url: env::var("SLACK_WEBHOOK_URL").ok(),
         })
     }
 }

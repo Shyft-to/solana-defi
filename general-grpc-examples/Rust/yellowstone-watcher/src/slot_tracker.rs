@@ -1,6 +1,6 @@
 use dashmap::DashMap;
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::types::SlotData;
 
@@ -50,9 +50,9 @@ impl SlotTracker {
             .map(|e| (*e.key(), e.value().grpc_signatures.len()))
             .collect();
         entries.sort_by_key(|(slot, _)| *slot);
-        info!("Buffering {} slot(s) waiting for reconciliation:", entries.len());
+        debug!("Buffering {} slot(s) waiting for reconciliation:", entries.len());
         for (slot, count) in entries {
-            info!("  Slot {slot} — {count} transaction(s) collected so far");
+            debug!("  Slot {slot} — {count} transaction(s) collected so far");
         }
     }
 }
