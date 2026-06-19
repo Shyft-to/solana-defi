@@ -15,12 +15,15 @@ use strum_macros::{Display, EnumString};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum MeteoraDBCProgramIx {
     ClaimCreatorTradingFee(ClaimCreatorTradingFeeIxArgs),
+    ClaimPartnerPoolCreationFee, 
     ClaimProtocolFee,
+    ClaimProtocolPoolCreationFee, 
     ClaimTradingFee(ClaimTradingFeeIxArgs),
-    CloseClaimFeeOperation,
-    CreateClaimFeeOperation,
+    CloseClaimProtocolFeeOperator,
+    CloseOperatorAccount,
     CreateConfig(CreateConfigIxArgs),
     CreateLocker,
+    CreateOperatorAccount(CreateOperatorAccountIxArgs),
     CreatePartnerMetadata(CreatePartnerMetadataIxArgs),
     CreateVirtualPoolMetadata(CreateVirtualPoolMetadataIxArgs),
     CreatorWithdrawSurplus,
@@ -39,153 +42,161 @@ pub enum MeteoraDBCProgramIx {
     TransferPoolCreator,
     WithdrawLeftover,
     WithdrawMigrationFee(WithdrawMigrationFeeIxArgs),
+    ZapProtocolFee(ZapProtocolFeeIxArgs),
 }
 impl MeteoraDBCProgramIx {
      pub fn name(&self) -> String {
         self.to_string().to_camel_case()
      }
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
-        let mut reader = buf;
-        let mut maybe_discm = [0u8; 8];
-        reader.read_exact(&mut maybe_discm)?;
-        match maybe_discm {
-            CLAIM_CREATOR_TRADING_FEE_IX_DISCM => {
-                Ok(Self::ClaimCreatorTradingFee(
-                    ClaimCreatorTradingFeeIxArgs::deserialize(&mut reader)?,
-                ))
-            }
-            CLAIM_PROTOCOL_FEE_IX_DISCM => Ok(Self::ClaimProtocolFee),
-            CLAIM_TRADING_FEE_IX_DISCM => {
-                Ok(Self::ClaimTradingFee(
-                    ClaimTradingFeeIxArgs::deserialize(&mut reader)?,
-                ))
-            }
-            CLOSE_CLAIM_FEE_OPERATOR_IX_DISCM => Ok(Self::CloseClaimFeeOperation),
-            CREATE_CLAIM_FEE_OPERATION_IX_DISCM => Ok(Self::CreateClaimFeeOperation),
-            CREATE_CONFIG_IX_DISCM => Ok(Self::CreateConfig(
-                CreateConfigIxArgs::deserialize(&mut reader)?,
-            )),
-            CREATE_LOCKER_IX_DISCM => Ok(Self::CreateLocker),
-            CREATE_PARTNER_METADATA_IX_DISCM => Ok(Self::CreatePartnerMetadata(
-                CreatePartnerMetadataIxArgs::deserialize(&mut reader)?,
-            )),
-            CREATE_VIRTUAL_POOL_METADATA_IX_DISCM => Ok(Self::CreateVirtualPoolMetadata(
-                CreateVirtualPoolMetadataIxArgs::deserialize(&mut reader)?,
-            )),
-            CREATOR_WITHDRAW_SURPLUS_IX_DISCM => Ok(Self::CreatorWithdrawSurplus),
-            INITIALIZE_VIRTUAL_POOL_WITH_SPL_TOKEN_IX_DISCM => Ok(
-                Self::InitializeVirtualPoolWithSplToken(
-                    InitializeVirtualPoolWithSplTokenIxArgs::deserialize(&mut reader)?,
-                ),
+     let mut reader = buf;
+     let mut maybe_discm = [0u8; 8];
+     reader.read_exact(&mut maybe_discm)?;
+     match maybe_discm {
+        CLAIM_CREATOR_TRADING_FEE_IX_DISCM => {
+            Ok(Self::ClaimCreatorTradingFee(
+                ClaimCreatorTradingFeeIxArgs::deserialize(&mut reader)?,
+            ))
+        }
+        CLAIM_PARTNER_POOL_CREATION_FEE_IX_DISCM => Ok(Self::ClaimPartnerPoolCreationFee), 
+        CLAIM_PROTOCOL_FEE_IX_DISCM => Ok(Self::ClaimProtocolFee),
+        CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_DISCM => Ok(Self::ClaimProtocolPoolCreationFee),
+        CLAIM_TRADING_FEE_IX_DISCM => {
+            Ok(Self::ClaimTradingFee(
+                ClaimTradingFeeIxArgs::deserialize(&mut reader)?,
+            ))
+        }
+        CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_DISCM => Ok(Self::CloseClaimProtocolFeeOperator), 
+        CLOSE_OPERATOR_ACCOUNT_IX_DISCM => Ok(Self::CloseOperatorAccount), 
+        CREATE_CONFIG_IX_DISCM => Ok(Self::CreateConfig(
+            CreateConfigIxArgs::deserialize(&mut reader)?,
+        )),
+        CREATE_LOCKER_IX_DISCM => Ok(Self::CreateLocker),
+        CREATE_OPERATOR_ACCOUNT_IX_DISCM => Ok(Self::CreateOperatorAccount( 
+            CreateOperatorAccountIxArgs::deserialize(&mut reader)?,
+        )),
+        CREATE_PARTNER_METADATA_IX_DISCM => Ok(Self::CreatePartnerMetadata(
+            CreatePartnerMetadataIxArgs::deserialize(&mut reader)?,
+        )),
+        CREATE_VIRTUAL_POOL_METADATA_IX_DISCM => Ok(Self::CreateVirtualPoolMetadata(
+            CreateVirtualPoolMetadataIxArgs::deserialize(&mut reader)?,
+        )),
+        CREATOR_WITHDRAW_SURPLUS_IX_DISCM => Ok(Self::CreatorWithdrawSurplus),
+        INITIALIZE_VIRTUAL_POOL_WITH_SPL_TOKEN_IX_DISCM => Ok(
+            Self::InitializeVirtualPoolWithSplToken(
+                InitializeVirtualPoolWithSplTokenIxArgs::deserialize(&mut reader)?,
             ),
-            INITIALIZE_VIRTUAL_POOL_WITH_TOKEN_2022_IX_DISCM => Ok(
-                Self::InitializeVirtualPoolWithToken2022(
-                    InitializeVirtualPoolWithToken2022IxArgs::deserialize(&mut reader)?,
-                ),
+        ),
+        INITIALIZE_VIRTUAL_POOL_WITH_TOKEN_2022_IX_DISCM => Ok(
+            Self::InitializeVirtualPoolWithToken2022(
+                InitializeVirtualPoolWithToken2022IxArgs::deserialize(&mut reader)?,
             ),
-            MIGRATE_METEORA_DAMM_IX_DISCM => Ok(Self::MigrateMeteoraDamm),
-            MIGRATE_METEORA_DAMM_CLAIM_LP_TOKEN_IX_DISCM => Ok(Self::MigrateMeteoraDammClaimLpToken),
-            MIGRATE_METEORA_DAMM_LOCK_LP_TOKEN_IX_DISCM => Ok(Self::MigrateMeteoraDammLockLpToken),
-            MIGRATION_DAMM_V2_IX_DISCM => Ok(Self::MigrationDammV2),
-            MIGRATION_DAMM_V2_CREATE_METADATA_IX_DISCM => Ok(Self::MigrationDammV2CreateMetadata),
-            MIGRATION_METEORA_DAMM_CREATE_METADATA_IX_DISCM => {
-                Ok(Self::MigrationMeteoraDammCreateMetadata)
-            }
-            PARTNER_WITHDRAW_SURPLUS_IX_DISCM => Ok(Self::PartnerWithdrawSurplus),
-            PROTOCOL_WITHDRAW_SURPLUS_IX_DISCM => Ok(Self::ProtocolWithdrawSurplus),
-            SWAP_IX_DISCM => {
-                Ok(
-                    Self::Swap(
-                        SwapIxArgs::deserialize(&mut reader)?,
-                    )
-                )
-             }
-            SWAP2_IX_DISCM => {
-                Ok(
-                    Self::Swap2(
-                        Swap2IxArgs::deserialize(&mut reader)?,
-                    )
-                )
-            }
-            TRANSFER_POOL_CREATOR_IX_DISCM => Ok(Self::TransferPoolCreator),
-            WITHDRAW_LEFTOVER_IX_DISCM => Ok(Self::WithdrawLeftover),
-            WITHDRAW_MIGRATION_FEE_IX_DISCM => Ok(Self::WithdrawMigrationFee(
-                WithdrawMigrationFeeIxArgs::deserialize(&mut reader)?,
-            )),
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("discm {:?} not found", maybe_discm),
-            )),
+        ),
+        MIGRATE_METEORA_DAMM_IX_DISCM => Ok(Self::MigrateMeteoraDamm),
+        MIGRATE_METEORA_DAMM_CLAIM_LP_TOKEN_IX_DISCM => Ok(Self::MigrateMeteoraDammClaimLpToken),
+        MIGRATE_METEORA_DAMM_LOCK_LP_TOKEN_IX_DISCM => Ok(Self::MigrateMeteoraDammLockLpToken),
+        MIGRATION_DAMM_V2_IX_DISCM => Ok(Self::MigrationDammV2),
+        MIGRATION_DAMM_V2_CREATE_METADATA_IX_DISCM => Ok(Self::MigrationDammV2CreateMetadata),
+        MIGRATION_METEORA_DAMM_CREATE_METADATA_IX_DISCM => {
+            Ok(Self::MigrationMeteoraDammCreateMetadata)
+        }
+        PARTNER_WITHDRAW_SURPLUS_IX_DISCM => Ok(Self::PartnerWithdrawSurplus),
+        PROTOCOL_WITHDRAW_SURPLUS_IX_DISCM => Ok(Self::ProtocolWithdrawSurplus),
+        SWAP_IX_DISCM => Ok(Self::Swap(SwapIxArgs::deserialize(&mut reader)?)),
+        SWAP2_IX_DISCM => Ok(Self::Swap2(Swap2IxArgs::deserialize(&mut reader)?)),
+        TRANSFER_POOL_CREATOR_IX_DISCM => Ok(Self::TransferPoolCreator),
+        WITHDRAW_LEFTOVER_IX_DISCM => Ok(Self::WithdrawLeftover),
+        WITHDRAW_MIGRATION_FEE_IX_DISCM => Ok(Self::WithdrawMigrationFee(
+            WithdrawMigrationFeeIxArgs::deserialize(&mut reader)?,
+        )),
+        ZAP_PROTOCOL_FEE_IX_DISCM => Ok(Self::ZapProtocolFee(
+            ZapProtocolFeeIxArgs::deserialize(&mut reader)?,
+        )),
+        _ => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("discm {:?} not found", maybe_discm),
+        )),
         }
     }
 
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        match self {
-            Self::ClaimCreatorTradingFee(args) => {
-                writer.write_all(&CLAIM_CREATOR_TRADING_FEE_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::ClaimProtocolFee => writer.write_all(&CLAIM_PROTOCOL_FEE_IX_DISCM),
-            Self::ClaimTradingFee(args) => {
-                writer.write_all(&CLAIM_TRADING_FEE_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CloseClaimFeeOperation => writer.write_all(&CLOSE_CLAIM_FEE_OPERATOR_IX_DISCM),
-            Self::CreateClaimFeeOperation => writer.write_all(&CREATE_CLAIM_FEE_OPERATION_IX_DISCM),
-            Self::CreateConfig(args) => {
-                writer.write_all(&CREATE_CONFIG_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CreateLocker => writer.write_all(&CREATE_LOCKER_IX_DISCM),
-            Self::CreatePartnerMetadata(args) => {
-                writer.write_all(&CREATE_PARTNER_METADATA_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CreateVirtualPoolMetadata(args) => {
-                writer.write_all(&CREATE_VIRTUAL_POOL_METADATA_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::CreatorWithdrawSurplus => writer.write_all(&CREATOR_WITHDRAW_SURPLUS_IX_DISCM),
-            Self::InitializeVirtualPoolWithSplToken(args) => {
-                writer.write_all(&INITIALIZE_VIRTUAL_POOL_WITH_SPL_TOKEN_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::InitializeVirtualPoolWithToken2022(args) => {
-                writer.write_all(&INITIALIZE_VIRTUAL_POOL_WITH_TOKEN_2022_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::MigrateMeteoraDamm => writer.write_all(&MIGRATE_METEORA_DAMM_IX_DISCM),
-            Self::MigrateMeteoraDammClaimLpToken => {
-                writer.write_all(&MIGRATE_METEORA_DAMM_CLAIM_LP_TOKEN_IX_DISCM)
-            }
-            Self::MigrateMeteoraDammLockLpToken => {
-                writer.write_all(&MIGRATE_METEORA_DAMM_LOCK_LP_TOKEN_IX_DISCM)
-            }
-            Self::MigrationDammV2 => writer.write_all(&MIGRATION_DAMM_V2_IX_DISCM),
-            Self::MigrationDammV2CreateMetadata => {
-                writer.write_all(&MIGRATION_DAMM_V2_CREATE_METADATA_IX_DISCM)
-            }
-            Self::MigrationMeteoraDammCreateMetadata => {
-                writer.write_all(&MIGRATION_METEORA_DAMM_CREATE_METADATA_IX_DISCM)
-            }
-            Self::PartnerWithdrawSurplus => writer.write_all(&PARTNER_WITHDRAW_SURPLUS_IX_DISCM),
-            Self::ProtocolWithdrawSurplus => writer.write_all(&PROTOCOL_WITHDRAW_SURPLUS_IX_DISCM),
-            Self::Swap(args) => {
-                writer.write_all(&SWAP_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::Swap2(args) => {
-                writer.write_all(&SWAP2_IX_DISCM)?;
-                args.serialize(&mut writer)
-            }
-            Self::TransferPoolCreator => writer.write_all(&TRANSFER_POOL_CREATOR_IX_DISCM),
-            Self::WithdrawLeftover => writer.write_all(&WITHDRAW_LEFTOVER_IX_DISCM),
-            Self::WithdrawMigrationFee(args) => {
-                writer.write_all(&WITHDRAW_MIGRATION_FEE_IX_DISCM)?;
-                args.serialize(&mut writer)
+     match self {
+        Self::ClaimCreatorTradingFee(args) => {
+            writer.write_all(&CLAIM_CREATOR_TRADING_FEE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::ClaimPartnerPoolCreationFee => writer.write_all(&CLAIM_PARTNER_POOL_CREATION_FEE_IX_DISCM), 
+        Self::ClaimProtocolFee => writer.write_all(&CLAIM_PROTOCOL_FEE_IX_DISCM),
+        Self::ClaimProtocolPoolCreationFee => writer.write_all(&CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_DISCM), 
+        Self::ClaimTradingFee(args) => {
+            writer.write_all(&CLAIM_TRADING_FEE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CloseClaimProtocolFeeOperator => writer.write_all(&CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_DISCM),
+        Self::CloseOperatorAccount => writer.write_all(&CLOSE_OPERATOR_ACCOUNT_IX_DISCM), 
+        Self::CreateConfig(args) => {
+            writer.write_all(&CREATE_CONFIG_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CreateLocker => writer.write_all(&CREATE_LOCKER_IX_DISCM),
+        Self::CreateOperatorAccount(args) => { 
+            writer.write_all(&CREATE_OPERATOR_ACCOUNT_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CreatePartnerMetadata(args) => {
+            writer.write_all(&CREATE_PARTNER_METADATA_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CreateVirtualPoolMetadata(args) => {
+            writer.write_all(&CREATE_VIRTUAL_POOL_METADATA_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::CreatorWithdrawSurplus => writer.write_all(&CREATOR_WITHDRAW_SURPLUS_IX_DISCM),
+        Self::InitializeVirtualPoolWithSplToken(args) => {
+            writer.write_all(&INITIALIZE_VIRTUAL_POOL_WITH_SPL_TOKEN_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::InitializeVirtualPoolWithToken2022(args) => {
+            writer.write_all(&INITIALIZE_VIRTUAL_POOL_WITH_TOKEN_2022_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::MigrateMeteoraDamm => writer.write_all(&MIGRATE_METEORA_DAMM_IX_DISCM),
+        Self::MigrateMeteoraDammClaimLpToken => {
+            writer.write_all(&MIGRATE_METEORA_DAMM_CLAIM_LP_TOKEN_IX_DISCM)
+        }
+        Self::MigrateMeteoraDammLockLpToken => {
+            writer.write_all(&MIGRATE_METEORA_DAMM_LOCK_LP_TOKEN_IX_DISCM)
+        }
+        Self::MigrationDammV2 => writer.write_all(&MIGRATION_DAMM_V2_IX_DISCM),
+        Self::MigrationDammV2CreateMetadata => {
+            writer.write_all(&MIGRATION_DAMM_V2_CREATE_METADATA_IX_DISCM)
+        }
+        Self::MigrationMeteoraDammCreateMetadata => {
+            writer.write_all(&MIGRATION_METEORA_DAMM_CREATE_METADATA_IX_DISCM)
+        }
+        Self::PartnerWithdrawSurplus => writer.write_all(&PARTNER_WITHDRAW_SURPLUS_IX_DISCM),
+        Self::ProtocolWithdrawSurplus => writer.write_all(&PROTOCOL_WITHDRAW_SURPLUS_IX_DISCM),
+        Self::Swap(args) => {
+            writer.write_all(&SWAP_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::Swap2(args) => {
+            writer.write_all(&SWAP2_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::TransferPoolCreator => writer.write_all(&TRANSFER_POOL_CREATOR_IX_DISCM),
+        Self::WithdrawLeftover => writer.write_all(&WITHDRAW_LEFTOVER_IX_DISCM),
+        Self::WithdrawMigrationFee(args) => {
+            writer.write_all(&WITHDRAW_MIGRATION_FEE_IX_DISCM)?;
+            args.serialize(&mut writer)
+        }
+        Self::ZapProtocolFee(args) => { 
+            writer.write_all(&ZAP_PROTOCOL_FEE_IX_DISCM)?;
+            args.serialize(&mut writer)
             }
         }
     }
+
 
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
         let mut data = Vec::new();
@@ -569,6 +580,236 @@ pub fn claim_creator_trading_fee_verify_account_privileges<'me, 'info>(
     claim_creator_trading_fee_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
+
+pub const CLAIM_PARTNER_POOL_CREATION_FEE_IX_ACCOUNTS_LEN: usize = 6;
+ 
+#[derive(Copy, Clone, Debug)]
+pub struct ClaimPartnerPoolCreationFeeAccounts<'me, 'info> {
+    pub config: &'me AccountInfo<'info>,
+    pub pool: &'me AccountInfo<'info>,
+    pub fee_claimer: &'me AccountInfo<'info>,
+    pub fee_receiver: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+ 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ClaimPartnerPoolCreationFeeKeys {
+    pub config: Pubkey,
+    pub pool: Pubkey,
+    pub fee_claimer: Pubkey,
+    pub fee_receiver: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+ 
+impl From<ClaimPartnerPoolCreationFeeAccounts<'_, '_>> for ClaimPartnerPoolCreationFeeKeys {
+    fn from(accounts: ClaimPartnerPoolCreationFeeAccounts) -> Self {
+        Self {
+            config: *accounts.config.key,
+            pool: *accounts.pool.key,
+            fee_claimer: *accounts.fee_claimer.key,
+            fee_receiver: *accounts.fee_receiver.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+ 
+impl From<ClaimPartnerPoolCreationFeeKeys>
+    for [AccountMeta; CLAIM_PARTNER_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: ClaimPartnerPoolCreationFeeKeys) -> Self {
+        [
+            AccountMeta { pubkey: keys.config, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.pool, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.fee_claimer, is_signer: true, is_writable: false },
+            AccountMeta { pubkey: keys.fee_receiver, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.event_authority, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.program, is_signer: false, is_writable: false },
+        ]
+    }
+}
+ 
+impl From<[Pubkey; CLAIM_PARTNER_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]>
+    for ClaimPartnerPoolCreationFeeKeys
+{
+    fn from(pubkeys: [Pubkey; CLAIM_PARTNER_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            config: pubkeys[0],
+            pool: pubkeys[1],
+            fee_claimer: pubkeys[2],
+            fee_receiver: pubkeys[3],
+            event_authority: pubkeys[4],
+            program: pubkeys[5],
+        }
+    }
+}
+ 
+impl<'info> From<ClaimPartnerPoolCreationFeeAccounts<'_, 'info>>
+    for [AccountInfo<'info>; CLAIM_PARTNER_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: ClaimPartnerPoolCreationFeeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.config.clone(),
+            accounts.pool.clone(),
+            accounts.fee_claimer.clone(),
+            accounts.fee_receiver.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+ 
+impl<'me, 'info>
+    From<&'me [AccountInfo<'info>; CLAIM_PARTNER_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]>
+    for ClaimPartnerPoolCreationFeeAccounts<'me, 'info>
+{
+    fn from(
+        arr: &'me [AccountInfo<'info>; CLAIM_PARTNER_POOL_CREATION_FEE_IX_ACCOUNTS_LEN],
+    ) -> Self {
+        Self {
+            config: &arr[0],
+            pool: &arr[1],
+            fee_claimer: &arr[2],
+            fee_receiver: &arr[3],
+            event_authority: &arr[4],
+            program: &arr[5],
+        }
+    }
+}
+ 
+pub const CLAIM_PARTNER_POOL_CREATION_FEE_IX_DISCM: [u8; 8] =
+    [250, 238, 26, 4, 139, 10, 101, 248];
+ 
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClaimPartnerPoolCreationFeeIxData;
+ 
+impl ClaimPartnerPoolCreationFeeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLAIM_PARTNER_POOL_CREATION_FEE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CLAIM_PARTNER_POOL_CREATION_FEE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLAIM_PARTNER_POOL_CREATION_FEE_IX_DISCM)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+ 
+pub fn claim_partner_pool_creation_fee_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ClaimPartnerPoolCreationFeeKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLAIM_PARTNER_POOL_CREATION_FEE_IX_ACCOUNTS_LEN] = keys.into();
+    let data = ClaimPartnerPoolCreationFeeIxData;
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+ 
+pub fn claim_partner_pool_creation_fee_ix(
+    keys: ClaimPartnerPoolCreationFeeKeys,
+) -> std::io::Result<Instruction> {
+    claim_partner_pool_creation_fee_ix_with_program_id(crate::ID, keys)
+}
+ 
+pub fn claim_partner_pool_creation_fee_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ClaimPartnerPoolCreationFeeAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: ClaimPartnerPoolCreationFeeKeys = accounts.into();
+    let ix = claim_partner_pool_creation_fee_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+ 
+pub fn claim_partner_pool_creation_fee_invoke(
+    accounts: ClaimPartnerPoolCreationFeeAccounts<'_, '_>,
+) -> ProgramResult {
+    claim_partner_pool_creation_fee_invoke_with_program_id(crate::ID, accounts)
+}
+ 
+pub fn claim_partner_pool_creation_fee_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ClaimPartnerPoolCreationFeeAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: ClaimPartnerPoolCreationFeeKeys = accounts.into();
+    let ix = claim_partner_pool_creation_fee_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+ 
+pub fn claim_partner_pool_creation_fee_invoke_signed(
+    accounts: ClaimPartnerPoolCreationFeeAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    claim_partner_pool_creation_fee_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+ 
+pub fn claim_partner_pool_creation_fee_verify_account_keys(
+    accounts: ClaimPartnerPoolCreationFeeAccounts<'_, '_>,
+    keys: ClaimPartnerPoolCreationFeeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.config.key, keys.config),
+        (*accounts.pool.key, keys.pool),
+        (*accounts.fee_claimer.key, keys.fee_claimer),
+        (*accounts.fee_receiver.key, keys.fee_receiver),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn claim_partner_pool_creation_fee_verify_is_writable_privileges<'me, 'info>(
+    accounts: ClaimPartnerPoolCreationFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for acct in [accounts.pool, accounts.fee_receiver] {
+        if !acct.is_writable {
+            return Err((acct, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn claim_partner_pool_creation_fee_verify_is_signer_privileges<'me, 'info>(
+    accounts: ClaimPartnerPoolCreationFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    if !accounts.fee_claimer.is_signer {
+        return Err((accounts.fee_claimer, ProgramError::MissingRequiredSignature));
+    }
+    Ok(())
+}
+ 
+pub fn claim_partner_pool_creation_fee_verify_account_privileges<'me, 'info>(
+    accounts: ClaimPartnerPoolCreationFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    claim_partner_pool_creation_fee_verify_is_writable_privileges(accounts)?;
+    claim_partner_pool_creation_fee_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+ 
+
 pub const CLAIM_PROTOCOL_FEE_IX_ACCOUNTS_LEN: usize = 15;
 
 #[derive(Copy, Clone, Debug)]
@@ -782,6 +1023,244 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; CLAIM_PROTOCOL_FEE_IX_ACCOUNTS_L
         }
     }
 }
+
+
+pub const CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_ACCOUNTS_LEN: usize = 7;
+ 
+#[derive(Copy, Clone, Debug)]
+pub struct ClaimProtocolPoolCreationFeeAccounts<'me, 'info> {
+    pub config: &'me AccountInfo<'info>,
+    pub pool: &'me AccountInfo<'info>,
+    pub operator: &'me AccountInfo<'info>,
+    pub signer: &'me AccountInfo<'info>,
+    pub treasury: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+ 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ClaimProtocolPoolCreationFeeKeys {
+    pub config: Pubkey,
+    pub pool: Pubkey,
+    pub operator: Pubkey,
+    pub signer: Pubkey,
+    pub treasury: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+ 
+impl From<ClaimProtocolPoolCreationFeeAccounts<'_, '_>> for ClaimProtocolPoolCreationFeeKeys {
+    fn from(accounts: ClaimProtocolPoolCreationFeeAccounts) -> Self {
+        Self {
+            config: *accounts.config.key,
+            pool: *accounts.pool.key,
+            operator: *accounts.operator.key,
+            signer: *accounts.signer.key,
+            treasury: *accounts.treasury.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+ 
+impl From<ClaimProtocolPoolCreationFeeKeys>
+    for [AccountMeta; CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: ClaimProtocolPoolCreationFeeKeys) -> Self {
+        [
+            AccountMeta { pubkey: keys.config, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.pool, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.operator, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.signer, is_signer: true, is_writable: false },
+            AccountMeta { pubkey: keys.treasury, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.event_authority, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.program, is_signer: false, is_writable: false },
+        ]
+    }
+}
+ 
+impl From<[Pubkey; CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]>
+    for ClaimProtocolPoolCreationFeeKeys
+{
+    fn from(pubkeys: [Pubkey; CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            config: pubkeys[0],
+            pool: pubkeys[1],
+            operator: pubkeys[2],
+            signer: pubkeys[3],
+            treasury: pubkeys[4],
+            event_authority: pubkeys[5],
+            program: pubkeys[6],
+        }
+    }
+}
+ 
+impl<'info> From<ClaimProtocolPoolCreationFeeAccounts<'_, 'info>>
+    for [AccountInfo<'info>; CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: ClaimProtocolPoolCreationFeeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.config.clone(),
+            accounts.pool.clone(),
+            accounts.operator.clone(),
+            accounts.signer.clone(),
+            accounts.treasury.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+ 
+impl<'me, 'info>
+    From<&'me [AccountInfo<'info>; CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_ACCOUNTS_LEN]>
+    for ClaimProtocolPoolCreationFeeAccounts<'me, 'info>
+{
+    fn from(
+        arr: &'me [AccountInfo<'info>; CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_ACCOUNTS_LEN],
+    ) -> Self {
+        Self {
+            config: &arr[0],
+            pool: &arr[1],
+            operator: &arr[2],
+            signer: &arr[3],
+            treasury: &arr[4],
+            event_authority: &arr[5],
+            program: &arr[6],
+        }
+    }
+}
+ 
+pub const CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_DISCM: [u8; 8] =
+    [114, 205, 83, 188, 240, 153, 25, 54];
+ 
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClaimProtocolPoolCreationFeeIxData;
+ 
+impl ClaimProtocolPoolCreationFeeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_DISCM)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+ 
+pub fn claim_protocol_pool_creation_fee_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ClaimProtocolPoolCreationFeeKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLAIM_PROTOCOL_POOL_CREATION_FEE_IX_ACCOUNTS_LEN] = keys.into();
+    let data = ClaimProtocolPoolCreationFeeIxData;
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+ 
+pub fn claim_protocol_pool_creation_fee_ix(
+    keys: ClaimProtocolPoolCreationFeeKeys,
+) -> std::io::Result<Instruction> {
+    claim_protocol_pool_creation_fee_ix_with_program_id(crate::ID, keys)
+}
+ 
+pub fn claim_protocol_pool_creation_fee_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ClaimProtocolPoolCreationFeeAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: ClaimProtocolPoolCreationFeeKeys = accounts.into();
+    let ix = claim_protocol_pool_creation_fee_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+ 
+pub fn claim_protocol_pool_creation_fee_invoke(
+    accounts: ClaimProtocolPoolCreationFeeAccounts<'_, '_>,
+) -> ProgramResult {
+    claim_protocol_pool_creation_fee_invoke_with_program_id(crate::ID, accounts)
+}
+ 
+pub fn claim_protocol_pool_creation_fee_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ClaimProtocolPoolCreationFeeAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: ClaimProtocolPoolCreationFeeKeys = accounts.into();
+    let ix = claim_protocol_pool_creation_fee_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+ 
+pub fn claim_protocol_pool_creation_fee_invoke_signed(
+    accounts: ClaimProtocolPoolCreationFeeAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    claim_protocol_pool_creation_fee_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+ 
+pub fn claim_protocol_pool_creation_fee_verify_account_keys(
+    accounts: ClaimProtocolPoolCreationFeeAccounts<'_, '_>,
+    keys: ClaimProtocolPoolCreationFeeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.config.key, keys.config),
+        (*accounts.pool.key, keys.pool),
+        (*accounts.operator.key, keys.operator),
+        (*accounts.signer.key, keys.signer),
+        (*accounts.treasury.key, keys.treasury),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn claim_protocol_pool_creation_fee_verify_is_writable_privileges<'me, 'info>(
+    accounts: ClaimProtocolPoolCreationFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for acct in [accounts.pool, accounts.treasury] {
+        if !acct.is_writable {
+            return Err((acct, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn claim_protocol_pool_creation_fee_verify_is_signer_privileges<'me, 'info>(
+    accounts: ClaimProtocolPoolCreationFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    if !accounts.signer.is_signer {
+        return Err((accounts.signer, ProgramError::MissingRequiredSignature));
+    }
+    Ok(())
+}
+ 
+pub fn claim_protocol_pool_creation_fee_verify_account_privileges<'me, 'info>(
+    accounts: ClaimProtocolPoolCreationFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    claim_protocol_pool_creation_fee_verify_is_writable_privileges(accounts)?;
+    claim_protocol_pool_creation_fee_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+ 
 
 pub const CLAIM_PROTOCOL_FEE_IX_DISCM: [u8; 8] = [165, 228, 133, 48, 99, 249, 255, 33];
 #[derive(Clone, Debug, PartialEq)]
@@ -1282,6 +1761,428 @@ pub fn claim_trading_fee_verify_account_privileges<'me, 'info>(
     claim_trading_fee_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
+
+pub const CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_ACCOUNTS_LEN: usize = 5;
+ 
+#[derive(Copy, Clone, Debug)]
+pub struct CloseClaimProtocolFeeOperatorAccounts<'me, 'info> {
+    pub claim_fee_operator: &'me AccountInfo<'info>,
+    pub rent_receiver: &'me AccountInfo<'info>,
+    pub signer: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+ 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CloseClaimProtocolFeeOperatorKeys {
+    pub claim_fee_operator: Pubkey,
+    pub rent_receiver: Pubkey,
+    pub signer: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+ 
+impl From<CloseClaimProtocolFeeOperatorAccounts<'_, '_>> for CloseClaimProtocolFeeOperatorKeys {
+    fn from(accounts: CloseClaimProtocolFeeOperatorAccounts) -> Self {
+        Self {
+            claim_fee_operator: *accounts.claim_fee_operator.key,
+            rent_receiver: *accounts.rent_receiver.key,
+            signer: *accounts.signer.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+ 
+impl From<CloseClaimProtocolFeeOperatorKeys>
+    for [AccountMeta; CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: CloseClaimProtocolFeeOperatorKeys) -> Self {
+        [
+            AccountMeta { pubkey: keys.claim_fee_operator, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.rent_receiver, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.signer, is_signer: true, is_writable: false },
+            AccountMeta { pubkey: keys.event_authority, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.program, is_signer: false, is_writable: false },
+        ]
+    }
+}
+ 
+impl From<[Pubkey; CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_ACCOUNTS_LEN]>
+    for CloseClaimProtocolFeeOperatorKeys
+{
+    fn from(pubkeys: [Pubkey; CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            claim_fee_operator: pubkeys[0],
+            rent_receiver: pubkeys[1],
+            signer: pubkeys[2],
+            event_authority: pubkeys[3],
+            program: pubkeys[4],
+        }
+    }
+}
+ 
+impl<'info> From<CloseClaimProtocolFeeOperatorAccounts<'_, 'info>>
+    for [AccountInfo<'info>; CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: CloseClaimProtocolFeeOperatorAccounts<'_, 'info>) -> Self {
+        [
+            accounts.claim_fee_operator.clone(),
+            accounts.rent_receiver.clone(),
+            accounts.signer.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+ 
+impl<'me, 'info>
+    From<&'me [AccountInfo<'info>; CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_ACCOUNTS_LEN]>
+    for CloseClaimProtocolFeeOperatorAccounts<'me, 'info>
+{
+    fn from(
+        arr: &'me [AccountInfo<'info>; CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_ACCOUNTS_LEN],
+    ) -> Self {
+        Self {
+            claim_fee_operator: &arr[0],
+            rent_receiver: &arr[1],
+            signer: &arr[2],
+            event_authority: &arr[3],
+            program: &arr[4],
+        }
+    }
+}
+ 
+pub const CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_DISCM: [u8; 8] =
+    [8, 41, 87, 35, 80, 48, 121, 26];
+ 
+#[derive(Clone, Debug, PartialEq)]
+pub struct CloseClaimProtocolFeeOperatorIxData;
+ 
+impl CloseClaimProtocolFeeOperatorIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_DISCM)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+ 
+pub fn close_claim_protocol_fee_operator_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CloseClaimProtocolFeeOperatorKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLOSE_CLAIM_PROTOCOL_FEE_OPERATOR_IX_ACCOUNTS_LEN] = keys.into();
+    let data = CloseClaimProtocolFeeOperatorIxData;
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+ 
+pub fn close_claim_protocol_fee_operator_ix(
+    keys: CloseClaimProtocolFeeOperatorKeys,
+) -> std::io::Result<Instruction> {
+    close_claim_protocol_fee_operator_ix_with_program_id(crate::ID, keys)
+}
+ 
+pub fn close_claim_protocol_fee_operator_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseClaimProtocolFeeOperatorAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: CloseClaimProtocolFeeOperatorKeys = accounts.into();
+    let ix = close_claim_protocol_fee_operator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+ 
+pub fn close_claim_protocol_fee_operator_invoke(
+    accounts: CloseClaimProtocolFeeOperatorAccounts<'_, '_>,
+) -> ProgramResult {
+    close_claim_protocol_fee_operator_invoke_with_program_id(crate::ID, accounts)
+}
+ 
+pub fn close_claim_protocol_fee_operator_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseClaimProtocolFeeOperatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CloseClaimProtocolFeeOperatorKeys = accounts.into();
+    let ix = close_claim_protocol_fee_operator_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+ 
+pub fn close_claim_protocol_fee_operator_invoke_signed(
+    accounts: CloseClaimProtocolFeeOperatorAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    close_claim_protocol_fee_operator_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+ 
+pub fn close_claim_protocol_fee_operator_verify_account_keys(
+    accounts: CloseClaimProtocolFeeOperatorAccounts<'_, '_>,
+    keys: CloseClaimProtocolFeeOperatorKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.claim_fee_operator.key, keys.claim_fee_operator),
+        (*accounts.rent_receiver.key, keys.rent_receiver),
+        (*accounts.signer.key, keys.signer),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn close_claim_protocol_fee_operator_verify_is_writable_privileges<'me, 'info>(
+    accounts: CloseClaimProtocolFeeOperatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for acct in [accounts.claim_fee_operator, accounts.rent_receiver] {
+        if !acct.is_writable {
+            return Err((acct, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn close_claim_protocol_fee_operator_verify_is_signer_privileges<'me, 'info>(
+    accounts: CloseClaimProtocolFeeOperatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    if !accounts.signer.is_signer {
+        return Err((accounts.signer, ProgramError::MissingRequiredSignature));
+    }
+    Ok(())
+}
+ 
+pub fn close_claim_protocol_fee_operator_verify_account_privileges<'me, 'info>(
+    accounts: CloseClaimProtocolFeeOperatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    close_claim_protocol_fee_operator_verify_is_writable_privileges(accounts)?;
+    close_claim_protocol_fee_operator_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+
+// ============================================================
+pub const CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN: usize = 3;
+ 
+#[derive(Copy, Clone, Debug)]
+pub struct CloseOperatorAccountAccounts<'me, 'info> {
+    pub operator: &'me AccountInfo<'info>,
+    pub signer: &'me AccountInfo<'info>,
+    pub rent_receiver: &'me AccountInfo<'info>,
+}
+ 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CloseOperatorAccountKeys {
+    pub operator: Pubkey,
+    pub signer: Pubkey,
+    pub rent_receiver: Pubkey,
+}
+ 
+impl From<CloseOperatorAccountAccounts<'_, '_>> for CloseOperatorAccountKeys {
+    fn from(accounts: CloseOperatorAccountAccounts) -> Self {
+        Self {
+            operator: *accounts.operator.key,
+            signer: *accounts.signer.key,
+            rent_receiver: *accounts.rent_receiver.key,
+        }
+    }
+}
+ 
+impl From<CloseOperatorAccountKeys>
+    for [AccountMeta; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: CloseOperatorAccountKeys) -> Self {
+        [
+            AccountMeta { pubkey: keys.operator, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.signer, is_signer: true, is_writable: false },
+            AccountMeta { pubkey: keys.rent_receiver, is_signer: false, is_writable: true },
+        ]
+    }
+}
+ 
+impl From<[Pubkey; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]> for CloseOperatorAccountKeys {
+    fn from(pubkeys: [Pubkey; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            operator: pubkeys[0],
+            signer: pubkeys[1],
+            rent_receiver: pubkeys[2],
+        }
+    }
+}
+ 
+impl<'info> From<CloseOperatorAccountAccounts<'_, 'info>>
+    for [AccountInfo<'info>; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: CloseOperatorAccountAccounts<'_, 'info>) -> Self {
+        [
+            accounts.operator.clone(),
+            accounts.signer.clone(),
+            accounts.rent_receiver.clone(),
+        ]
+    }
+}
+ 
+impl<'me, 'info>
+    From<&'me [AccountInfo<'info>; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]>
+    for CloseOperatorAccountAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            operator: &arr[0],
+            signer: &arr[1],
+            rent_receiver: &arr[2],
+        }
+    }
+}
+ 
+pub const CLOSE_OPERATOR_ACCOUNT_IX_DISCM: [u8; 8] = [171, 9, 213, 74, 120, 23, 3, 29];
+ 
+#[derive(Clone, Debug, PartialEq)]
+pub struct CloseOperatorAccountIxData;
+ 
+impl CloseOperatorAccountIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CLOSE_OPERATOR_ACCOUNT_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CLOSE_OPERATOR_ACCOUNT_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CLOSE_OPERATOR_ACCOUNT_IX_DISCM)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+ 
+pub fn close_operator_account_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CloseOperatorAccountKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CLOSE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN] = keys.into();
+    let data = CloseOperatorAccountIxData;
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+ 
+pub fn close_operator_account_ix(
+    keys: CloseOperatorAccountKeys,
+) -> std::io::Result<Instruction> {
+    close_operator_account_ix_with_program_id(crate::ID, keys)
+}
+ 
+pub fn close_operator_account_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: CloseOperatorAccountKeys = accounts.into();
+    let ix = close_operator_account_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+ 
+pub fn close_operator_account_invoke(
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+) -> ProgramResult {
+    close_operator_account_invoke_with_program_id(crate::ID, accounts)
+}
+ 
+pub fn close_operator_account_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CloseOperatorAccountKeys = accounts.into();
+    let ix = close_operator_account_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+ 
+pub fn close_operator_account_invoke_signed(
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    close_operator_account_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+ 
+pub fn close_operator_account_verify_account_keys(
+    accounts: CloseOperatorAccountAccounts<'_, '_>,
+    keys: CloseOperatorAccountKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.operator.key, keys.operator),
+        (*accounts.signer.key, keys.signer),
+        (*accounts.rent_receiver.key, keys.rent_receiver),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn close_operator_account_verify_is_writable_privileges<'me, 'info>(
+    accounts: CloseOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for acct in [accounts.operator, accounts.rent_receiver] {
+        if !acct.is_writable {
+            return Err((acct, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn close_operator_account_verify_is_signer_privileges<'me, 'info>(
+    accounts: CloseOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    if !accounts.signer.is_signer {
+        return Err((accounts.signer, ProgramError::MissingRequiredSignature));
+    }
+    Ok(())
+}
+ 
+pub fn close_operator_account_verify_account_privileges<'me, 'info>(
+    accounts: CloseOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    close_operator_account_verify_is_writable_privileges(accounts)?;
+    close_operator_account_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+ 
+
 pub const CLOSE_CLAIM_FEE_OPERATOR_IX_ACCOUNTS_LEN: usize = 5;
 
 #[derive(Copy, Clone, Debug)]
@@ -1532,268 +2433,7 @@ pub fn close_claim_fee_operator_verify_account_privileges<'me, 'info>(
     close_claim_fee_operator_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
-pub const CREATE_CLAIM_FEE_OPERATION_IX_ACCOUNTS_LEN: usize = 6;
 
-#[derive(Copy, Clone, Debug)]
-pub struct CreateClaimFeeOperationAccounts<'me, 'info> {
-    pub claim_fee_operator: &'me AccountInfo<'info>,
-    pub operator: &'me AccountInfo<'info>,
-    pub admin: &'me AccountInfo<'info>,
-    pub system_program: &'me AccountInfo<'info>,
-    pub event_authority: &'me AccountInfo<'info>,
-    pub program: &'me AccountInfo<'info>,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct CreateClaimFeeOperationKeys {
-    pub claim_fee_operator: Pubkey,
-    pub operator: Pubkey,
-    pub admin: Pubkey,
-    pub system_program: Pubkey,
-    pub event_authority: Pubkey,
-    pub program: Pubkey,
-}
-
-impl From<CreateClaimFeeOperationAccounts<'_, '_>> for CreateClaimFeeOperationKeys {
-    fn from(accounts: CreateClaimFeeOperationAccounts) -> Self {
-        Self {
-            claim_fee_operator: *accounts.claim_fee_operator.key,
-            operator: *accounts.operator.key,
-            admin: *accounts.admin.key,
-            system_program: *accounts.system_program.key,
-            event_authority: *accounts.event_authority.key,
-            program: *accounts.program.key,
-        }
-    }
-}
-
-impl From<CreateClaimFeeOperationKeys>
-    for [AccountMeta; CREATE_CLAIM_FEE_OPERATION_IX_ACCOUNTS_LEN]
-{
-    fn from(keys: CreateClaimFeeOperationKeys) -> Self {
-        [
-            AccountMeta {
-                pubkey: keys.claim_fee_operator,
-                is_signer: false,
-                is_writable: true,
-            },
-            AccountMeta {
-                pubkey: keys.operator,
-                is_signer: false,
-                is_writable: false,
-            },
-            AccountMeta {
-                pubkey: keys.admin,
-                is_signer: true,
-                is_writable: true,
-            },
-            AccountMeta {
-                pubkey: keys.system_program,
-                is_signer: false,
-                is_writable: false,
-            },
-            AccountMeta {
-                pubkey: keys.event_authority,
-                is_signer: false,
-                is_writable: false,
-            },
-            AccountMeta {
-                pubkey: keys.program,
-                is_signer: false,
-                is_writable: false,
-            },
-        ]
-    }
-}
-
-impl From<[Pubkey; CREATE_CLAIM_FEE_OPERATION_IX_ACCOUNTS_LEN]> for CreateClaimFeeOperationKeys {
-    fn from(pubkeys: [Pubkey; CREATE_CLAIM_FEE_OPERATION_IX_ACCOUNTS_LEN]) -> Self {
-        Self {
-            claim_fee_operator: pubkeys[0],
-            operator: pubkeys[1],
-            admin: pubkeys[2],
-            system_program: pubkeys[3],
-            event_authority: pubkeys[4],
-            program: pubkeys[5],
-        }
-    }
-}
-
-impl<'info> From<CreateClaimFeeOperationAccounts<'_, 'info>>
-    for [AccountInfo<'info>; CREATE_CLAIM_FEE_OPERATION_IX_ACCOUNTS_LEN]
-{
-    fn from(accounts: CreateClaimFeeOperationAccounts<'_, 'info>) -> Self {
-        [
-            accounts.claim_fee_operator.clone(),
-            accounts.operator.clone(),
-            accounts.admin.clone(),
-            accounts.system_program.clone(),
-            accounts.event_authority.clone(),
-            accounts.program.clone(),
-        ]
-    }
-}
-
-impl<'me, 'info>
-    From<&'me [AccountInfo<'info>; CREATE_CLAIM_FEE_OPERATION_IX_ACCOUNTS_LEN]>
-    for CreateClaimFeeOperationAccounts<'me, 'info>
-{
-    fn from(
-        arr: &'me [AccountInfo<'info>; CREATE_CLAIM_FEE_OPERATION_IX_ACCOUNTS_LEN],
-    ) -> Self {
-        Self {
-            claim_fee_operator: &arr[0],
-            operator: &arr[1],
-            admin: &arr[2],
-            system_program: &arr[3],
-            event_authority: &arr[4],
-            program: &arr[5],
-        }
-    }
-}
-
-pub const CREATE_CLAIM_FEE_OPERATION_IX_DISCM: [u8; 8] = [169, 62, 207, 107, 58, 187, 162, 109];
-
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateClaimFeeOperationIxArgs {}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct CreateClaimFeeOperationIxData;
-
-impl From<CreateClaimFeeOperationIxArgs> for CreateClaimFeeOperationIxData {
-    fn from(_args: CreateClaimFeeOperationIxArgs) -> Self {
-        Self
-    }
-}
-
-impl CreateClaimFeeOperationIxData {
-    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
-        let mut reader = buf;
-        let mut maybe_discm = [0u8; 8];
-        reader.read_exact(&mut maybe_discm)?;
-        if maybe_discm != CREATE_CLAIM_FEE_OPERATION_IX_DISCM {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!(
-                    "discm does not match. Expected: {:?}. Received: {:?}",
-                    CREATE_CLAIM_FEE_OPERATION_IX_DISCM, maybe_discm
-                ),
-            ));
-        }
-        Ok(Self)
-    }
-    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        writer.write_all(&CREATE_CLAIM_FEE_OPERATION_IX_DISCM)?;
-        Ok(())
-    }
-    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
-        let mut data = Vec::new();
-        self.serialize(&mut data)?;
-        Ok(data)
-    }
-}
-
-pub fn create_claim_fee_operation_ix_with_program_id(
-    program_id: Pubkey,
-    keys: CreateClaimFeeOperationKeys,
-) -> std::io::Result<Instruction> {
-    let metas: [AccountMeta; CREATE_CLAIM_FEE_OPERATION_IX_ACCOUNTS_LEN] = keys.into();
-    let data: CreateClaimFeeOperationIxData = CreateClaimFeeOperationIxArgs {}.into();
-    Ok(Instruction {
-        program_id,
-        accounts: Vec::from(metas),
-        data: data.try_to_vec()?,
-    })
-}
-
-pub fn create_claim_fee_operation_ix(
-    keys: CreateClaimFeeOperationKeys,
-) -> std::io::Result<Instruction> {
-    create_claim_fee_operation_ix_with_program_id(crate::ID, keys)
-}
-
-pub fn create_claim_fee_operation_invoke_with_program_id(
-    program_id: Pubkey,
-    accounts: CreateClaimFeeOperationAccounts<'_, '_>,
-) -> ProgramResult {
-    let keys: CreateClaimFeeOperationKeys = accounts.into();
-    let ix = create_claim_fee_operation_ix_with_program_id(program_id, keys)?;
-    invoke_instruction(&ix, accounts)
-}
-
-pub fn create_claim_fee_operation_invoke(
-    accounts: CreateClaimFeeOperationAccounts<'_, '_>,
-) -> ProgramResult {
-    create_claim_fee_operation_invoke_with_program_id(crate::ID, accounts)
-}
-
-pub fn create_claim_fee_operation_invoke_signed_with_program_id(
-    program_id: Pubkey,
-    accounts: CreateClaimFeeOperationAccounts<'_, '_>,
-    seeds: &[&[&[u8]]],
-) -> ProgramResult {
-    let keys: CreateClaimFeeOperationKeys = accounts.into();
-    let ix = create_claim_fee_operation_ix_with_program_id(program_id, keys)?;
-    invoke_instruction_signed(&ix, accounts, seeds)
-}
-
-pub fn create_claim_fee_operation_invoke_signed(
-    accounts: CreateClaimFeeOperationAccounts<'_, '_>,
-    seeds: &[&[&[u8]]],
-) -> ProgramResult {
-    create_claim_fee_operation_invoke_signed_with_program_id(crate::ID, accounts, seeds)
-}
-
-pub fn create_claim_fee_operation_verify_account_keys(
-    accounts: CreateClaimFeeOperationAccounts<'_, '_>,
-    keys: CreateClaimFeeOperationKeys,
-) -> Result<(), (Pubkey, Pubkey)> {
-    for (actual, expected) in [
-        (*accounts.claim_fee_operator.key, keys.claim_fee_operator),
-        (*accounts.operator.key, keys.operator),
-        (*accounts.admin.key, keys.admin),
-        (*accounts.system_program.key, keys.system_program),
-        (*accounts.event_authority.key, keys.event_authority),
-        (*accounts.program.key, keys.program),
-    ] {
-        if actual != expected {
-            return Err((actual, expected));
-        }
-    }
-    Ok(())
-}
-
-pub fn create_claim_fee_operation_verify_is_writable_privileges<'me, 'info>(
-    accounts: CreateClaimFeeOperationAccounts<'me, 'info>,
-) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
-    for acct in [
-        accounts.claim_fee_operator,
-        accounts.admin,
-    ] {
-        if !acct.is_writable {
-            return Err((acct, ProgramError::InvalidAccountData));
-        }
-    }
-    Ok(())
-}
-
-pub fn create_claim_fee_operation_verify_is_signer_privileges<'me, 'info>(
-    accounts: CreateClaimFeeOperationAccounts<'me, 'info>,
-) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
-    if !accounts.admin.is_signer {
-        return Err((accounts.admin, ProgramError::MissingRequiredSignature));
-    }
-    Ok(())
-}
-
-pub fn create_claim_fee_operator_verify_account_privileges<'me, 'info>(
-    accounts: CreateClaimFeeOperationAccounts<'me, 'info>,
-) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
-    create_claim_fee_operation_verify_is_writable_privileges(accounts)?;
-    create_claim_fee_operation_verify_is_signer_privileges(accounts)?;
-    Ok(())
-}
 pub const CREATE_CONFIG_IX_ACCOUNTS_LEN: usize = 8;
 
 #[derive(Copy, Clone, Debug)]
@@ -2456,6 +3096,260 @@ pub fn create_locker_verify_account_privileges<'me, 'info>(
     create_locker_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
+
+pub const CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN: usize = 7;
+ 
+#[derive(Copy, Clone, Debug)]
+pub struct CreateOperatorAccountAccounts<'me, 'info> {
+    pub operator: &'me AccountInfo<'info>,
+    pub whitelisted_address: &'me AccountInfo<'info>,
+    pub signer: &'me AccountInfo<'info>,
+    pub payer: &'me AccountInfo<'info>,
+    pub system_program: &'me AccountInfo<'info>,
+    pub event_authority: &'me AccountInfo<'info>,
+    pub program: &'me AccountInfo<'info>,
+}
+ 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CreateOperatorAccountKeys {
+    pub operator: Pubkey,
+    pub whitelisted_address: Pubkey,
+    pub signer: Pubkey,
+    pub payer: Pubkey,
+    pub system_program: Pubkey,
+    pub event_authority: Pubkey,
+    pub program: Pubkey,
+}
+ 
+impl From<CreateOperatorAccountAccounts<'_, '_>> for CreateOperatorAccountKeys {
+    fn from(accounts: CreateOperatorAccountAccounts) -> Self {
+        Self {
+            operator: *accounts.operator.key,
+            whitelisted_address: *accounts.whitelisted_address.key,
+            signer: *accounts.signer.key,
+            payer: *accounts.payer.key,
+            system_program: *accounts.system_program.key,
+            event_authority: *accounts.event_authority.key,
+            program: *accounts.program.key,
+        }
+    }
+}
+ 
+impl From<CreateOperatorAccountKeys>
+    for [AccountMeta; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: CreateOperatorAccountKeys) -> Self {
+        [
+            AccountMeta { pubkey: keys.operator, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.whitelisted_address, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.signer, is_signer: true, is_writable: false },
+            AccountMeta { pubkey: keys.payer, is_signer: true, is_writable: true },
+            AccountMeta { pubkey: keys.system_program, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.event_authority, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.program, is_signer: false, is_writable: false },
+        ]
+    }
+}
+ 
+impl From<[Pubkey; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]> for CreateOperatorAccountKeys {
+    fn from(pubkeys: [Pubkey; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            operator: pubkeys[0],
+            whitelisted_address: pubkeys[1],
+            signer: pubkeys[2],
+            payer: pubkeys[3],
+            system_program: pubkeys[4],
+            event_authority: pubkeys[5],
+            program: pubkeys[6],
+        }
+    }
+}
+ 
+impl<'info> From<CreateOperatorAccountAccounts<'_, 'info>>
+    for [AccountInfo<'info>; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: CreateOperatorAccountAccounts<'_, 'info>) -> Self {
+        [
+            accounts.operator.clone(),
+            accounts.whitelisted_address.clone(),
+            accounts.signer.clone(),
+            accounts.payer.clone(),
+            accounts.system_program.clone(),
+            accounts.event_authority.clone(),
+            accounts.program.clone(),
+        ]
+    }
+}
+ 
+impl<'me, 'info>
+    From<&'me [AccountInfo<'info>; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]>
+    for CreateOperatorAccountAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            operator: &arr[0],
+            whitelisted_address: &arr[1],
+            signer: &arr[2],
+            payer: &arr[3],
+            system_program: &arr[4],
+            event_authority: &arr[5],
+            program: &arr[6],
+        }
+    }
+}
+ 
+pub const CREATE_OPERATOR_ACCOUNT_IX_DISCM: [u8; 8] = [221, 64, 246, 149, 240, 153, 229, 163];
+ 
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CreateOperatorAccountIxArgs {
+    pub permission: u128,
+}
+ 
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreateOperatorAccountIxData(pub CreateOperatorAccountIxArgs);
+ 
+impl From<CreateOperatorAccountIxArgs> for CreateOperatorAccountIxData {
+    fn from(args: CreateOperatorAccountIxArgs) -> Self {
+        Self(args)
+    }
+}
+ 
+impl CreateOperatorAccountIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != CREATE_OPERATOR_ACCOUNT_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    CREATE_OPERATOR_ACCOUNT_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(CreateOperatorAccountIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&CREATE_OPERATOR_ACCOUNT_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+ 
+pub fn create_operator_account_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CreateOperatorAccountKeys,
+    args: CreateOperatorAccountIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; CREATE_OPERATOR_ACCOUNT_IX_ACCOUNTS_LEN] = keys.into();
+    let data: CreateOperatorAccountIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+ 
+pub fn create_operator_account_ix(
+    keys: CreateOperatorAccountKeys,
+    args: CreateOperatorAccountIxArgs,
+) -> std::io::Result<Instruction> {
+    create_operator_account_ix_with_program_id(crate::ID, keys, args)
+}
+ 
+pub fn create_operator_account_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    args: CreateOperatorAccountIxArgs,
+) -> ProgramResult {
+    let keys: CreateOperatorAccountKeys = accounts.into();
+    let ix = create_operator_account_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+ 
+pub fn create_operator_account_invoke(
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    args: CreateOperatorAccountIxArgs,
+) -> ProgramResult {
+    create_operator_account_invoke_with_program_id(crate::ID, accounts, args)
+}
+ 
+pub fn create_operator_account_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    args: CreateOperatorAccountIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: CreateOperatorAccountKeys = accounts.into();
+    let ix = create_operator_account_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+ 
+pub fn create_operator_account_invoke_signed(
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    args: CreateOperatorAccountIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    create_operator_account_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+ 
+pub fn create_operator_account_verify_account_keys(
+    accounts: CreateOperatorAccountAccounts<'_, '_>,
+    keys: CreateOperatorAccountKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.operator.key, keys.operator),
+        (*accounts.whitelisted_address.key, keys.whitelisted_address),
+        (*accounts.signer.key, keys.signer),
+        (*accounts.payer.key, keys.payer),
+        (*accounts.system_program.key, keys.system_program),
+        (*accounts.event_authority.key, keys.event_authority),
+        (*accounts.program.key, keys.program),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn create_operator_account_verify_is_writable_privileges<'me, 'info>(
+    accounts: CreateOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for acct in [accounts.operator, accounts.payer] {
+        if !acct.is_writable {
+            return Err((acct, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn create_operator_account_verify_is_signer_privileges<'me, 'info>(
+    accounts: CreateOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for acct in [accounts.signer, accounts.payer] {
+        if !acct.is_signer {
+            return Err((acct, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn create_operator_account_verify_account_privileges<'me, 'info>(
+    accounts: CreateOperatorAccountAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    create_operator_account_verify_is_writable_privileges(accounts)?;
+    create_operator_account_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+ 
+
 pub const CREATE_PARTNER_METADATA_IX_ACCOUNTS_LEN: usize = 6;
 
 #[derive(Copy, Clone, Debug)]
@@ -8485,5 +9379,275 @@ pub fn withdraw_migration_fee_verify_account_privileges<'me, 'info>(
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     withdraw_migration_fee_verify_is_writable_privileges(accounts)?;
     withdraw_migration_fee_verify_is_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const ZAP_PROTOCOL_FEE_IX_ACCOUNTS_LEN: usize = 10;
+ 
+#[derive(Copy, Clone, Debug)]
+pub struct ZapProtocolFeeAccounts<'me, 'info> {
+    pub pool_authority: &'me AccountInfo<'info>,
+    pub config: &'me AccountInfo<'info>,
+    pub pool: &'me AccountInfo<'info>,
+    pub token_vault: &'me AccountInfo<'info>,
+    pub token_mint: &'me AccountInfo<'info>,
+    pub receiver_token: &'me AccountInfo<'info>,
+    pub operator: &'me AccountInfo<'info>,
+    pub signer: &'me AccountInfo<'info>,
+    pub token_program: &'me AccountInfo<'info>,
+    pub sysvar_instructions: &'me AccountInfo<'info>,
+}
+ 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ZapProtocolFeeKeys {
+    pub pool_authority: Pubkey,
+    pub config: Pubkey,
+    pub pool: Pubkey,
+    pub token_vault: Pubkey,
+    pub token_mint: Pubkey,
+    pub receiver_token: Pubkey,
+    pub operator: Pubkey,
+    pub signer: Pubkey,
+    pub token_program: Pubkey,
+    pub sysvar_instructions: Pubkey,
+}
+ 
+impl From<ZapProtocolFeeAccounts<'_, '_>> for ZapProtocolFeeKeys {
+    fn from(accounts: ZapProtocolFeeAccounts) -> Self {
+        Self {
+            pool_authority: *accounts.pool_authority.key,
+            config: *accounts.config.key,
+            pool: *accounts.pool.key,
+            token_vault: *accounts.token_vault.key,
+            token_mint: *accounts.token_mint.key,
+            receiver_token: *accounts.receiver_token.key,
+            operator: *accounts.operator.key,
+            signer: *accounts.signer.key,
+            token_program: *accounts.token_program.key,
+            sysvar_instructions: *accounts.sysvar_instructions.key,
+        }
+    }
+}
+ 
+impl From<ZapProtocolFeeKeys> for [AccountMeta; ZAP_PROTOCOL_FEE_IX_ACCOUNTS_LEN] {
+    fn from(keys: ZapProtocolFeeKeys) -> Self {
+        [
+            AccountMeta { pubkey: keys.pool_authority, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.config, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.pool, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.token_vault, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.token_mint, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.receiver_token, is_signer: false, is_writable: true },
+            AccountMeta { pubkey: keys.operator, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.signer, is_signer: true, is_writable: false },
+            AccountMeta { pubkey: keys.token_program, is_signer: false, is_writable: false },
+            AccountMeta { pubkey: keys.sysvar_instructions, is_signer: false, is_writable: false },
+        ]
+    }
+}
+ 
+impl From<[Pubkey; ZAP_PROTOCOL_FEE_IX_ACCOUNTS_LEN]> for ZapProtocolFeeKeys {
+    fn from(pubkeys: [Pubkey; ZAP_PROTOCOL_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool_authority: pubkeys[0],
+            config: pubkeys[1],
+            pool: pubkeys[2],
+            token_vault: pubkeys[3],
+            token_mint: pubkeys[4],
+            receiver_token: pubkeys[5],
+            operator: pubkeys[6],
+            signer: pubkeys[7],
+            token_program: pubkeys[8],
+            sysvar_instructions: pubkeys[9],
+        }
+    }
+}
+ 
+impl<'info> From<ZapProtocolFeeAccounts<'_, 'info>>
+    for [AccountInfo<'info>; ZAP_PROTOCOL_FEE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: ZapProtocolFeeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.pool_authority.clone(),
+            accounts.config.clone(),
+            accounts.pool.clone(),
+            accounts.token_vault.clone(),
+            accounts.token_mint.clone(),
+            accounts.receiver_token.clone(),
+            accounts.operator.clone(),
+            accounts.signer.clone(),
+            accounts.token_program.clone(),
+            accounts.sysvar_instructions.clone(),
+        ]
+    }
+}
+ 
+impl<'me, 'info> From<&'me [AccountInfo<'info>; ZAP_PROTOCOL_FEE_IX_ACCOUNTS_LEN]>
+    for ZapProtocolFeeAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; ZAP_PROTOCOL_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            pool_authority: &arr[0],
+            config: &arr[1],
+            pool: &arr[2],
+            token_vault: &arr[3],
+            token_mint: &arr[4],
+            receiver_token: &arr[5],
+            operator: &arr[6],
+            signer: &arr[7],
+            token_program: &arr[8],
+            sysvar_instructions: &arr[9],
+        }
+    }
+}
+ 
+pub const ZAP_PROTOCOL_FEE_IX_DISCM: [u8; 8] = [213, 155, 187, 34, 56, 182, 91, 240];
+ 
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ZapProtocolFeeIxArgs {
+    pub max_amount: u64,
+}
+ 
+#[derive(Clone, Debug, PartialEq)]
+pub struct ZapProtocolFeeIxData(pub ZapProtocolFeeIxArgs);
+ 
+impl From<ZapProtocolFeeIxArgs> for ZapProtocolFeeIxData {
+    fn from(args: ZapProtocolFeeIxArgs) -> Self {
+        Self(args)
+    }
+}
+ 
+impl ZapProtocolFeeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm = [0u8; 8];
+        reader.read_exact(&mut maybe_discm)?;
+        if maybe_discm != ZAP_PROTOCOL_FEE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    ZAP_PROTOCOL_FEE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(ZapProtocolFeeIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&ZAP_PROTOCOL_FEE_IX_DISCM)?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+ 
+pub fn zap_protocol_fee_ix_with_program_id(
+    program_id: Pubkey,
+    keys: ZapProtocolFeeKeys,
+    args: ZapProtocolFeeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; ZAP_PROTOCOL_FEE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: ZapProtocolFeeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+ 
+pub fn zap_protocol_fee_ix(
+    keys: ZapProtocolFeeKeys,
+    args: ZapProtocolFeeIxArgs,
+) -> std::io::Result<Instruction> {
+    zap_protocol_fee_ix_with_program_id(crate::ID, keys, args)
+}
+ 
+pub fn zap_protocol_fee_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: ZapProtocolFeeAccounts<'_, '_>,
+    args: ZapProtocolFeeIxArgs,
+) -> ProgramResult {
+    let keys: ZapProtocolFeeKeys = accounts.into();
+    let ix = zap_protocol_fee_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+ 
+pub fn zap_protocol_fee_invoke(
+    accounts: ZapProtocolFeeAccounts<'_, '_>,
+    args: ZapProtocolFeeIxArgs,
+) -> ProgramResult {
+    zap_protocol_fee_invoke_with_program_id(crate::ID, accounts, args)
+}
+ 
+pub fn zap_protocol_fee_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: ZapProtocolFeeAccounts<'_, '_>,
+    args: ZapProtocolFeeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: ZapProtocolFeeKeys = accounts.into();
+    let ix = zap_protocol_fee_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+ 
+pub fn zap_protocol_fee_invoke_signed(
+    accounts: ZapProtocolFeeAccounts<'_, '_>,
+    args: ZapProtocolFeeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    zap_protocol_fee_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+ 
+pub fn zap_protocol_fee_verify_account_keys(
+    accounts: ZapProtocolFeeAccounts<'_, '_>,
+    keys: ZapProtocolFeeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (*accounts.pool_authority.key, keys.pool_authority),
+        (*accounts.config.key, keys.config),
+        (*accounts.pool.key, keys.pool),
+        (*accounts.token_vault.key, keys.token_vault),
+        (*accounts.token_mint.key, keys.token_mint),
+        (*accounts.receiver_token.key, keys.receiver_token),
+        (*accounts.operator.key, keys.operator),
+        (*accounts.signer.key, keys.signer),
+        (*accounts.token_program.key, keys.token_program),
+        (*accounts.sysvar_instructions.key, keys.sysvar_instructions),
+    ] {
+        if actual != expected {
+            return Err((actual, expected));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn zap_protocol_fee_verify_is_writable_privileges<'me, 'info>(
+    accounts: ZapProtocolFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for acct in [accounts.pool, accounts.token_vault, accounts.receiver_token] {
+        if !acct.is_writable {
+            return Err((acct, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+ 
+pub fn zap_protocol_fee_verify_is_signer_privileges<'me, 'info>(
+    accounts: ZapProtocolFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    if !accounts.signer.is_signer {
+        return Err((accounts.signer, ProgramError::MissingRequiredSignature));
+    }
+    Ok(())
+}
+ 
+pub fn zap_protocol_fee_verify_account_privileges<'me, 'info>(
+    accounts: ZapProtocolFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    zap_protocol_fee_verify_is_writable_privileges(accounts)?;
+    zap_protocol_fee_verify_is_signer_privileges(accounts)?;
     Ok(())
 }
