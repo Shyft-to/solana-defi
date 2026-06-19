@@ -1,29 +1,7 @@
 import "dotenv/config";
-import Client, {
-    CommitmentLevel,
-    SubscribeRequestAccountsDataSlice,
-    SubscribeRequestFilterAccounts,
-    SubscribeRequestFilterBlocks,
-    SubscribeRequestFilterBlocksMeta,
-    SubscribeRequestFilterEntry,
-    SubscribeRequestFilterSlots,
-    SubscribeRequestFilterTransactions,
-  } from "@triton-one/yellowstone-grpc";
-  import { SubscribeRequestPing } from "@triton-one/yellowstone-grpc/dist/grpc/geyser";
+import Client, {CommitmentLevel,SubscribeRequest} from "@triton-one/yellowstone-grpc";
 import { meteoraDlmmParsedAccount } from "./utils/meteora-dlmm-parsed-account";
  
-  interface SubscribeRequest {
-    accounts: { [key: string]: SubscribeRequestFilterAccounts };
-    slots: { [key: string]: SubscribeRequestFilterSlots };
-    transactions: { [key: string]: SubscribeRequestFilterTransactions };
-    transactionsStatus: { [key: string]: SubscribeRequestFilterTransactions };
-    blocks: { [key: string]: SubscribeRequestFilterBlocks };
-    blocksMeta: { [key: string]: SubscribeRequestFilterBlocksMeta };
-    entry: { [key: string]: SubscribeRequestFilterEntry };
-    commitment?: CommitmentLevel | undefined;
-    accountsDataSlice: SubscribeRequestAccountsDataSlice[];
-    ping?: SubscribeRequestPing | undefined;
-  } 
    
    const METEORA = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo';
 

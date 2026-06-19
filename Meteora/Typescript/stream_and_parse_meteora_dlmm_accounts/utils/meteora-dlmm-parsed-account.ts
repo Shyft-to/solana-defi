@@ -1,4 +1,4 @@
-import { BorshAccountsCoder } from "@project-serum/anchor";
+import { BorshAccountsCoder } from "@coral-xyz/anchor";
 import * as fs from 'fs';
 import base58 from "bs58";
 import { bnLayoutFormatter } from "./bn-layout-formatter";

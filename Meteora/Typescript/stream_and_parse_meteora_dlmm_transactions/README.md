@@ -11,7 +11,7 @@ This project streams real-time Meteora transactions via gRPC, efficiently parsin
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_and_parse_meteora_dlmm_instructions
+   cd Meteora/Typescript/stream_and_parse_meteora_dlmm_instructions
    ```
 
 2. **Install Dependencies:**
