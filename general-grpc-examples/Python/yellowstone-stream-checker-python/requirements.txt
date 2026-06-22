@@ -1,0 +1,5 @@
+grpcio>=1.62.0
+grpcio-tools>=1.62.0
+protobuf>=4.25.0
+python-dotenv>=1.0.0
+aiohttp>=3.9.0
