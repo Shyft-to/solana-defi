@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.py[cod]
+*.log
+
+# Generated proto stubs — produced by generate_proto.sh
+geyser_pb2.py
+geyser_pb2_grpc.py
+solana_storage_pb2.py
+solana_storage_pb2_grpc.py
+proto/geyser.proto
+proto/solana-storage.proto
