@@ -105,7 +105,7 @@ impl Verifier {
                 for sig in &expected_sigs {
                     if !grpc_sigs.contains(sig) {
                         println!(
-                            "  pubkey {pubkey} | TXN {sig} — in writable set, no gRPC update received (account may not have been modified)"
+                            "  pubkey {pubkey} | TXN {sig} — in writable set, account may not have been modified. No update from gRPC."
                         );
                     }
                 }
