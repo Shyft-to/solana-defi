@@ -74,7 +74,6 @@ async fn main() -> Result<()> {
         cfg.target_pubkeys.clone(),
         updates.clone(),
         start_slot.clone(),
-        cfg.sol_bal_check,
     ));
     let slot_handle = tokio::spawn(async move {
         while let Some(slot) = slot_rx.recv().await {
