@@ -25,6 +25,8 @@ pub struct Verifier {
     updates: Arc<DashMap<(u64, String), Vec<String>>>,
     // earliest slot for which we received a gRPC account update
     start_slot: Arc<AtomicU64>,
+    // when true, only count transactions where the account's SOL balance changed
+    sol_bal_check: bool,
 }
 
 impl Verifier {
@@ -33,12 +35,14 @@ impl Verifier {
         target_pubkeys: Vec<String>,
         updates: Arc<DashMap<(u64, String), Vec<String>>>,
         start_slot: Arc<AtomicU64>,
+        sol_bal_check: bool,
     ) -> Self {
         Self {
             rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), CommitmentConfig::finalized()),
             target_pubkeys,
             updates,
             start_slot,
+            sol_bal_check,
         }
     }
 
@@ -88,7 +92,7 @@ impl Verifier {
                 .unwrap_or_default();
             let grpc_count = grpc_sigs.len();
 
-            let expected_sigs = collect_writable_sigs(&txns, pubkey);
+            let expected_sigs = collect_writable_sigs(&txns, pubkey, self.sol_bal_check);
             let expected_count = expected_sigs.len();
 
             // No activity for this pubkey in this slot — skip silently.
@@ -124,9 +128,11 @@ impl Verifier {
 //   - succeeded (no error)
 //   - is not a vote transaction
 //   - has `target` as a writable account
+//   - (if sol_bal_check) the target's SOL balance actually changed
 fn collect_writable_sigs(
     txns: &[solana_transaction_status::EncodedTransactionWithStatusMeta],
     target: &str,
+    sol_bal_check: bool,
 ) -> Vec<String> {
     let mut sigs = Vec::new();
 
@@ -159,14 +165,37 @@ fn collect_writable_sigs(
             continue;
         }
 
-        let loaded_writable: Vec<String> = match &meta.loaded_addresses {
-            OptionSerializer::Some(la) => la.writable.clone(),
-            _ => vec![],
+        let (loaded_writable, loaded_readonly) = match &meta.loaded_addresses {
+            OptionSerializer::Some(la) => (la.writable.clone(), la.readonly.clone()),
+            _ => (vec![], vec![]),
         };
 
-        if is_writable(target, raw, &loaded_writable) {
-            sigs.push(sig);
+        if !is_writable(target, raw, &loaded_writable) {
+            continue;
         }
+
+        if sol_bal_check {
+            // Full account list order that pre/post_balances is indexed against:
+            //   static keys | ALT writable | ALT readonly
+            let idx = raw
+                .account_keys
+                .iter()
+                .map(String::as_str)
+                .chain(loaded_writable.iter().map(String::as_str))
+                .chain(loaded_readonly.iter().map(String::as_str))
+                .position(|k| k == target);
+
+            if let Some(i) = idx {
+                let pre = meta.pre_balances.get(i).copied().unwrap_or(0);
+                let post = meta.post_balances.get(i).copied().unwrap_or(0);
+                if pre == post {
+                    // Balance unchanged — Yellowstone correctly sent no update; skip.
+                    continue;
+                }
+            }
+        }
+
+        sigs.push(sig);
     }
 
     sigs

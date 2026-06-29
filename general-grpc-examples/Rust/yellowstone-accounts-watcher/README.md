@@ -154,6 +154,55 @@ To distinguish the two cases, compare the account's pre- and post-state for that
 
 ---
 
+## SOL Balance Change Check (`ENABLE_SOL_BAL_CHECK`)
+
+By default the tool counts any transaction where the watched pubkey appears in the **writable set** as an expected gRPC update. This can produce false positives: a transaction is allowed to declare an account writable without actually modifying it, and in that case Yellowstone correctly sends no update.
+
+Setting `ENABLE_SOL_BAL_CHECK=true` in `.env` adds a tighter filter. Before counting a transaction as "expected", the tool checks whether the account's SOL balance actually changed in that transaction.
+
+### How the check works
+
+For each transaction where the pubkey is in the writable set, the tool looks up the account's index in the combined account list and compares the pre- and post-balances:
+
+```
+Full account list order (matches pre/post_balances index):
+  [ static keys | ALT writable | ALT readonly ]
+
+index = position of pubkey in this combined list
+
+pre_balance  = meta.preBalances[index]
+post_balance = meta.postBalances[index]
+delta        = post_balance - pre_balance
+
+if delta == 0 → balance unchanged → exclude from expected set
+if delta != 0 → balance changed   → include in expected set
+```
+
+A transaction is only counted as an expected gRPC update if `delta != 0`.
+
+### With the check disabled (default)
+
+```
+rpc_writable = all successful, non-vote txns where pubkey is in the writable set
+```
+
+A `NO_GRPC_UPDATE` result may be a true delivery gap **or** a transaction that declared the account writable without actually modifying it.
+
+### With the check enabled
+
+```
+rpc_writable = successful, non-vote txns where pubkey is in the writable set
+               AND pre_balance != post_balance
+```
+
+A `NO_GRPC_UPDATE` result is much more likely to be a real delivery gap, since the account's lamport balance genuinely changed and Yellowstone should have fired.
+
+### Trade-off
+
+SOL balance is only one dimension of account state. Yellowstone also fires updates when **account data** changes (e.g. a pool updating its reserve fields) even if lamports stay the same. Enabling this check will suppress those cases — they will not appear in `rpc_writable` and will not be flagged even if no gRPC update arrived. If the accounts you are watching are modified primarily through data changes rather than lamport transfers, leave this check disabled.
+
+---
+
 ## Architecture
 
 ```
