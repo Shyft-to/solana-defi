@@ -13,7 +13,7 @@ use yellowstone_grpc_proto::prelude::{
     SubscribeUpdate,
 };
 
-use crate::config::Config;
+use crate::config::{Commitment, Config};
 
 const PING_INTERVAL: Duration = Duration::from_secs(15);
 
@@ -71,7 +71,7 @@ async fn run_stream(
         .await
         .context("failed to connect to Yellowstone gRPC")?;
 
-    let request = build_request(&cfg.target_pubkeys);
+    let request = build_request(&cfg.target_pubkeys, cfg.grpc_commitment);
     let (mut sink, mut stream) = client
         .subscribe_with_request(Some(request))
         .await
@@ -113,7 +113,7 @@ async fn run_stream(
     }
 }
 
-fn build_request(target_pubkeys: &[String]) -> SubscribeRequest {
+fn build_request(target_pubkeys: &[String], grpc_commitment: Commitment) -> SubscribeRequest {
     let acct_filter = SubscribeRequestFilterAccounts {
         account: target_pubkeys.to_vec(),
         owner: vec![],
@@ -124,6 +124,11 @@ fn build_request(target_pubkeys: &[String]) -> SubscribeRequest {
     let slot_filter = SubscribeRequestFilterSlots {
         filter_by_commitment: None,
         interslot_updates: None,
+    };
+
+    let commitment_level = match grpc_commitment {
+        Commitment::Confirmed => CommitmentLevel::Confirmed as i32,
+        Commitment::Finalized => CommitmentLevel::Finalized as i32,
     };
 
     SubscribeRequest {
@@ -143,7 +148,7 @@ fn build_request(target_pubkeys: &[String]) -> SubscribeRequest {
         blocks_meta: HashMap::new(),
         entry: HashMap::new(),
         accounts_data_slice: vec![],
-        commitment: Some(CommitmentLevel::Confirmed as i32),
+        commitment: Some(commitment_level),
         ping: None,
         from_slot: None,
     }

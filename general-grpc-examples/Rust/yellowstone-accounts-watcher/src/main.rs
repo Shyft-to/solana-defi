@@ -32,9 +32,11 @@ async fn main() -> Result<()> {
 
     let cfg = Config::from_env()?;
     info!(
-        "verifier started — targets={} rpc={}",
+        "verifier started — targets={} rpc={} grpc_commitment={} rpc_commitment={}",
         cfg.target_pubkeys.join(", "),
-        cfg.rpc_endpoint
+        cfg.rpc_endpoint,
+        cfg.grpc_commitment,
+        cfg.rpc_commitment,
     );
 
     // Shared map: (slot, pubkey) → list of txn signatures delivered by gRPC for that pubkey.
@@ -76,6 +78,7 @@ async fn main() -> Result<()> {
         &cfg.rpc_endpoint,
         cfg.target_pubkeys.clone(),
         account_states.clone(),
+        cfg.rpc_commitment,
     );
     let fetch_handle = tokio::spawn(fetcher.run(fetch_slot_rx));
 
@@ -92,6 +95,7 @@ async fn main() -> Result<()> {
     let (slot_tx, mut slot_rx) = mpsc::channel::<u64>(65_536);
     let verifier = Arc::new(Verifier::new(
         &cfg.rpc_endpoint,
+        cfg.rpc_commitment,
         cfg.target_pubkeys.clone(),
         updates.clone(),
         start_slot.clone(),

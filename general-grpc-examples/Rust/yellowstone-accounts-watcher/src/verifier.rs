@@ -14,6 +14,7 @@ use solana_transaction_status::{
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
+use crate::config::Commitment;
 use crate::fetcher::AccountStateMap;
 
 const VOTE_PROGRAM_ID: &str = "Vote111111111111111111111111111111111111111111";
@@ -23,6 +24,7 @@ const RPC_LAG_SECS: u64 = 2;
 
 pub struct Verifier {
     rpc: RpcClient,
+    rpc_commitment: Commitment,
     target_pubkeys: Vec<String>,
     // (slot, pubkey) → list of txn signatures delivered by gRPC for that pubkey in that slot
     updates: Arc<DashMap<(u64, String), Vec<String>>>,
@@ -37,14 +39,20 @@ pub struct Verifier {
 impl Verifier {
     pub fn new(
         rpc_url: &str,
+        rpc_commitment: Commitment,
         target_pubkeys: Vec<String>,
         updates: Arc<DashMap<(u64, String), Vec<String>>>,
         start_slot: Arc<AtomicU64>,
         account_states: AccountStateMap,
         pending_tx: mpsc::Sender<(u64, String)>,
     ) -> Self {
+        let commitment_config = match rpc_commitment {
+            Commitment::Confirmed => CommitmentConfig::confirmed(),
+            Commitment::Finalized => CommitmentConfig::finalized(),
+        };
         Self {
-            rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), CommitmentConfig::finalized()),
+            rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), commitment_config),
+            rpc_commitment,
             target_pubkeys,
             updates,
             start_slot,
@@ -63,11 +71,15 @@ impl Verifier {
 
         tokio::time::sleep(Duration::from_secs(RPC_LAG_SECS)).await;
 
+        let commitment_config = match self.rpc_commitment {
+            Commitment::Confirmed => CommitmentConfig::confirmed(),
+            Commitment::Finalized => CommitmentConfig::finalized(),
+        };
         let config = RpcBlockConfig {
             encoding: Some(UiTransactionEncoding::Json),
             transaction_details: Some(TransactionDetails::Full),
             rewards: Some(false),
-            commitment: Some(CommitmentConfig::finalized()),
+            commitment: Some(commitment_config),
             max_supported_transaction_version: Some(0),
         };
 

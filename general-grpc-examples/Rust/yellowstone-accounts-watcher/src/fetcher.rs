@@ -8,6 +8,8 @@ use solana_sdk::pubkey::Pubkey;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
+use crate::config::Commitment;
+
 /// (slot, pubkey) → account data bytes at that slot (None if account does not exist).
 pub type AccountStateMap = Arc<DashMap<(u64, String), Option<Vec<u8>>>>;
 
@@ -19,13 +21,22 @@ pub struct AccountFetcher {
 }
 
 impl AccountFetcher {
-    pub fn new(rpc_url: &str, target_pubkeys: Vec<String>, states: AccountStateMap) -> Self {
+    pub fn new(
+        rpc_url: &str,
+        target_pubkeys: Vec<String>,
+        states: AccountStateMap,
+        rpc_commitment: Commitment,
+    ) -> Self {
+        let commitment_config = match rpc_commitment {
+            Commitment::Confirmed => CommitmentConfig::confirmed(),
+            Commitment::Finalized => CommitmentConfig::finalized(),
+        };
         let pubkeys = target_pubkeys
             .iter()
             .filter_map(|s| Pubkey::from_str(s).ok())
             .collect();
         Self {
-            rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), CommitmentConfig::finalized()),
+            rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), commitment_config),
             pubkeys,
             pubkey_strs: target_pubkeys,
             states,
