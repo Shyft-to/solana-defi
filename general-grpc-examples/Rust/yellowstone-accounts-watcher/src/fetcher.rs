@@ -40,8 +40,8 @@ impl AccountFetcher {
             let f = this.clone();
             tokio::spawn(async move {
                 f.fetch_slot(slot).await;
-                // Keep only the last two slots in memory so the map doesn't grow unboundedly.
-                let stale = slot.saturating_sub(2);
+                // Keep the last 50 slots so the comparison worker has time to read them.
+                let stale = slot.saturating_sub(50);
                 for pk in &f.pubkey_strs {
                     f.states.remove(&(stale, pk.clone()));
                 }

@@ -11,7 +11,8 @@ use solana_transaction_status::{
     option_serializer::OptionSerializer, EncodedTransaction, TransactionDetails, UiMessage,
     UiRawMessage, UiTransactionEncoding,
 };
-use tracing::warn;
+use tokio::sync::mpsc;
+use tracing::{info, warn};
 
 use crate::fetcher::AccountStateMap;
 
@@ -29,6 +30,8 @@ pub struct Verifier {
     start_slot: Arc<AtomicU64>,
     // (slot, pubkey) → account data snapshot taken when that slot finalized
     account_states: AccountStateMap,
+    // pending comparisons whose account data wasn't ready yet
+    pending_tx: mpsc::Sender<(u64, String)>,
 }
 
 impl Verifier {
@@ -38,6 +41,7 @@ impl Verifier {
         updates: Arc<DashMap<(u64, String), Vec<String>>>,
         start_slot: Arc<AtomicU64>,
         account_states: AccountStateMap,
+        pending_tx: mpsc::Sender<(u64, String)>,
     ) -> Self {
         Self {
             rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), CommitmentConfig::finalized()),
@@ -45,6 +49,7 @@ impl Verifier {
             updates,
             start_slot,
             account_states,
+            pending_tx,
         }
     }
 
@@ -115,7 +120,7 @@ impl Verifier {
                         );
                     }
                 }
-                self.compare_account_states(slot, pubkey).await;
+                self.compare_account_states(slot, pubkey);
             } else {
                 println!(
                     "SLOT {slot} | pubkey {pubkey} | gRPC: {grpc_count} | rpc_writable: {expected_count} | OK"
@@ -126,44 +131,60 @@ impl Verifier {
         }
     }
 
-    /// Compares the account data snapshot at `slot - 1` against `slot`.
-    /// Called only on NO_GRPC_UPDATE to determine whether the account was
-    /// actually modified (real delivery gap) or just listed as writable without
-    /// a state change (expected no-op from Yellowstone's perspective).
-    ///
-    /// Polls for up to 5 s to let the AccountFetcher's RPC call complete.
-    async fn compare_account_states(&self, slot: u64, pubkey: &str) {
-        // Wait for the fetcher to populate data for this slot (max 5s, 500ms steps).
-        for _ in 0..10 {
-            if self.account_states.contains_key(&(slot, pubkey.to_owned())) {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(500)).await;
-        }
-
-        let prev = self.account_states.get(&(slot.saturating_sub(1), pubkey.to_owned()));
-        let curr = self.account_states.get(&(slot, pubkey.to_owned()));
-
-        match (prev, curr) {
-            (Some(p), Some(c)) => {
-                if p.value() != c.value() {
-                    println!(
-                        "  ERROR pubkey {pubkey} | account data CHANGED between slot {} and {slot} — likely a real gRPC delivery gap",
-                        slot.saturating_sub(1)
-                    );
-                } else {
-                    println!(
-                        "  INFO  pubkey {pubkey} | account data UNCHANGED in slot {slot} — writable-but-no-modify, no real gap"
-                    );
-                }
-            }
-            _ => {
-                println!(
-                    "  WARN  pubkey {pubkey} | account state snapshot not available for slot {slot} after 5s — cannot compare"
-                );
-            }
+    /// Try to compare immediately; if the fetcher hasn't stored the snapshot yet,
+    /// push to the pending queue so the comparison worker retries until data arrives.
+    fn compare_account_states(&self, slot: u64, pubkey: &str) {
+        if !try_compare(slot, pubkey, &self.account_states) {
+            self.pending_tx.try_send((slot, pubkey.to_owned())).ok();
         }
     }
+}
+
+/// Check if both slot and slot-1 snapshots exist and print the comparison result.
+/// Returns true if the comparison was performed, false if data isn't ready yet.
+fn try_compare(slot: u64, pubkey: &str, states: &AccountStateMap) -> bool {
+    let prev = states.get(&(slot.saturating_sub(1), pubkey.to_owned()));
+    let curr = states.get(&(slot, pubkey.to_owned()));
+    match (prev, curr) {
+        (Some(p), Some(c)) => {
+            if p.value() != c.value() {
+                println!(
+                    "  ERROR pubkey {pubkey} | account data CHANGED between slot {} and {slot} — likely a real gRPC delivery gap",
+                    slot.saturating_sub(1)
+                );
+            } else {
+                println!(
+                    "  INFO  pubkey {pubkey} | account data UNCHANGED in slot {slot} — writable-but-no-modify, no real gap"
+                );
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Runs in its own task. Receives (slot, pubkey) pairs where account data wasn't
+/// ready at verification time, and retries the comparison until data arrives
+/// (up to 30 s).
+pub async fn run_comparison_worker(
+    mut pending_rx: mpsc::Receiver<(u64, String)>,
+    account_states: AccountStateMap,
+) {
+    while let Some((slot, pubkey)) = pending_rx.recv().await {
+        let states = account_states.clone();
+        tokio::spawn(async move {
+            for _ in 0..60 {
+                if try_compare(slot, &pubkey, &states) {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+            println!(
+                "  WARN  pubkey {pubkey} | account data for slot {slot} never arrived after 30s — cannot compare"
+            );
+        });
+    }
+    info!("comparison worker channel closed");
 }
 
 // Collect the primary signature of every transaction in the block that:

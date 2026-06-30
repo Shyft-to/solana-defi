@@ -15,7 +15,7 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use config::Config;
 use fetcher::{AccountFetcher, AccountStateMap};
 use stream::{spawn_stream, AccountUpdate};
-use verifier::Verifier;
+use verifier::{run_comparison_worker, Verifier};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -79,7 +79,14 @@ async fn main() -> Result<()> {
     );
     let fetch_handle = tokio::spawn(fetcher.run(fetch_slot_rx));
 
-    // ── Thread 3: slot verification ──────────────────────────────────────────
+    // ── Thread 3: pending comparison worker ─────────────────────────────────
+    // Retries (slot, pubkey) comparisons that were enqueued because the
+    // account-state snapshot wasn't ready when the verifier first checked.
+    let (pending_tx, pending_rx) = mpsc::channel::<(u64, String)>(65_536);
+    let compare_handle =
+        tokio::spawn(run_comparison_worker(pending_rx, account_states.clone()));
+
+    // ── Thread 4: slot verification ──────────────────────────────────────────
     // Receives finalized slot numbers and cross-checks the gRPC-observed
     // signatures against the on-chain block via JSON-RPC.
     let (slot_tx, mut slot_rx) = mpsc::channel::<u64>(65_536);
@@ -89,6 +96,7 @@ async fn main() -> Result<()> {
         updates.clone(),
         start_slot.clone(),
         account_states.clone(),
+        pending_tx,
     ));
     let slot_handle = tokio::spawn(async move {
         while let Some(slot) = slot_rx.recv().await {
@@ -102,7 +110,7 @@ async fn main() -> Result<()> {
 
     spawn_stream(cfg, account_tx, slot_tx, fetch_slot_tx);
 
-    tokio::try_join!(account_handle, fetch_handle, slot_handle)?;
+    tokio::try_join!(account_handle, fetch_handle, compare_handle, slot_handle)?;
     info!("all tasks exited — shutting down");
     Ok(())
 }
