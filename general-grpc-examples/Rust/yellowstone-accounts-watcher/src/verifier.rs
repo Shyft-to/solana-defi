@@ -115,7 +115,7 @@ impl Verifier {
                         );
                     }
                 }
-                self.compare_account_states(slot, pubkey);
+                self.compare_account_states(slot, pubkey).await;
             } else {
                 println!(
                     "SLOT {slot} | pubkey {pubkey} | gRPC: {grpc_count} | rpc_writable: {expected_count} | OK"
@@ -130,7 +130,17 @@ impl Verifier {
     /// Called only on NO_GRPC_UPDATE to determine whether the account was
     /// actually modified (real delivery gap) or just listed as writable without
     /// a state change (expected no-op from Yellowstone's perspective).
-    fn compare_account_states(&self, slot: u64, pubkey: &str) {
+    ///
+    /// Polls for up to 5 s to let the AccountFetcher's RPC call complete.
+    async fn compare_account_states(&self, slot: u64, pubkey: &str) {
+        // Wait for the fetcher to populate data for this slot (max 5s, 500ms steps).
+        for _ in 0..10 {
+            if self.account_states.contains_key(&(slot, pubkey.to_owned())) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+
         let prev = self.account_states.get(&(slot.saturating_sub(1), pubkey.to_owned()));
         let curr = self.account_states.get(&(slot, pubkey.to_owned()));
 
@@ -149,7 +159,7 @@ impl Verifier {
             }
             _ => {
                 println!(
-                    "  WARN  pubkey {pubkey} | account state snapshot not yet available for slot {slot} — cannot compare"
+                    "  WARN  pubkey {pubkey} | account state snapshot not available for slot {slot} after 5s — cannot compare"
                 );
             }
         }
