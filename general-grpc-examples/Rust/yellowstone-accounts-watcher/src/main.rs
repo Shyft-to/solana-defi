@@ -1,4 +1,5 @@
 mod config;
+mod fetcher;
 mod stream;
 mod verifier;
 
@@ -12,6 +13,7 @@ use tracing::info;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use config::Config;
+use fetcher::{AccountFetcher, AccountStateMap};
 use stream::{spawn_stream, AccountUpdate};
 use verifier::Verifier;
 
@@ -65,7 +67,19 @@ async fn main() -> Result<()> {
         info!("account-update channel closed");
     });
 
-    // ── Thread 2: slot verification ──────────────────────────────────────────
+    // ── Thread 2: account state snapshots ───────────────────────────────────
+    // On every finalized slot, fetches getMultipleAccounts for all watched
+    // pubkeys and stores the data so the verifier can diff slot N-1 vs N.
+    let account_states: AccountStateMap = Arc::new(DashMap::new());
+    let (fetch_slot_tx, fetch_slot_rx) = mpsc::channel::<u64>(65_536);
+    let fetcher = AccountFetcher::new(
+        &cfg.rpc_endpoint,
+        cfg.target_pubkeys.clone(),
+        account_states.clone(),
+    );
+    let fetch_handle = tokio::spawn(fetcher.run(fetch_slot_rx));
+
+    // ── Thread 3: slot verification ──────────────────────────────────────────
     // Receives finalized slot numbers and cross-checks the gRPC-observed
     // signatures against the on-chain block via JSON-RPC.
     let (slot_tx, mut slot_rx) = mpsc::channel::<u64>(65_536);
@@ -74,6 +88,7 @@ async fn main() -> Result<()> {
         cfg.target_pubkeys.clone(),
         updates.clone(),
         start_slot.clone(),
+        account_states.clone(),
     ));
     let slot_handle = tokio::spawn(async move {
         while let Some(slot) = slot_rx.recv().await {
@@ -85,9 +100,9 @@ async fn main() -> Result<()> {
         info!("slot-verifier channel closed");
     });
 
-    spawn_stream(cfg, account_tx, slot_tx);
+    spawn_stream(cfg, account_tx, slot_tx, fetch_slot_tx);
 
-    tokio::try_join!(account_handle, slot_handle)?;
-    info!("both tasks exited — shutting down");
+    tokio::try_join!(account_handle, fetch_handle, slot_handle)?;
+    info!("all tasks exited — shutting down");
     Ok(())
 }

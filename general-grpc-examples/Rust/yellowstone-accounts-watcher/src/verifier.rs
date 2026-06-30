@@ -13,6 +13,8 @@ use solana_transaction_status::{
 };
 use tracing::warn;
 
+use crate::fetcher::AccountStateMap;
+
 const VOTE_PROGRAM_ID: &str = "Vote111111111111111111111111111111111111111111";
 
 // Extra delay after SLOT_FINALIZED before calling getBlock, to let the RPC node catch up.
@@ -25,6 +27,8 @@ pub struct Verifier {
     updates: Arc<DashMap<(u64, String), Vec<String>>>,
     // earliest slot for which we received a gRPC account update
     start_slot: Arc<AtomicU64>,
+    // (slot, pubkey) → account data snapshot taken when that slot finalized
+    account_states: AccountStateMap,
 }
 
 impl Verifier {
@@ -33,12 +37,14 @@ impl Verifier {
         target_pubkeys: Vec<String>,
         updates: Arc<DashMap<(u64, String), Vec<String>>>,
         start_slot: Arc<AtomicU64>,
+        account_states: AccountStateMap,
     ) -> Self {
         Self {
             rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), CommitmentConfig::finalized()),
             target_pubkeys,
             updates,
             start_slot,
+            account_states,
         }
     }
 
@@ -109,6 +115,7 @@ impl Verifier {
                         );
                     }
                 }
+                self.compare_account_states(slot, pubkey);
             } else {
                 println!(
                     "SLOT {slot} | pubkey {pubkey} | gRPC: {grpc_count} | rpc_writable: {expected_count} | OK"
@@ -116,6 +123,35 @@ impl Verifier {
             }
 
             self.updates.remove(&(slot, pubkey.clone()));
+        }
+    }
+
+    /// Compares the account data snapshot at `slot - 1` against `slot`.
+    /// Called only on NO_GRPC_UPDATE to determine whether the account was
+    /// actually modified (real delivery gap) or just listed as writable without
+    /// a state change (expected no-op from Yellowstone's perspective).
+    fn compare_account_states(&self, slot: u64, pubkey: &str) {
+        let prev = self.account_states.get(&(slot.saturating_sub(1), pubkey.to_owned()));
+        let curr = self.account_states.get(&(slot, pubkey.to_owned()));
+
+        match (prev, curr) {
+            (Some(p), Some(c)) => {
+                if p.value() != c.value() {
+                    println!(
+                        "  ERROR pubkey {pubkey} | account data CHANGED between slot {} and {slot} — likely a real gRPC delivery gap",
+                        slot.saturating_sub(1)
+                    );
+                } else {
+                    println!(
+                        "  INFO  pubkey {pubkey} | account data UNCHANGED in slot {slot} — writable-but-no-modify, no real gap"
+                    );
+                }
+            }
+            _ => {
+                println!(
+                    "  WARN  pubkey {pubkey} | account state snapshot not yet available for slot {slot} — cannot compare"
+                );
+            }
         }
     }
 }

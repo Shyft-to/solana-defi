@@ -28,6 +28,7 @@ pub fn spawn_stream(
     cfg: Config,
     account_tx: mpsc::Sender<AccountUpdate>,
     slot_tx: mpsc::Sender<u64>,
+    fetch_slot_tx: mpsc::Sender<u64>,
 ) {
     tokio::spawn(async move {
         let mut attempt: u32 = 0;
@@ -35,7 +36,7 @@ pub fn spawn_stream(
             attempt += 1;
             info!("gRPC connect attempt #{attempt}");
             let t = Instant::now();
-            match run_stream(&cfg, account_tx.clone(), slot_tx.clone()).await {
+            match run_stream(&cfg, account_tx.clone(), slot_tx.clone(), fetch_slot_tx.clone()).await {
                 Ok(()) => {
                     info!(
                         "stream closed cleanly after {:.1}s — reconnecting",
@@ -58,6 +59,7 @@ async fn run_stream(
     cfg: &Config,
     account_tx: mpsc::Sender<AccountUpdate>,
     slot_tx: mpsc::Sender<u64>,
+    fetch_slot_tx: mpsc::Sender<u64>,
 ) -> Result<()> {
     let mut client = GeyserGrpcClient::build_from_shared(cfg.grpc_endpoint.clone())?
         .x_token(cfg.grpc_x_token.clone())?
@@ -99,7 +101,7 @@ async fn run_stream(
 
             msg = stream.next() => {
                 match msg {
-                    Some(Ok(update)) => handle_update(update, &account_tx, &slot_tx).await?,
+                    Some(Ok(update)) => handle_update(update, &account_tx, &slot_tx, &fetch_slot_tx).await?,
                     Some(Err(s)) => return Err(anyhow::anyhow!("stream error: {s}")),
                     None => {
                         info!("server closed stream");
@@ -151,6 +153,7 @@ async fn handle_update(
     update: SubscribeUpdate,
     account_tx: &mpsc::Sender<AccountUpdate>,
     slot_tx: &mpsc::Sender<u64>,
+    fetch_slot_tx: &mpsc::Sender<u64>,
 ) -> Result<()> {
     match update.update_oneof {
         Some(UpdateOneof::Account(acct)) => {
@@ -173,6 +176,7 @@ async fn handle_update(
         Some(UpdateOneof::Slot(slot_update)) => {
             if slot_update.status == SlotStatus::SlotFinalized as i32 {
                 slot_tx.send(slot_update.slot).await.ok();
+                fetch_slot_tx.send(slot_update.slot).await.ok();
             }
         }
         Some(UpdateOneof::Pong(_)) => {}
