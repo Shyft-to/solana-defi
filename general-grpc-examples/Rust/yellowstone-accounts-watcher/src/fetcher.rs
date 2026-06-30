@@ -15,15 +15,15 @@ pub type AccountStateMap = Arc<DashMap<(u64, String), Option<Vec<u8>>>>;
 
 pub struct AccountFetcher {
     rpc: RpcClient,
-    pubkeys: Vec<Pubkey>,
-    pubkey_strs: Vec<String>,
+    pubkey: Pubkey,
+    pubkey_str: String,
     pub states: AccountStateMap,
 }
 
 impl AccountFetcher {
     pub fn new(
         rpc_url: &str,
-        target_pubkeys: Vec<String>,
+        target_pubkey: String,
         states: AccountStateMap,
         rpc_commitment: Commitment,
     ) -> Self {
@@ -31,20 +31,18 @@ impl AccountFetcher {
             Commitment::Confirmed => CommitmentConfig::confirmed(),
             Commitment::Finalized => CommitmentConfig::finalized(),
         };
-        let pubkeys = target_pubkeys
-            .iter()
-            .filter_map(|s| Pubkey::from_str(s).ok())
-            .collect();
+        let pubkey = Pubkey::from_str(&target_pubkey)
+            .expect("TARGET_PUBKEY is not a valid base58 pubkey");
         Self {
             rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), commitment_config),
-            pubkeys,
-            pubkey_strs: target_pubkeys,
+            pubkey,
+            pubkey_str: target_pubkey,
             states,
         }
     }
 
     /// Runs in its own tokio task. For every finalized slot received it spawns a
-    /// sub-task that snapshots all watched accounts via getMultipleAccounts.
+    /// sub-task that snapshots the watched account via getAccountInfo.
     pub async fn run(self, mut slot_rx: mpsc::Receiver<u64>) {
         let this = Arc::new(self);
         while let Some(slot) = slot_rx.recv().await {
@@ -53,23 +51,22 @@ impl AccountFetcher {
                 f.fetch_slot(slot).await;
                 // Keep the last 50 slots so the comparison worker has time to read them.
                 let stale = slot.saturating_sub(50);
-                for pk in &f.pubkey_strs {
-                    f.states.remove(&(stale, pk.clone()));
-                }
+                f.states.remove(&(stale, f.pubkey_str.clone()));
             });
         }
         info!("account-fetcher channel closed");
     }
 
     async fn fetch_slot(&self, slot: u64) {
-        match self.rpc.get_multiple_accounts(&self.pubkeys).await {
-            Ok(accounts) => {
-                for (pk_str, acct) in self.pubkey_strs.iter().zip(accounts.iter()) {
-                    self.states
-                        .insert((slot, pk_str.clone()), acct.as_ref().map(|a| a.data.clone()));
-                }
+        match self.rpc.get_account(&self.pubkey).await {
+            Ok(account) => {
+                self.states.insert((slot, self.pubkey_str.clone()), Some(account.data));
             }
-            Err(e) => warn!("slot {slot} | getMultipleAccounts failed: {e:#}"),
+            Err(e) => {
+                warn!("slot {slot} | getAccountInfo failed: {e:#}");
+                // Store None so comparison worker can still proceed.
+                self.states.insert((slot, self.pubkey_str.clone()), None);
+            }
         }
     }
 }

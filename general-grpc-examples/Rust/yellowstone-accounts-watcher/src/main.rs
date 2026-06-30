@@ -32,8 +32,8 @@ async fn main() -> Result<()> {
 
     let cfg = Config::from_env()?;
     info!(
-        "verifier started — targets={} rpc={} grpc_commitment={} rpc_commitment={}",
-        cfg.target_pubkeys.join(", "),
+        "verifier started — target={} rpc={} grpc_commitment={} rpc_commitment={}",
+        cfg.target_pubkey,
         cfg.rpc_endpoint,
         cfg.grpc_commitment,
         cfg.rpc_commitment,
@@ -70,13 +70,13 @@ async fn main() -> Result<()> {
     });
 
     // ── Thread 2: account state snapshots ───────────────────────────────────
-    // On every finalized slot, fetches getMultipleAccounts for all watched
-    // pubkeys and stores the data so the verifier can diff slot N-1 vs N.
+    // On every finalized slot, fetches getAccountInfo for the watched pubkey
+    // and stores the data so the verifier can diff slot N-1 vs N.
     let account_states: AccountStateMap = Arc::new(DashMap::new());
     let (fetch_slot_tx, fetch_slot_rx) = mpsc::channel::<u64>(65_536);
     let fetcher = AccountFetcher::new(
         &cfg.rpc_endpoint,
-        cfg.target_pubkeys.clone(),
+        cfg.target_pubkey.clone(),
         account_states.clone(),
         cfg.rpc_commitment,
     );
@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
     let verifier = Arc::new(Verifier::new(
         &cfg.rpc_endpoint,
         cfg.rpc_commitment,
-        cfg.target_pubkeys.clone(),
+        cfg.target_pubkey.clone(),
         updates.clone(),
         start_slot.clone(),
         account_states.clone(),

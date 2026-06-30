@@ -25,7 +25,7 @@ const RPC_LAG_SECS: u64 = 2;
 pub struct Verifier {
     rpc: RpcClient,
     rpc_commitment: Commitment,
-    target_pubkeys: Vec<String>,
+    target_pubkey: String,
     // (slot, pubkey) → list of txn signatures delivered by gRPC for that pubkey in that slot
     updates: Arc<DashMap<(u64, String), Vec<String>>>,
     // earliest slot for which we received a gRPC account update
@@ -40,7 +40,7 @@ impl Verifier {
     pub fn new(
         rpc_url: &str,
         rpc_commitment: Commitment,
-        target_pubkeys: Vec<String>,
+        target_pubkey: String,
         updates: Arc<DashMap<(u64, String), Vec<String>>>,
         start_slot: Arc<AtomicU64>,
         account_states: AccountStateMap,
@@ -53,7 +53,7 @@ impl Verifier {
         Self {
             rpc: RpcClient::new_with_commitment(rpc_url.to_owned(), commitment_config),
             rpc_commitment,
-            target_pubkeys,
+            target_pubkey,
             updates,
             start_slot,
             account_states,
@@ -62,8 +62,6 @@ impl Verifier {
     }
 
     pub async fn verify_slot(&self, slot: u64) {
-        // Ignore slots that finalized before our gRPC subscription was established.
-        // start_slot stays at u64::MAX until the first account update arrives.
         let start = self.start_slot.load(Ordering::Relaxed);
         if start == u64::MAX || slot < start {
             return;
@@ -83,64 +81,54 @@ impl Verifier {
             max_supported_transaction_version: Some(0),
         };
 
-        // Single getBlock call for the slot — reused across all watched pubkeys.
+        let pubkey = &self.target_pubkey;
+
         let txns = match self.rpc.get_block_with_config(slot, config).await {
             Ok(b) => b.transactions.unwrap_or_default(),
             Err(e) => {
-                // Log only if at least one pubkey had gRPC activity for this slot.
-                let any_grpc = self
-                    .target_pubkeys
-                    .iter()
-                    .any(|pk| self.updates.contains_key(&(slot, pk.clone())));
-                if any_grpc {
+                if self.updates.contains_key(&(slot, pubkey.clone())) {
                     warn!("SLOT {slot} | getBlock failed: {e:#}");
                 }
-                for pk in &self.target_pubkeys {
-                    self.updates.remove(&(slot, pk.clone()));
-                }
+                self.updates.remove(&(slot, pubkey.clone()));
                 return;
             }
         };
 
-        // Check each watched pubkey independently against the same block.
-        for pubkey in &self.target_pubkeys {
-            let grpc_sigs: HashSet<String> = self
-                .updates
-                .get(&(slot, pubkey.clone()))
-                .map(|v| v.iter().filter(|s| !s.is_empty()).cloned().collect())
-                .unwrap_or_default();
-            let grpc_count = grpc_sigs.len();
+        let grpc_sigs: HashSet<String> = self
+            .updates
+            .get(&(slot, pubkey.clone()))
+            .map(|v| v.iter().filter(|s| !s.is_empty()).cloned().collect())
+            .unwrap_or_default();
+        let grpc_count = grpc_sigs.len();
 
-            let expected_sigs = collect_writable_sigs(&txns, pubkey);
-            let expected_count = expected_sigs.len();
+        let expected_sigs = collect_writable_sigs(&txns, pubkey);
+        let expected_count = expected_sigs.len();
 
-            // No activity for this pubkey in this slot — skip silently.
-            if grpc_count == 0 && expected_count == 0 {
-                self.updates.remove(&(slot, pubkey.clone()));
-                continue;
-            }
-
-            if grpc_count < expected_count {
-                let delta = expected_count - grpc_count;
-                println!(
-                    "SLOT {slot} | pubkey {pubkey} | gRPC: {grpc_count} | rpc_writable: {expected_count} | NO_GRPC_UPDATE (delta: {delta})"
-                );
-                for sig in &expected_sigs {
-                    if !grpc_sigs.contains(sig) {
-                        println!(
-                            "  pubkey {pubkey} | TXN {sig} — in writable set, account may not have been modified. No update from gRPC."
-                        );
-                    }
-                }
-                self.compare_account_states(slot, pubkey);
-            } else {
-                println!(
-                    "SLOT {slot} | pubkey {pubkey} | gRPC: {grpc_count} | rpc_writable: {expected_count} | OK"
-                );
-            }
-
+        if grpc_count == 0 && expected_count == 0 {
             self.updates.remove(&(slot, pubkey.clone()));
+            return;
         }
+
+        if grpc_count < expected_count {
+            let delta = expected_count - grpc_count;
+            println!(
+                "SLOT {slot} | pubkey {pubkey} | gRPC: {grpc_count} | rpc_writable: {expected_count} | NO_GRPC_UPDATE (delta: {delta})"
+            );
+            for sig in &expected_sigs {
+                if !grpc_sigs.contains(sig) {
+                    println!(
+                        "  pubkey {pubkey} | TXN {sig} — in writable set, account may not have been modified. No update from gRPC."
+                    );
+                }
+            }
+            self.compare_account_states(slot, pubkey);
+        } else {
+            println!(
+                "SLOT {slot} | pubkey {pubkey} | gRPC: {grpc_count} | rpc_writable: {expected_count} | OK"
+            );
+        }
+
+        self.updates.remove(&(slot, pubkey.clone()));
     }
 
     /// Try to compare immediately; if the fetcher hasn't stored the snapshot yet,

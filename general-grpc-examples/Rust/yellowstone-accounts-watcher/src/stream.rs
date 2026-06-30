@@ -71,16 +71,13 @@ async fn run_stream(
         .await
         .context("failed to connect to Yellowstone gRPC")?;
 
-    let request = build_request(&cfg.target_pubkeys, cfg.grpc_commitment);
+    let request = build_request(&cfg.target_pubkey, cfg.grpc_commitment);
     let (mut sink, mut stream) = client
         .subscribe_with_request(Some(request))
         .await
         .context("subscribe_with_request failed")?;
 
-    info!(
-        "subscribed — watching {} account(s) + slot finalizations",
-        cfg.target_pubkeys.len()
-    );
+    info!("subscribed — watching {} + slot finalizations", cfg.target_pubkey);
 
     let mut ping_id: i32 = 0;
     let mut ticker = tokio::time::interval(PING_INTERVAL);
@@ -113,9 +110,9 @@ async fn run_stream(
     }
 }
 
-fn build_request(target_pubkeys: &[String], grpc_commitment: Commitment) -> SubscribeRequest {
+fn build_request(target_pubkey: &str, grpc_commitment: Commitment) -> SubscribeRequest {
     let acct_filter = SubscribeRequestFilterAccounts {
-        account: target_pubkeys.to_vec(),
+        account: vec![target_pubkey.to_owned()],
         owner: vec![],
         filters: vec![],
         ..Default::default()
