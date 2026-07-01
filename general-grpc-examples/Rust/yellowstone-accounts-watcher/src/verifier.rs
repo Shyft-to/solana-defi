@@ -152,6 +152,8 @@ fn try_compare(slot: u64, pubkey: &str, states: &AccountStateMap) -> bool {
                     "  ERROR pubkey {pubkey} | account data CHANGED between slot {} and {slot} — likely a real gRPC delivery gap",
                     slot.saturating_sub(1)
                 );
+                println!("    slot {}: {}", slot.saturating_sub(1), fmt_data(p.value()));
+                println!("    slot {slot}: {}", fmt_data(c.value()));
             } else {
                 println!(
                     "  INFO  pubkey {pubkey} | account data UNCHANGED in slot {slot} — writable-but-no-modify, no real gap"
@@ -160,6 +162,23 @@ fn try_compare(slot: u64, pubkey: &str, states: &AccountStateMap) -> bool {
             true
         }
         _ => false,
+    }
+}
+
+fn fmt_data(data: &Option<Vec<u8>>) -> String {
+    match data {
+        None => "None (account does not exist)".to_owned(),
+        Some(bytes) => {
+            let preview: String = bytes[..bytes.len().min(64)]
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect();
+            if bytes.len() > 64 {
+                format!("{preview}… ({} bytes total)", bytes.len())
+            } else {
+                format!("{preview} ({} bytes)", bytes.len())
+            }
+        }
     }
 }
 

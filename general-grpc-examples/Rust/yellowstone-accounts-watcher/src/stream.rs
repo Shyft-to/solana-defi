@@ -22,6 +22,7 @@ pub struct AccountUpdate {
     pub slot: u64,
     pub pubkey: String,
     pub txn_signature: Option<String>,
+    pub data: Vec<u8>,
 }
 
 pub fn spawn_stream(
@@ -171,12 +172,13 @@ async fn handle_update(
                 .filter(|b| !b.is_empty())
                 .map(|b| bs58::encode(b).into_string());
             account_tx
-                .send(AccountUpdate { slot, pubkey, txn_signature: sig })
+                .send(AccountUpdate { slot, pubkey, txn_signature: sig, data: info.data })
                 .await
                 .ok();
         }
         Some(UpdateOneof::Slot(slot_update)) => {
             if slot_update.status == SlotStatus::SlotFinalized as i32 {
+                info!("SLOT FINALIZED | slot={}", slot_update.slot);
                 slot_tx.send(slot_update.slot).await.ok();
                 fetch_slot_tx.send(slot_update.slot).await.ok();
             }

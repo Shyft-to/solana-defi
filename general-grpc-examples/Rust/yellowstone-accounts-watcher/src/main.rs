@@ -54,13 +54,22 @@ async fn main() -> Result<()> {
     let updates_for_acct = updates.clone();
     let start_slot_for_acct = start_slot.clone();
     let account_handle = tokio::spawn(async move {
-        while let Some(AccountUpdate { slot, pubkey, txn_signature }) = account_rx.recv().await {
+        while let Some(AccountUpdate { slot, pubkey, txn_signature, data }) = account_rx.recv().await {
             // Record the earliest slot we've seen so the verifier can ignore
             // slots that finalized before our subscription was established.
             start_slot_for_acct.fetch_min(slot, Ordering::Relaxed);
 
             let sig = txn_signature.clone().unwrap_or_default();
-            info!("ACCOUNT UPDATE | slot={slot} pubkey={pubkey} sig={sig}");
+            let preview: String = data[..data.len().min(64)]
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect();
+            let data_str = if data.len() > 64 {
+                format!("{preview}… ({} bytes)", data.len())
+            } else {
+                format!("{preview} ({} bytes)", data.len())
+            };
+            info!("ACCOUNT UPDATE | slot={slot} pubkey={pubkey} sig={sig} data={data_str}");
             updates_for_acct
                 .entry((slot, pubkey))
                 .or_default()
