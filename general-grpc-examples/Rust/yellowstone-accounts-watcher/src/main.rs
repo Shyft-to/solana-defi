@@ -3,7 +3,6 @@ mod fetcher;
 mod stream;
 mod verifier;
 
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -13,9 +12,10 @@ use tracing::info;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use config::Config;
-use fetcher::{AccountFetcher, AccountStateMap};
+use fetcher::GrpcDataMap;
 use stream::{spawn_stream, AccountUpdate};
-use verifier::{run_comparison_worker, Verifier};
+use verifier::Verifier;
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -32,34 +32,26 @@ async fn main() -> Result<()> {
 
     let cfg = Config::from_env()?;
     info!(
-        "verifier started — target={} rpc={} grpc_commitment={} rpc_commitment={}",
+        "verifier started — target={} rpc={} grpc_commitment={} rpc_commitment={} retain_slots={}",
         cfg.target_pubkey,
         cfg.rpc_endpoint,
         cfg.grpc_commitment,
         cfg.rpc_commitment,
+        cfg.grpc_data_retain_slots,
     );
 
-    // Shared map: (slot, pubkey) → list of txn signatures delivered by gRPC for that pubkey.
-    let updates: Arc<DashMap<(u64, String), Vec<String>>> = Arc::new(DashMap::new());
+    // (slot, pubkey) → latest account data bytes delivered by gRPC for that slot.
+    let grpc_data: GrpcDataMap = Arc::new(DashMap::new());
 
-    // Tracks the earliest slot for which we received a gRPC account update.
-    // Initialised to u64::MAX ("not seen anything yet"); the account-update task
-    // drives it down to the real first slot via fetch_min.
-    let start_slot: Arc<AtomicU64> = Arc::new(AtomicU64::new(u64::MAX));
-
-    // ── Thread 1: account updates ────────────────────────────────────────────
-    // Receives every account-update event from the stream, prints it, and
-    // records the signature in the shared slot map.
+    // ── Task 1: account updates ──────────────────────────────────────────────
+    // Receives every gRPC account update, prints it, and stores the raw data
+    // in grpc_data. Evicts entries older than grpc_data_retain_slots.
     let (account_tx, mut account_rx) = mpsc::channel::<AccountUpdate>(65_536);
-    let updates_for_acct = updates.clone();
-    let start_slot_for_acct = start_slot.clone();
+    let grpc_data_for_acct = grpc_data.clone();
+    let retain_slots = cfg.grpc_data_retain_slots;
     let account_handle = tokio::spawn(async move {
         while let Some(AccountUpdate { slot, pubkey, txn_signature, data }) = account_rx.recv().await {
-            // Record the earliest slot we've seen so the verifier can ignore
-            // slots that finalized before our subscription was established.
-            start_slot_for_acct.fetch_min(slot, Ordering::Relaxed);
-
-            let sig = txn_signature.clone().unwrap_or_default();
+            let sig = txn_signature.unwrap_or_default();
             let preview: String = data[..data.len().min(64)]
                 .iter()
                 .map(|b| format!("{b:02x}"))
@@ -69,47 +61,24 @@ async fn main() -> Result<()> {
             } else {
                 format!("{preview} ({} bytes)", data.len())
             };
-            info!("ACCOUNT UPDATE | slot={slot} pubkey={pubkey} sig={sig} data={data_str}");
-            updates_for_acct
-                .entry((slot, pubkey))
-                .or_default()
-                .push(sig);
+            println!("ACCOUNT UPDATE | slot={slot} | sig={sig} | data={data_str}");
+
+            let stale = slot.saturating_sub(retain_slots);
+            grpc_data_for_acct.remove(&(stale, pubkey.clone()));
+            grpc_data_for_acct.insert((slot, pubkey), data);
         }
         info!("account-update channel closed");
     });
 
-    // ── Thread 2: account state snapshots ───────────────────────────────────
-    // On every finalized slot, fetches getAccountInfo for the watched pubkey
-    // and stores the data so the verifier can diff slot N-1 vs N.
-    let account_states: AccountStateMap = Arc::new(DashMap::new());
-    let (fetch_slot_tx, fetch_slot_rx) = mpsc::channel::<u64>(65_536);
-    let fetcher = AccountFetcher::new(
-        &cfg.rpc_endpoint,
-        cfg.target_pubkey.clone(),
-        account_states.clone(),
-        cfg.rpc_commitment,
-    );
-    let fetch_handle = tokio::spawn(fetcher.run(fetch_slot_rx));
-
-    // ── Thread 3: pending comparison worker ─────────────────────────────────
-    // Retries (slot, pubkey) comparisons that were enqueued because the
-    // account-state snapshot wasn't ready when the verifier first checked.
-    let (pending_tx, pending_rx) = mpsc::channel::<(u64, String)>(65_536);
-    let compare_handle =
-        tokio::spawn(run_comparison_worker(pending_rx, account_states.clone()));
-
-    // ── Thread 4: slot verification ──────────────────────────────────────────
-    // Receives finalized slot numbers and cross-checks the gRPC-observed
-    // signatures against the on-chain block via JSON-RPC.
+    // ── Task 2: slot verifier ────────────────────────────────────────────────
+    // On every finalized slot, calls getAccountInfo and compares the RPC state
+    // (at the returned context slot) against the latest gRPC-delivered data.
     let (slot_tx, mut slot_rx) = mpsc::channel::<u64>(65_536);
     let verifier = Arc::new(Verifier::new(
         &cfg.rpc_endpoint,
         cfg.rpc_commitment,
         cfg.target_pubkey.clone(),
-        updates.clone(),
-        start_slot.clone(),
-        account_states.clone(),
-        pending_tx,
+        grpc_data.clone(),
     ));
     let slot_handle = tokio::spawn(async move {
         while let Some(slot) = slot_rx.recv().await {
@@ -121,9 +90,13 @@ async fn main() -> Result<()> {
         info!("slot-verifier channel closed");
     });
 
+    // fetch_slot_tx is required by spawn_stream's signature; we don't use it here.
+    let (fetch_slot_tx, mut fetch_slot_rx) = mpsc::channel::<u64>(65_536);
+    tokio::spawn(async move { while fetch_slot_rx.recv().await.is_some() {} });
+
     spawn_stream(cfg, account_tx, slot_tx, fetch_slot_tx);
 
-    tokio::try_join!(account_handle, fetch_handle, compare_handle, slot_handle)?;
+    tokio::try_join!(account_handle, slot_handle)?;
     info!("all tasks exited — shutting down");
     Ok(())
 }

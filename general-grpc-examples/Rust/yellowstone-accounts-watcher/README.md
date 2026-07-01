@@ -1,135 +1,60 @@
 # Yellowstone gRPC Account Verifier
 
-A Rust tool that verifies Yellowstone gRPC account update delivery against on-chain block data. For every finalized slot it checks that every transaction which wrote to a watched account also produced a gRPC update — and when it finds a gap, it compares account data snapshots to tell you whether the account actually changed.
+A Rust tool that verifies Yellowstone gRPC account update delivery in real time. It streams account updates for a watched pubkey, then on every finalized slot calls `getAccountInfo` and compares the on-chain state against what gRPC delivered - telling you immediately whether a delivery gap occurred.
 
 ---
 
-## How It Works
+## The Problem It Solves
 
-### Plain English
-
-1. **Subscribe** to Yellowstone gRPC for two things at once: account updates for your watched pubkeys, and slot finalization events.
-2. **Every account update** that arrives is recorded in memory: `(slot, pubkey) → [transaction signatures]`.
-3. **Every time a slot finalizes**, two things happen in parallel:
-   - The **Account Fetcher** immediately calls `getMultipleAccounts` for all watched pubkeys and saves a snapshot of their raw data at that slot.
-   - The **Verifier** waits 2 seconds (for the RPC to catch up), then calls `getBlock` to get every transaction in that slot.
-4. **The Verifier** scans the block for transactions that listed a watched pubkey as writable (skipping failed txns and vote txns) and compares that count against how many gRPC updates arrived.
-   - Counts match → `OK`.
-   - gRPC sent fewer updates → `NO_GRPC_UPDATE`, and we dig deeper.
-5. **Dig deeper** — compare the account's raw data between slot N-1 and slot N:
-   - **Data unchanged** → the transaction listed the account as writable but didn't actually modify it. Yellowstone correctly sent no update. Not a bug.
-   - **Data changed** → the account was genuinely modified but no gRPC update arrived. Real delivery gap.
-   - If the snapshot isn't ready yet → pushed to a **retry queue** that keeps checking until data arrives (up to 30 s).
+When you stream account updates from a Yellowstone gRPC node, you need confidence that every update was actually delivered - that nothing was silently dropped. This tool continuously verifies that in real time.
 
 ---
 
-### Technical Detail
+## How It Verifies
 
-#### Stream 1 — Yellowstone gRPC
+1. **Two streams open simultaneously** from the same gRPC connection:
+   - A stream of account updates for your pubkey (fires whenever the account is written to on-chain)
+   - A stream of slot finalization events (Solana finalizes a slot roughly every 400 ms)
 
-A single gRPC subscription covers two filter types:
+2. **Every account update that arrives from gRPC is saved to memory**, keyed by the slot it came from. We keep the last 300 slots worth of data (configurable). This is our record of *what gRPC told us the account looked like, and when.*
 
-- **Account updates** for the target pubkey(s) at `Confirmed` commitment. Each `AccountUpdate` carries the slot, pubkey, and transaction signature.
-- **Slot status updates** — the tool listens for `SlotFinalized` events. Every `SlotFinalized` is broadcast to both the Account Fetcher and the Verifier via separate channels.
+3. **Every time a slot finalizes, we ask the RPC node directly:** *"What does this account look like right now?"* - this is a standard `getAccountInfo` call. The RPC responds with two things:
+   - The account data bytes
+   - A `context.slot` number - the exact finalized slot whose state this data reflects
 
-#### Stream 2 — Account Fetcher (`fetcher.rs`)
+4. **We look at our gRPC record** and find the most recent update we received for that pubkey, at or before `context.slot`.
 
-On every `SlotFinalized` event, a dedicated task calls `getMultipleAccounts` for all watched pubkeys and stores `(slot, pubkey) → Option<Vec<u8>>` in a shared map. Snapshots for the last 50 slots are kept; older ones are evicted automatically.
-
-#### Stream 3 — Slot Verifier (`verifier.rs`)
-
-On every `SlotFinalized` event (after a 2 s delay), calls `getBlock(N)` with full transaction details. For each transaction it:
-
-1. **Skips failed transactions** — `meta.err` is set.
-2. **Skips vote transactions** — detected by the Vote program ID in the static account keys.
-3. **Derives the writable account set** using the Solana message header formula:
-   - Writable signers: `account_keys[0 .. num_required_signatures - num_readonly_signed_accounts]`
-   - Writable non-signers: `account_keys[num_required_signatures .. total - num_readonly_unsigned_accounts]`
-   - ALT-resolved writable: `meta.loadedAddresses.writable`
-4. If a watched pubkey is in the writable set, that transaction counts as one expected update.
-
-#### Stream 4 — Comparison Worker (`verifier.rs`)
-
-When a `NO_GRPC_UPDATE` gap is found and the account-data snapshots are not yet in the map (fetcher RPC still in flight), the `(slot, pubkey)` pair is pushed to a pending queue. A dedicated worker retries the comparison every 500 ms for up to 30 s, then gives up with a warning.
+5. **We compare the two:**
+   - **Bytes match** → gRPC is in sync with the chain. No update was missed.
+   - **Bytes don't match** → the account changed on-chain but gRPC never delivered the updated state. Confirmed delivery gap.
 
 ---
 
-## Output
+## The Three Outcomes
 
-**All gRPC updates accounted for:**
-```
-SLOT 428979620 | pubkey 6EF8rr...ewF6P | gRPC: 3 | rpc_writable: 3 | OK
-```
-
-**Gap found — account data did not change (writable-but-no-modify, expected):**
-```
-SLOT 428979621 | pubkey 6EF8rr...ewF6P | gRPC: 1 | rpc_writable: 2 | NO_GRPC_UPDATE (delta: 1)
-  pubkey 6EF8rr...ewF6P | TXN 5Kx9abc... — in writable set, account may not have been modified. No update from gRPC.
-  INFO  pubkey 6EF8rr...ewF6P | account data UNCHANGED in slot 428979621 — writable-but-no-modify, no real gap
-```
-
-**Gap found — account data changed (real delivery gap):**
-```
-SLOT 428979622 | pubkey 6EF8rr...ewF6P | gRPC: 0 | rpc_writable: 1 | NO_GRPC_UPDATE (delta: 1)
-  pubkey 6EF8rr...ewF6P | TXN 3Abc... — in writable set, account may not have been modified. No update from gRPC.
-  ERROR pubkey 6EF8rr...ewF6P | account data CHANGED between slot 428979621 and 428979622 — likely a real gRPC delivery gap
-```
-
-### Fields
-
-| Field | Meaning |
+| Output | Meaning |
 |---|---|
-| `gRPC` | Account update events delivered by Yellowstone for this pubkey in this slot |
-| `rpc_writable` | Successful, non-vote transactions in the block that listed this pubkey as writable |
-| `delta` | `rpc_writable - gRPC` — how many transactions are unaccounted for |
+| `gRPC update present for this slot, data matches RPC \| OK` | gRPC delivered an update for this exact slot and it matches on-chain state. Perfect. |
+| `data matches RPC \| last update received at slot X \| OK` | gRPC's last delivery was from an earlier slot, but the account hasn't changed since. gRPC correctly sent nothing. Still fine. |
+| `MISS — gRPC data (from slot X) does not match RPC` | The on-chain state is ahead of what gRPC last delivered. A real update was dropped. |
 
 ---
 
-## Architecture
+## Why gRPC is `confirmed` but RPC is `finalized`
 
-```
-┌─────────────────────────────────────────────┐
-│               Yellowstone gRPC              │
-│   (account updates + slot finalization)     │
-└────────────────────┬────────────────────────┘
-                     │
-              ┌──────▼──────┐
-              │  stream.rs  │  auto-reconnect, 15 s keepalive pings
-              └──────┬──────┘
-                     │ three mpsc channels
-       ┌─────────────┼──────────────┐
-       │             │              │
-  AccountUpdate  SlotFinalized  SlotFinalized
-       │             │              │
-  ┌────▼────┐   ┌────▼────┐   ┌────▼──────┐
-  │ main.rs │   │fetcher  │   │ verifier  │
-  │ DashMap │   │per-slot │   │ per-slot  │
-  │(slot,pk)│   │getMulti │   │ getBlock  │
-  │→ [sigs] │   │Accounts │   │ +compare  │
-  └─────────┘   └────┬────┘   └─────┬─────┘
-                     │              │ NO_GRPC_UPDATE
-                     │  AccountState│ → pending queue
-                     │     Map      │
-                     └──────────────┤
-                                    ▼
-                           ┌────────────────┐
-                           │comparison worker│
-                           │ retries up to  │
-                           │     30 s       │
-                           └────────────────┘
-```
+gRPC streams at `confirmed` commitment — updates arrive roughly 13 seconds before a slot is finalized. By the time the verifier checks a slot, the gRPC data is already sitting in memory — no race condition. If both were set to `finalized`, they would arrive at the same moment and the check would be unreliable.
 
 ---
 
 ## Prerequisites
 
 - **Rust** 1.75 or later — install via [rustup.rs](https://rustup.rs)
-- A **Yellowstone gRPC endpoint** (e.g. from [Triton One](https://triton.one) or a self-hosted Geyser node)
-- A **Solana JSON-RPC endpoint** that supports `getBlock` with `max_supported_transaction_version: 0`
+- A **Yellowstone gRPC endpoint** (e.g. from [Shyft](https://shyft.to) or a self-hosted Geyser node)
+- A **Solana JSON-RPC endpoint** that supports `getAccountInfo`
 
 ---
 
-## Setup
+## Setup and Running
 
 **1. Clone the repository**
 
@@ -138,38 +63,106 @@ git clone https://github.com/Shyft-to/solana-defi.git
 cd solana-defi/general-grpc-examples/Rust/yellowstone-accounts-watcher
 ```
 
-**2. Copy the example env file**
+**2. Copy the example env file and fill it in**
 
 ```bash
 cp .env.example .env
 ```
 
-**3. Fill in `.env`**
-
-| Variable | Required | Description |
-|---|---|---|
-| `GRPC_ENDPOINT` | Yes | Yellowstone gRPC URL, e.g. `https://grpc.ny.shyft.to` |
-| `RPC_ENDPOINT` | Yes | Solana JSON-RPC URL, e.g. `https://api.mainnet-beta.solana.com` |
-| `TARGET_PUBKEYS` | Yes | Comma-separated list of account pubkeys to watch |
-| `GRPC_X_TOKEN` | No | Auth token for the Yellowstone node (omit if not required) |
-| `RUST_LOG` | No | Log verbosity — `info` (default), `debug` for verbose output |
-
-Example `.env`:
+Open `.env` and set at minimum the three required variables:
 
 ```env
 GRPC_ENDPOINT=https://grpc.ny.shyft.to
 RPC_ENDPOINT=https://api.mainnet-beta.solana.com
-TARGET_PUBKEYS=6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P,DNfuF1L62WWyW3pNakVkyGGFzVVhj4Yr52jSmdTyeBHm
-GRPC_X_TOKEN=your_token_here
-RUST_LOG=info
+TARGET_PUBKEY=6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
 ```
 
----
+If your Yellowstone node requires an auth token, also set:
 
-## Running
+```env
+GRPC_X_TOKEN=your_token_here
+```
+
+**3. Build and run**
 
 ```bash
 cargo run --release
 ```
 
-The tool runs indefinitely and reconnects to the gRPC endpoint automatically if the stream drops.
+The tool starts immediately and runs indefinitely. It reconnects to the gRPC endpoint automatically if the stream drops.
+
+---
+
+## Configuration Reference
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GRPC_ENDPOINT` | Yes | — | Yellowstone gRPC URL |
+| `RPC_ENDPOINT` | Yes | — | Solana JSON-RPC URL |
+| `TARGET_PUBKEY` | Yes | — | Account pubkey to watch |
+| `GRPC_X_TOKEN` | No | — | Auth token for the Yellowstone node |
+| `GRPC_COMMITMENT` | No | `confirmed` | Commitment level for the gRPC account subscription |
+| `RPC_COMMITMENT` | No | `finalized` | Commitment level for `getAccountInfo` calls |
+| `GRPC_DATA_RETAIN_SLOTS` | No | `300` | Slots of gRPC data to keep in memory (~2 min at default). Increase if you see `no gRPC data in map` warnings |
+| `RUST_LOG` | No | `info` | Log verbosity: `error` / `warn` / `info` / `debug` / `trace` |
+
+---
+
+## Sample Output
+
+```
+INFO  verifier started — target=6EF8rr... rpc=https://... grpc_commitment=confirmed rpc_commitment=finalized retain_slots=300
+
+INFO  SLOT FINALIZED | slot=347291840
+ACCOUNT UPDATE | slot=347291842 | sig=3xK9mNabc... | data=0102030405…abcdef (1544 bytes)
+INFO  SLOT FINALIZED | slot=347291841
+INFO  SLOT FINALIZED | slot=347291842
+SLOT 347291842 | context_slot=347291842 | gRPC update present for this slot, data matches RPC | OK
+
+INFO  SLOT FINALIZED | slot=347291870
+SLOT 347291870 | context_slot=347291865 | data matches RPC | last update received at slot 347291842 | OK
+
+INFO  SLOT FINALIZED | slot=347291900
+SLOT 347291900 | context_slot=347291898 | MISS — gRPC data (from slot 347291842) does not match RPC
+  gRPC (slot 347291842): 0102030405…abcd (1544 bytes)
+  RPC  (slot 347291898): 0102030405…ff11 (1544 bytes)
+```
+
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│            Yellowstone gRPC             │
+│  account updates (confirmed) + slots    │
+└───────────────────┬─────────────────────┘
+                    │
+             ┌──────▼──────┐
+             │  stream.rs  │  auto-reconnect, 15 s keepalive pings
+             └──────┬──────┘
+                    │ two mpsc channels
+          ┌─────────┴──────────┐
+          │                    │
+     AccountUpdate        SlotFinalized
+          │                    │
+   ┌──────▼──────┐      ┌──────▼──────┐
+   │  Task 1     │      │  Task 2     │
+   │  recorder   │      │  verifier   │
+   │             │      │             │
+   │ grpc_data   │      │ getAccount  │
+   │ (slot,pk)   │◄─────│ Info →      │
+   │ → bytes     │      │ compare     │
+   └─────────────┘      └─────────────┘
+```
+
+---
+
+## Limitation
+
+This tool verifies **end-of-slot state sync**, not per-transaction update delivery.
+
+If multiple transactions write to the account within a single slot, the tool only checks whether the final account state at `context.slot` matches what gRPC last delivered — it does not verify that each individual transaction produced a corresponding gRPC update. If gRPC delivered some but not all updates within a slot, yet the final state still happens to match, this tool will report `OK`.
+
+Use it to confirm that gRPC stays in sync with the chain over time. For transaction-level delivery auditing, a different approach (e.g. matching against `getBlock`) would be needed.
+
+---

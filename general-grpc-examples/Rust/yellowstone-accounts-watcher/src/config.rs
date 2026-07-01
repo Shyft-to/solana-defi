@@ -34,9 +34,13 @@ pub struct Config {
     /// Commitment level for the Yellowstone gRPC account-update subscription.
     /// Defaults to `confirmed` (lower latency). Does not affect slot trigger.
     pub grpc_commitment: Commitment,
-    /// Commitment level for JSON-RPC calls (getBlock, getAccountInfo).
+    /// Commitment level for JSON-RPC calls (getAccountInfo).
     /// Defaults to `finalized` (safe, no rollback risk).
     pub rpc_commitment: Commitment,
+    /// How many finalized slots of gRPC account data to keep in memory.
+    /// Must be larger than the confirmed→finalized gap (~32 slots) plus some buffer.
+    /// Defaults to 300.
+    pub grpc_data_retain_slots: u64,
 }
 
 impl Config {
@@ -51,6 +55,10 @@ impl Config {
         let rpc_commitment = env::var("RPC_COMMITMENT")
             .map(|s| Commitment::parse(&s))
             .unwrap_or(Commitment::Finalized);
+        let grpc_data_retain_slots = env::var("GRPC_DATA_RETAIN_SLOTS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(300u64);
         Ok(Self {
             grpc_endpoint: require("GRPC_ENDPOINT")?,
             grpc_x_token: env::var("GRPC_X_TOKEN").ok(),
@@ -58,6 +66,7 @@ impl Config {
             target_pubkey,
             grpc_commitment,
             rpc_commitment,
+            grpc_data_retain_slots,
         })
     }
 }
