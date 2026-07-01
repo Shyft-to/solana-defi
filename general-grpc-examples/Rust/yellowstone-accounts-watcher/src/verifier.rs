@@ -88,22 +88,80 @@ impl Verifier {
                     println!(
                         "SLOT {slot} | context_slot={context_slot} | MISS — gRPC data (from slot {grpc_slot}) does not match RPC"
                     );
-                    println!("  gRPC (slot {grpc_slot}): {}", fmt_bytes(&grpc_bytes));
-                    println!("  RPC  (slot {context_slot}): {}", fmt_bytes(&rpc_bytes));
+                    println!("  gRPC (slot {grpc_slot}) — {} bytes:", grpc_bytes.len());
+                    print_hex_dump(&grpc_bytes, "    ");
+                    println!("  RPC  (slot {context_slot}) — {} bytes:", rpc_bytes.len());
+                    print_hex_dump(&rpc_bytes, "    ");
+                    print_diff(&grpc_bytes, &rpc_bytes);
                 }
             }
         }
     }
 }
 
-fn fmt_bytes(bytes: &[u8]) -> String {
-    let preview: String = bytes[..bytes.len().min(64)]
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect();
-    if bytes.len() > 64 {
-        format!("{preview}… ({} bytes total)", bytes.len())
-    } else {
-        format!("{preview} ({} bytes)", bytes.len())
+/// Print a full hex dump, 16 bytes per line with offset prefix.
+fn print_hex_dump(bytes: &[u8], indent: &str) {
+    for (i, chunk) in bytes.chunks(16).enumerate() {
+        let offset = i * 16;
+        let hex: String = chunk
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        println!("{indent}{offset:04x}  {hex}");
+    }
+}
+
+/// Find contiguous ranges of differing bytes and print them.
+fn print_diff(a: &[u8], b: &[u8]) {
+    let len = a.len().max(b.len());
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    let mut in_diff = false;
+    let mut start = 0;
+
+    for i in 0..len {
+        let byte_a = a.get(i).copied();
+        let byte_b = b.get(i).copied();
+        if byte_a != byte_b {
+            if !in_diff {
+                start = i;
+                in_diff = true;
+            }
+        } else if in_diff {
+            ranges.push((start, i));
+            in_diff = false;
+        }
+    }
+    if in_diff {
+        ranges.push((start, len));
+    }
+
+    if ranges.is_empty() {
+        return;
+    }
+
+    println!(
+        "  Diff — {} changed range(s), {} byte(s) total:",
+        ranges.len(),
+        ranges.iter().map(|(s, e)| e - s).sum::<usize>()
+    );
+    for (start, end) in ranges {
+        let grpc_chunk: String = a[start..end.min(a.len())]
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let rpc_chunk: String = b[start..end.min(b.len())]
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        println!(
+            "    offset 0x{start:04x}-0x{:04x} ({} byte(s))",
+            end - 1,
+            end - start
+        );
+        println!("      gRPC: {grpc_chunk}");
+        println!("      RPC : {rpc_chunk}");
     }
 }

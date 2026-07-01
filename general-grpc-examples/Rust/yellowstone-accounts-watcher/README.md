@@ -165,4 +165,6 @@ If multiple transactions write to the account within a single slot, the tool onl
 
 Use it to confirm that gRPC stays in sync with the chain over time. For transaction-level delivery auditing, a different approach (e.g. matching against `getBlock`) would be needed.
 
+> **Note:** There is a subtle edge case where the result may appear out of sync without a real miss — if gRPC delivers a new update for the account at the exact moment `getAccountInfo` is executing, the two reads may reflect different slots. This would resolve itself on the next slot check.
+
 ---
