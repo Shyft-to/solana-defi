@@ -21,6 +21,10 @@ pub struct Config {
     /// Optional Slack incoming-webhook URL. When set, missed and extra events
     /// are posted to Slack in addition to being logged locally.
     pub slack_webhook_url: Option<String>,
+    /// When true, log each received transaction with its slot and signature.
+    pub log_transactions: bool,
+    /// When true (and log_transactions is false), log only the slot number per transaction.
+    pub log_slots: bool,
 }
 
 impl Config {
@@ -48,6 +52,14 @@ impl Config {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(false),
             slack_webhook_url: env::var("SLACK_WEBHOOK_URL").ok(),
+            log_transactions: env::var("LOG_TRANSACTIONS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(false),
+            log_slots: env::var("LOG_SLOTS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(false),
         })
     }
 }

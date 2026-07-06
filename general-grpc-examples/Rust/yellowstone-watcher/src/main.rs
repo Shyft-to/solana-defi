@@ -5,6 +5,9 @@ mod slack;
 mod slot_tracker;
 mod types;
 
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use anyhow::Result;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
@@ -28,7 +31,7 @@ async fn main() -> Result<()> {
         .init();
 
     // ── Config ────────────────────────────────────────────────────────────────
-    let cfg = Config::from_env()?;
+    let cfg = Arc::new(Config::from_env()?);
     info!(
         "Watching {} accounts  lag={} slots",
         cfg.account_include.len(),
@@ -39,32 +42,34 @@ async fn main() -> Result<()> {
     let tracker = SlotTracker::new();
 
     // ── RPC client (for reconciliation) ──────────────────────────────────────
-    let rpc = RpcClient::new_with_commitment(
+    // Wrapped in Arc so reconciliation tasks can each hold a reference without cloning the client.
+    let rpc = Arc::new(RpcClient::new_with_commitment(
         cfg.rpc_endpoint.clone(),
         CommitmentConfig {
             commitment: CommitmentLevel::Confirmed,
         },
-    );
+    ));
 
     // ── gRPC reader ───────────────────────────────────────────────────────────
     // Generous buffer — bursts of transactions arrive in batches.
     let (event_tx, mut event_rx) = mpsc::channel::<StreamEvent>(65_536);
-    spawn_grpc_reader(cfg.clone(), event_tx);
+    spawn_grpc_reader((*cfg).clone(), event_tx);
 
     // ── Event loop ────────────────────────────────────────────────────────────
     info!("Event loop started");
 
-    // Highest slot number seen in any transaction so far.
-    // Used to measure the reconciliation lag without a slot subscription.
     let mut highest_slot_seen: u64 = 0;
-    // Slots waiting for lag to elapse before reconciliation.
-    // Stored as plain slot numbers — ready when highest_slot_seen >= slot + lag.
-    let mut pending_reconcile: Vec<u64> = Vec::new();
+    // HashSet for O(1) contains checks instead of Vec linear scan.
+    let mut pending_reconcile: HashSet<u64> = HashSet::new();
 
     while let Some(event) = event_rx.recv().await {
         match event {
             StreamEvent::Transaction { slot, signature } => {
-                info!("TX  slot={slot}  sig={signature}");
+                if cfg.log_transactions {
+                    info!("TX  slot={slot}  sig={signature}");
+                } else if cfg.log_slots {
+                    info!("slot={slot}");
+                }
                 tracker.record_transaction(slot, signature);
 
                 if slot > highest_slot_seen {
@@ -76,10 +81,7 @@ async fn main() -> Result<()> {
                     tracker.dump();
                 }
 
-                // Enqueue slot for reconciliation the first time we see it.
-                if !pending_reconcile.contains(&slot) {
-                    pending_reconcile.push(slot);
-                }
+                pending_reconcile.insert(slot);
 
                 // Drain slots that have waited at least `lag` slots.
                 let lag = cfg.reconcile_lag_slots;
@@ -89,7 +91,9 @@ async fn main() -> Result<()> {
                     .copied()
                     .collect();
 
-                pending_reconcile.retain(|&s| highest_slot_seen < s + lag);
+                for &s in &ready {
+                    pending_reconcile.remove(&s);
+                }
 
                 for target_slot in ready {
                     let slot_data = match tracker.take(target_slot) {
@@ -100,46 +104,52 @@ async fn main() -> Result<()> {
                         }
                     };
 
-                    match reconciler::reconcile(&rpc, &cfg, &slot_data).await {
-                        Ok(report) => {
-                            if report.is_clean() {
-                                info!(
-                                    "----> Slot {} verfied cleanly all matched — {} transactions matched between gRPC stream and RPC <----",
-                                    report.slot, report.grpc_count
-                                );
-                            } else {
-                                if !report.missed.is_empty() {
-                                    error!(
-                                        "Slot {} is missing {} transaction(s) that the RPC confirmed but the gRPC stream never delivered — possible data loss:",
-                                        report.slot,
-                                        report.missed.len()
+                    // Spawn reconciliation as an independent task so the event
+                    // loop is never blocked waiting on RPC calls.
+                    let rpc = Arc::clone(&rpc);
+                    let cfg = Arc::clone(&cfg);
+                    tokio::spawn(async move {
+                        match reconciler::reconcile(&rpc, &cfg, &slot_data).await {
+                            Ok(report) => {
+                                if report.is_clean() {
+                                    info!(
+                                        "----> Slot {} verfied cleanly all matched — {} transactions matched between gRPC stream and RPC <----",
+                                        report.slot, report.grpc_count
                                     );
-                                    for sig in &report.missed {
-                                        error!("  {sig}");
+                                } else {
+                                    if !report.missed.is_empty() {
+                                        error!(
+                                            "Slot {} is missing {} transaction(s) that the RPC confirmed but the gRPC stream never delivered — possible data loss:",
+                                            report.slot,
+                                            report.missed.len()
+                                        );
+                                        for sig in &report.missed {
+                                            error!("  {sig}");
+                                        }
+                                        if let Some(url) = &cfg.slack_webhook_url {
+                                            slack::notify_missed(url, report.slot, &report.missed).await;
+                                        }
                                     }
-                                    if let Some(url) = &cfg.slack_webhook_url {
-                                        slack::notify_missed(url, report.slot, &report.missed).await;
-                                    }
-                                }
-                                if !report.extra.is_empty() {
-                                    warn!(
-                                        "Slot {} has {} transaction(s) seen via gRPC that the RPC does not recognise — may be a timing issue:",
-                                        report.slot,
-                                        report.extra.len()
-                                    );
-                                    for sig in &report.extra {
-                                        warn!("  {sig}");
-                                    }
-                                    if let Some(url) = &cfg.slack_webhook_url {
-                                        slack::notify_extra(url, report.slot, &report.extra).await;
+                                    if !report.extra.is_empty() {
+                                        warn!(
+                                            "Slot {} has {} transaction(s) seen via gRPC that the RPC does not recognise — may be a timing issue:",
+                                            report.slot,
+                                            report.extra.len()
+                                        );
+                                        for sig in &report.extra {
+                                            warn!("  {sig}");
+                                        }
+                                        if let Some(url) = &cfg.slack_webhook_url {
+                                            slack::notify_extra(url, report.slot, &report.extra).await;
+                                        }
                                     }
                                 }
                             }
+                            Err(e) => {
+                                error!("Could not reconcile slot {target_slot} — RPC call failed: {e:#}");
+                            }
                         }
-                        Err(e) => {
-                            error!("Could not reconcile slot {target_slot} — RPC call failed: {e:#}");
-                        }
-                    }
+                    });
                 }
             }
         }

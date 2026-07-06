@@ -95,8 +95,18 @@ directly.
 | `RECONCILE_LAG_SLOTS` | | 5 | Slots to wait before reconciling |
 | `USE_GET_BLOCK` | | false | Use `getBlock` instead of `getSignaturesForAddress` |
 | `RPC_SIGNATURES_LIMIT` | | 1000 | Max sigs per `getSignaturesForAddress` (ignored when `USE_GET_BLOCK=true`) |
+| `LOG_TRANSACTIONS` | | false | Log slot + signature for every received transaction |
+| `LOG_SLOTS` | | false | Log slot number only per transaction (ignored when `LOG_TRANSACTIONS=true`) |
 | `RUST_LOG` | | info | Tracing filter |
 | `SLACK_WEBHOOK_URL` | | - | If Slack webhook is added, the events will be delivered to a slack channel, else will only print on console |
+
+### Transaction logging modes
+
+| `LOG_TRANSACTIONS` | `LOG_SLOTS` | Output per transaction |
+|---|---|---|
+| `true` | any | `TX  slot=12345  sig=abc123…` |
+| `false` | `true` | `slot=12345` |
+| `false` | `false` | *(no per-transaction output)* |
 
 ---
 

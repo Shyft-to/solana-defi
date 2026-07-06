@@ -91,6 +91,7 @@ fn build_subscribe_request(cfg: &Config) -> SubscribeRequest {
         account_include: cfg.account_include.clone(),
         account_exclude: vec![],
         account_required: vec![],
+        ..Default::default()
     };
 
     SubscribeRequest {
