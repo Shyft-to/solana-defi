@@ -952,6 +952,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "multi-stream-checker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bs58",
+ "chrono",
+ "dotenvy",
+ "futures",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "tonic",
+ "tracing",
+ "tracing-subscriber",
+ "yellowstone-grpc-client",
+ "yellowstone-grpc-proto",
+]
+
+[[package]]
 name = "multimap"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2575,25 +2594,6 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tonic-prost-build",
-]
-
-[[package]]
-name = "yellowstone-watcher"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bs58",
- "chrono",
- "dotenvy",
- "futures",
- "reqwest",
- "serde_json",
- "tokio",
- "tonic",
- "tracing",
- "tracing-subscriber",
- "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
 ]
 
 [[package]]

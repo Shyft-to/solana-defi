@@ -1,10 +1,10 @@
 [package]
-name = "yellowstone-watcher"
+name = "multi-stream-checker"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "yellowstone-watcher"
+name = "multi-stream-checker"
 path = "src/main.rs"
 
 [dependencies]
