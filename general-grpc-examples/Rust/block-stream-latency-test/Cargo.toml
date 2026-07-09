@@ -1,5 +1,5 @@
 [package]
-name = "silent-stream-detector"
+name = "blocks-stream-detector"
 version = "0.1.0"
 edition = "2021"
 
