@@ -1,0 +1,10 @@
+endpoints:
+  - url: "https://grpc.ams.shyft.to"
+    x_token: "AUTH_X_TOKEN"   # remove line if no auth needed
+    label: "Dragons Mouth"
+  - url: "https://rabbitstream.ams.shyft.to"
+    x_token: "AUTH_X_TOKEN"
+    label: "Rabbitstream"
+accounts:
+  - "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+num_slots: 150

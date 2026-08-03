@@ -1,0 +1,20 @@
+[package]
+name = "stream-integrity-checker"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "stream-integrity-checker"
+path = "src/main.rs"
+
+[dependencies]
+yellowstone-grpc-client = "1"
+yellowstone-grpc-proto  = "1"
+tokio      = { version = "1", features = ["full"] }
+futures    = "0.3"
+serde      = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+bs58       = "0.5"
+anyhow     = "1"
+log        = "0.4"
+env_logger = "0.11"
