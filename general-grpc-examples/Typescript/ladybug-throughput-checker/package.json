@@ -1,0 +1,33 @@
+{
+  "name": "ladybug-throughput-checker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "start:block-latency": "ts-node blockLatency.ts",
+    "start:latency-checker": "ts-node latencyChecker.ts",
+    "start:stream-all": "ts-node streamAll.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@shyft-to/ladybug-sdk": "^0.1.1",
+    "@triton-one/yellowstone-grpc": "^4.0.2",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/bs58": "^4.0.4",
+    "@types/node": "^26.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "rpc-websockets": {
+      "uuid": "^9.0.1"
+    }
+  }
+}
