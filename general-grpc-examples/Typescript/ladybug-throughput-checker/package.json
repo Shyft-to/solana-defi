@@ -8,6 +8,7 @@
     "start:block-latency": "ts-node blockLatency.ts",
     "start:latency-checker": "ts-node latencyChecker.ts",
     "start:stream-all": "ts-node streamAll.ts",
+    "start:blocks-parser": "ts-node blocksParser.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -16,7 +17,7 @@
   "type": "commonjs",
   "dependencies": {
     "@shyft-to/ladybug-sdk": "^0.1.1",
-    "@triton-one/yellowstone-grpc": "^4.0.2",
+    "@triton-one/yellowstone-grpc": "^5.0.9",
     "dotenv": "^17.4.2"
   },
   "devDependencies": {
