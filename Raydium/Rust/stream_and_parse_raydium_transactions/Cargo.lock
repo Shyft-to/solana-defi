@@ -2654,6 +2654,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "backoff",
+ "base64 0.22.1",
  "bs58",
  "clap",
  "env_logger",
