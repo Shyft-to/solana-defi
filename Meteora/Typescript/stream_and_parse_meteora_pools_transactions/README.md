@@ -11,7 +11,7 @@ This project enables real-time streaming and parsing of Meteora pools transactio
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shyft-to/solana-defi.git
-   cd PumpFun/Typescript/stream_and_parse_meteora_pools_instructions
+   cd Meteora/Typescript/stream_and_parse_meteora_pools_instructions
    ```
 
 2. **Install Dependencies:**
