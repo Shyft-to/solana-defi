@@ -1,3 +1,2 @@
-.claude/
-.env
 target/
+.env
