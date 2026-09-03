@@ -63,7 +63,7 @@ struct Args {
         long,
         env = "ACCOUNT_INCLUDE",
         value_delimiter = ',',
-        help = "Comma-separated program/account addresses to watch on both streams"
+        help = "program/account address to watch on both streams (owner for accounts)"
     )]
     account_include: Vec<String>,
 

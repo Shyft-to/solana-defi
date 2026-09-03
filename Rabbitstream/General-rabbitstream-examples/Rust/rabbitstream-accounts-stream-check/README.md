@@ -60,7 +60,7 @@ RUN_DURATION_MINS=60
 | `ACCOUNTS_ENDPOINT` | gRPC endpoint for the account-update stream (must include port) | required |
 | `ACCOUNTS_X_TOKEN` | Auth token for `ACCOUNTS_ENDPOINT` | required |
 | `ACCOUNTS_ENDPOINT_NAME` | Optional display name for `ACCOUNTS_ENDPOINT` in logs and the summary | endpoint URL |
-| `ACCOUNT_INCLUDE` | Comma-separated program/account addresses watched on both streams | required |
+| `ACCOUNT_INCLUDE` | program/account address watched on both streams | required | owner field used for account subscribe
 | `LOG_SIG` | `true` to print each transaction signature, `false` to suppress | `true` |
 | `STATS_INTERVAL_SECS` | How often to print throughput stats for both streams (seconds) | `5` |
 | `MATCH_TIMEOUT_SECS` | Seconds to wait for a signature on the other stream before counting it stream-exclusive | `10` |
