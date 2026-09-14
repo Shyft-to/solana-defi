@@ -2,14 +2,14 @@ use {
     backoff::{backoff::Constant, future::retry_notify},
     clap::Parser,
     futures::{sink::SinkExt, stream::StreamExt},
-    log::{debug, error, info, warn},
+    log::{error, info, warn},
     std::{
-        collections::{HashMap, HashSet},
+        collections::HashMap,
         sync::{
             atomic::{AtomicU64, Ordering},
             Arc, Mutex,
         },
-        time::{Duration, Instant},
+        time::{Duration, Instant, SystemTime},
     },
     tonic::transport::channel::ClientTlsConfig,
     yellowstone_grpc_client::GeyserGrpcClient,
@@ -50,10 +50,18 @@ struct Args {
 
     #[clap(
         long,
-        env = "RUN_DURATION_MINS",
-        help = "Auto-stop after this many minutes (omit or set 0 to run forever)"
+        env = "SHOW_TIMESTAMPS",
+        default_value = "false",
+        help = "Print created_at/received_at timestamps before each latency line"
     )]
-    run_duration_mins: Option<u64>,
+    show_timestamps: bool,
+
+    #[clap(
+        long,
+        env = "MAX_TRANSACTIONS",
+        help = "Stop after this many transactions and print a latency report (omit or set 0 to run indefinitely)"
+    )]
+    max_transactions: Option<u64>,
 
     #[clap(
         long,
@@ -131,31 +139,15 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     info!("Watching accounts: {}", args.account_include.join(", "));
 
-    // Rabbitstream's server-side account_include filtering should guarantee every
-    // transaction we receive references one of these addresses, but its payloads
-    // omit `meta` (no loaded_writable/readonly_addresses for ALT lookups), so we
-    // can only verify against the transaction's static `message.account_keys`.
-    let target_addresses: HashSet<Vec<u8>> = args
-        .account_include
-        .iter()
-        .map(|addr| {
-            bs58::decode(addr)
-                .into_vec()
-                .map_err(|e| anyhow::anyhow!("invalid account_include address {addr}: {e}"))
-        })
-        .collect::<anyhow::Result<_>>()?;
-
-    if let Some(mins) = args.run_duration_mins {
-        if mins > 0 {
-            info!("Will auto-stop after {} minutes", mins);
+    if let Some(max) = args.max_transactions {
+        if max > 0 {
+            info!("Will auto-stop after {} transactions", max);
         }
     }
 
     let stats_history: Arc<Mutex<Vec<(f32, f32)>>> = Arc::new(Mutex::new(Vec::new()));
-    let received_count = AtomicU64::new(0);
-    let matched_count = AtomicU64::new(0);
-    let alt_indeterminate_count = AtomicU64::new(0);
-    let unmatched_count = AtomicU64::new(0);
+    let latencies: Arc<Mutex<Vec<f64>>> = Arc::new(Mutex::new(Vec::new()));
+    let tx_seen = Arc::new(AtomicU64::new(0));
     let run_start = Instant::now();
     let region = args.region.clone();
     let notify_region = region.clone();
@@ -178,13 +170,15 @@ async fn main() -> anyhow::Result<()> {
                     error!("[{region}] 🐇 Subscribe failed: {e}");
                     backoff::Error::transient(anyhow::anyhow!(e))
                 })?;
-
+            
+            
             info!("Subscribed — waiting for transactions...");
 
             let mut ping_id: i32 = 0;
             let idle_timeout = Duration::from_secs(30);
             let stats_interval = Duration::from_secs(args.stats_interval_secs);
             let mut tx_count: u64 = 0;
+            let mut total_count: u64 = 0;
             let mut window_start = Instant::now();
 
             loop {
@@ -208,63 +202,104 @@ async fn main() -> anyhow::Result<()> {
                         error!("[{region}] Stream error: {e} — reconnecting");
                         return Err(backoff::Error::transient(anyhow::anyhow!(e)));
                     }
-                    Ok(Some(Ok(update))) => match update.update_oneof {
+                    Ok(Some(Ok(update))) => {
+                        let received_at = SystemTime::now();
+                        let created_at = update.created_at.clone();
+                        match update.update_oneof {
                         Some(UpdateOneof::Transaction(tx)) => {
-                            let inner = tx.transaction.as_ref();
-                            let message = inner
-                                .and_then(|t| t.transaction.as_ref())
-                                .and_then(|t| t.message.as_ref());
-
-                            let sig = inner
+                            if args.log_sig {
+                            let sig = tx
+                                .transaction
+                                .as_ref()
                                 .and_then(|t| t.transaction.as_ref())
                                 .and_then(|t| t.signatures.first())
                                 .map(|b| bs58::encode(b).into_string())
                                 .unwrap_or_else(|| "<unknown>".to_string());
 
-                            let matched = message.is_some_and(|m| {
-                                m.account_keys.iter().any(|k| target_addresses.contains(k))
-                            });
-
-                            // If the account_include address isn't among the static
-                            // account_keys, it may still have been loaded via an Address
-                            // Lookup Table — meta.loaded_writable/readonly_addresses would
-                            // normally resolve that, but Rabbitstream's payload omits meta,
-                            // so an ALT-using tx can't be conclusively judged either way.
-                            let has_alt_lookup =
-                                message.is_some_and(|m| !m.address_table_lookups.is_empty());
-
-                            if args.log_sig {
                                 info!("{}", sig);
                             }
+                            
+                            let created_system_time =
+                                created_at.and_then(|ts| SystemTime::try_from(ts).ok());
 
-                            received_count.fetch_add(1, Ordering::Relaxed);
-                            if matched {
-                                matched_count.fetch_add(1, Ordering::Relaxed);
-                            } else if has_alt_lookup {
-                                alt_indeterminate_count.fetch_add(1, Ordering::Relaxed);
-                                debug!(
-                                    "[{region}] transaction not found in static account_keys, but uses an address lookup table — can't verify without meta: {sig}"
-                                );
-                            } else {
-                                unmatched_count.fetch_add(1, Ordering::Relaxed);
-                                warn!(
-                                    "[{region}] ⚠️ transaction does not include any account_include address (no ALT lookups either): {sig}"
+                            // Printed unconditionally (created_at left empty when
+                            // missing/invalid) so this line never depends on whether the
+                            // latency below comes out positive, negative, or unavailable.
+                            if args.log_sig && args.show_timestamps {
+                                let created_str = created_system_time
+                                    .map(|t| humantime::format_rfc3339_millis(t).to_string())
+                                    .unwrap_or_default();
+                                info!(
+                                    "[{region}] created_at: {created_str} | received_at: {}",
+                                    humantime::format_rfc3339_millis(received_at)
                                 );
                             }
 
-                            tx_count += 1;
-                            let elapsed = window_start.elapsed();
-                            if elapsed >= stats_interval {
-                                let tps = tx_count as f64 / elapsed.as_secs_f64();
-                                let total = received_count.load(Ordering::Relaxed);
-                                info!("[{region}] -----> throughput: {:.1} tx/s | total transactions: {} <------\n", tps, total);
-                                stats_history
-                                    .lock()
-                                    .unwrap()
-                                    .push((run_start.elapsed().as_secs_f32(), tps as f32));
-                                tx_count = 0;
-                                window_start = Instant::now();
+                            match created_system_time {
+                                Some(created_system_time) => {
+                                    match received_at.duration_since(created_system_time) {
+                                        Ok(latency) => {
+                                            let latency_ms = latency.as_secs_f64() * 1000.0;
+                                            latencies.lock().unwrap().push(latency_ms);
+                                            if args.log_sig {
+                                                info!(
+                                                    "[{region}] created_at -> received_at latency: {:.2}ms",
+                                                    latency_ms
+                                                );
+                                            }
+                                        }
+                                        Err(e) => {
+                                            warn!(
+                                                "[{region}] received_at is before created_at by {:?} (clock skew?)",
+                                                e.duration()
+                                            );
+                                        }
+                                    }
+                                }
+                                None => {
+                                    warn!("[{region}] update missing/invalid created_at timestamp");
+                                }
                             }
+
+                            let seen = tx_seen.fetch_add(1, Ordering::Relaxed) + 1;
+                            if let Some(max) = args.max_transactions {
+                                if max > 0 {
+                                    // Log progress roughly every 5%, plus always the final tx.
+                                    let step = (max / 20).max(1);
+                                    if seen % step == 0 || seen == max {
+                                        let pct = (seen as f64 / max as f64) * 100.0;
+                                        info!("[{region}] Progress: {seen}/{max} ({pct:.1}%)");
+                                    }
+                                }
+                                if max > 0 && seen >= max {
+                                    info!("[{region}] Reached {max} transactions — closing stream");
+                                    // Half-close the client -> server request channel...
+                                    if let Err(e) = sink.close().await {
+                                        warn!("[{region}] Error closing subscribe sink: {e}");
+                                    }
+                                    // ...then drop the server -> client stream. tonic/h2 send
+                                    // RST_STREAM on drop of an unfinished Streaming<T>, which is
+                                    // how a bidi gRPC call is cancelled client-side (there is no
+                                    // explicit `.cancel()` in this crate).
+                                    drop(stream);
+                                    return Ok(());
+                                }
+                            }
+
+                            // tx_count += 1;
+                            // total_count += 1;
+                            // let elapsed = window_start.elapsed();
+                            // if elapsed >= stats_interval {
+                            //     let tps = tx_count as f64 / elapsed.as_secs_f64();
+                            //     info!("[{region}] -----> throughput: {:.1} tx/s | total transactions: {} <------\n", tps, total_count);
+                            //     stats_history
+                            //         .lock()
+                            //         .unwrap()
+                            //         .push((run_start.elapsed().as_secs_f32(), tps as f32));
+                            //     tx_count = 0;
+                            //     window_start = Instant::now();
+                            // }
+
                         }
                         Some(UpdateOneof::Ping(_)) => {
                             ping_id += 1;
@@ -277,7 +312,8 @@ async fn main() -> anyhow::Result<()> {
                         }
                         Some(UpdateOneof::Pong(_)) => {}
                         _ => {}
-                    },
+                        }
+                    }
                 }
             }
         },
@@ -295,83 +331,79 @@ async fn main() -> anyhow::Result<()> {
         },
     );
 
-    match args.run_duration_mins {
-        Some(mins) if mins > 0 => {
-            let deadline = Duration::from_secs(mins * 60);
-            match tokio::time::timeout(deadline, run).await {
-                Ok(result) => result?,
-                Err(_) => info!("Run duration of {} minute(s) reached — stopping", mins),
-            }
-        }
-        _ => run.await?,
-    }
+    run.await?;
 
     let history = stats_history.lock().unwrap();
-    print_summary(
-        &history,
-        &args.endpoint,
-        &args.account_include,
-        received_count.load(Ordering::Relaxed),
-        matched_count.load(Ordering::Relaxed),
-        alt_indeterminate_count.load(Ordering::Relaxed),
-        unmatched_count.load(Ordering::Relaxed),
-    );
+    print_summary(&history);
+
+    let latency_samples = latencies.lock().unwrap();
+    print_latency_report(&args.region, &latency_samples);
 
     Ok(())
 }
 
-fn print_summary(
-    history: &[(f32, f32)],
-    endpoint: &str,
-    account_include: &[String],
-    received: u64,
-    matched: u64,
-    alt_indeterminate: u64,
-    unmatched: u64,
-) {
-    let pct = |n: u64| {
-        if received > 0 {
-            n as f64 / received as f64 * 100.0
-        } else {
-            0.0
-        }
-    };
-
-    println!("\n========== Run Summary ==========");
-    println!("  Endpoint                   : {}", endpoint);
-    println!(
-        "  Address(es) verified       : {}",
-        account_include.join(", ")
-    );
-    println!("  Transactions received      : {}", received);
-    println!(
-        "  Matched (static keys)      : {} ({:.1}%)",
-        matched,
-        pct(matched)
-    );
-    println!(
-        "  Indeterminate (ALT lookup) : {} ({:.1}%)",
-        alt_indeterminate,
-        pct(alt_indeterminate)
-    );
-    println!(
-        "  Unmatched (no ALT either)  : {} ({:.1}%)",
-        unmatched,
-        pct(unmatched)
-    );
-
-    if history.len() >= 2 {
-        let total: f32 = history.iter().map(|p| p.1).sum();
-        let avg = total / history.len() as f32;
-        let peak = history.iter().map(|p| p.1).fold(0.0_f32, f32::max);
-        let min = history.iter().map(|p| p.1).fold(f32::MAX, f32::min);
-        let duration = history.last().unwrap().0;
-
-        println!("  Duration : {:.0}s", duration);
-        println!("  Avg tx/s : {:.1}", avg);
-        println!("  Peak tx/s: {:.1}", peak);
-        println!("  Min  tx/s: {:.1}", min);
+fn print_summary(history: &[(f32, f32)]) {
+    if history.len() < 2 {
+        return;
     }
 
+    let total: f32 = history.iter().map(|p| p.1).sum();
+    let avg = total / history.len() as f32;
+    let peak = history.iter().map(|p| p.1).fold(0.0_f32, f32::max);
+    let min = history.iter().map(|p| p.1).fold(f32::MAX, f32::min);
+    let duration = history.last().unwrap().0;
+
+    println!("\n========== Run Summary ==========");
+    println!("  Duration : {:.0}s", duration);
+    println!("  Avg tx/s : {:.1}", avg);
+    println!("  Peak tx/s: {:.1}", peak);
+    println!("  Min  tx/s: {:.1}", min);
     println!("=================================\n");
+}
+
+/// Linear-interpolated percentile over a pre-sorted ascending slice.
+fn percentile(sorted: &[f64], pct: f64) -> f64 {
+    if sorted.is_empty() {
+        return 0.0;
+    }
+    let rank = (pct / 100.0) * (sorted.len() - 1) as f64;
+    let lo = rank.floor() as usize;
+    let hi = rank.ceil() as usize;
+    if lo == hi {
+        sorted[lo]
+    } else {
+        let frac = rank - lo as f64;
+        sorted[lo] + (sorted[hi] - sorted[lo]) * frac
+    }
+}
+
+fn print_latency_report(region: &str, latencies: &[f64]) {
+    if latencies.is_empty() {
+        println!("\nNo latency samples collected — nothing to report.\n");
+        return;
+    }
+
+    let mut sorted = latencies.to_vec();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    let count = sorted.len();
+    let sum: f64 = sorted.iter().sum();
+    let avg = sum / count as f64;
+    let min = sorted[0];
+    let max = sorted[count - 1];
+    let p50 = percentile(&sorted, 50.0);
+    let p95 = percentile(&sorted, 95.0);
+    let p99 = percentile(&sorted, 99.0);
+
+    println!("\n===== Latency Report [{region}] — {count} samples =====");
+    println!("+---------+--------------+");
+    println!("| Metric  | Latency (ms) |");
+    println!("+---------+--------------+");
+    println!("| Min     | {min:>12.2} |");
+    println!("| Average | {avg:>12.2} |");
+    println!("| P50     | {p50:>12.2} |");
+    println!("| P95     | {p95:>12.2} |");
+    println!("| P99     | {p99:>12.2} |");
+    println!("| Max     | {max:>12.2} |");
+    println!("+---------+--------------+\n");
 }
