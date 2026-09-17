@@ -28,13 +28,16 @@ async fn main() -> Result<()> {
 
     // ── Config ────────────────────────────────────────────────────────────────
     let cfg = Config::from_env()?;
+    let s2_summary = match &cfg.account_include_2 {
+        Some(accounts) => format!("{} account(s) @ {:?}", accounts.len(), cfg.commitment_2),
+        None => "disabled (ACCOUNT_INCLUDE_2 not set)".to_owned(),
+    };
     info!(
-        "S1: {} account(s) @ {:?}   S2: {} account(s) @ {:?}   blocks_meta @ {:?}   buffer={} slots   \
+        "region={}   S1: {} account(s) @ {:?}   S2: {s2_summary}   blocks_meta @ {:?}   buffer={} slots   \
          slack_alerts={}   log_transactions={}   stats_interval={}s",
+        cfg.region,
         cfg.account_include_1.len(),
         cfg.commitment_1,
-        cfg.account_include_2.len(),
-        cfg.commitment_2,
         cfg.commitment_blocks_meta,
         cfg.latency_buffer_slots,
         cfg.slack_webhook_url.is_some(),
@@ -46,7 +49,10 @@ async fn main() -> Result<()> {
     // transaction waits in the buffer for its block time. That is correct, but
     // `finalized` trails `processed` by roughly 32 slots, so a buffer smaller
     // than that would evict transactions before they could ever be timed.
-    let tx_commitment_max = cfg.commitment_1.max(cfg.commitment_2);
+    let tx_commitment_max = match cfg.stream_2_enabled() {
+        true => cfg.commitment_1.max(cfg.commitment_2),
+        false => cfg.commitment_1,
+    };
     if cfg.commitment_blocks_meta > tx_commitment_max && cfg.latency_buffer_slots < 64 {
         warn!(
             "blocks_meta commitment ({:?}) is stricter than both tx streams — it will lag them. \
@@ -81,6 +87,7 @@ async fn main() -> Result<()> {
             log_transactions: cfg.log_transactions,
             log_signatures: cfg.log_signatures,
         },
+        cfg.stream_2_enabled(),
     );
 
     if cfg.stats_interval_secs > 0 {

@@ -52,6 +52,10 @@ pub struct LatencyTracker {
     highest_slot: u64,
     buffer_slots: u64,
     log_opts: LogOptions,
+    /// Whether stream 2 is active. When false, no events for it are ever
+    /// produced, and its `[STATS]` line is left out of every report entirely
+    /// rather than printed as a perpetual zero.
+    stream_2_enabled: bool,
     /// Latencies (ms) recorded on stream 1 since the last `stats_lines` call.
     samples_s1: Vec<i64>,
     /// Latencies (ms) recorded on stream 2 since the last `stats_lines` call.
@@ -59,13 +63,14 @@ pub struct LatencyTracker {
 }
 
 impl LatencyTracker {
-    pub fn new(buffer_slots: u64, log_opts: LogOptions) -> Self {
+    pub fn new(buffer_slots: u64, log_opts: LogOptions, stream_2_enabled: bool) -> Self {
         Self {
             block_time_ms: BTreeMap::new(),
             pending: BTreeMap::new(),
             highest_slot: 0,
             buffer_slots,
             log_opts,
+            stream_2_enabled,
             samples_s1: Vec::new(),
             samples_s2: Vec::new(),
         }
@@ -120,15 +125,16 @@ impl LatencyTracker {
         }
     }
 
-    /// Build the periodic `[STATS]` lines for both streams — p50/p95/p99 over
-    /// every latency recorded since the previous call — then clear the
-    /// samples, so each report covers only its own interval, not a running
-    /// total since startup.
-    pub fn stats_lines(&mut self) -> [String; 2] {
-        [
-            format_stats(StreamId::One, std::mem::take(&mut self.samples_s1)),
-            format_stats(StreamId::Two, std::mem::take(&mut self.samples_s2)),
-        ]
+    /// Build the periodic `[STATS]` lines — p50/p95/p99 over every latency
+    /// recorded since the previous call — then clear the samples, so each
+    /// report covers only its own interval, not a running total since
+    /// startup. Stream 2's line is omitted entirely when it is disabled.
+    pub fn stats_lines(&mut self) -> Vec<String> {
+        let mut lines = vec![format_stats(StreamId::One, std::mem::take(&mut self.samples_s1))];
+        if self.stream_2_enabled {
+            lines.push(format_stats(StreamId::Two, std::mem::take(&mut self.samples_s2)));
+        }
+        lines
     }
 
     /// Track the chain head and evict slots that have fallen too far behind it.
@@ -240,7 +246,7 @@ mod tests {
 
     #[test]
     fn transaction_before_block_meta_is_buffered_then_flushed() {
-        let mut t = LatencyTracker::new(300, LogOptions::default());
+        let mut t = LatencyTracker::new(300, LogOptions::default(), true);
         t.on_transaction(StreamId::One, 100, "sig".into(), 1_000);
         assert_eq!(t.pending.get(&100).map(Vec::len), Some(1));
 
@@ -250,7 +256,7 @@ mod tests {
 
     #[test]
     fn transaction_after_block_meta_emits_without_buffering() {
-        let mut t = LatencyTracker::new(300, LogOptions::default());
+        let mut t = LatencyTracker::new(300, LogOptions::default(), true);
         t.on_block_meta(100, Some(900));
         t.on_transaction(StreamId::One, 100, "sig".into(), 1_000);
         assert!(t.pending.is_empty());
@@ -258,7 +264,7 @@ mod tests {
 
     #[test]
     fn missing_block_time_releases_buffered_transactions() {
-        let mut t = LatencyTracker::new(300, LogOptions::default());
+        let mut t = LatencyTracker::new(300, LogOptions::default(), true);
         t.on_transaction(StreamId::Two, 100, "sig".into(), 1_000);
         t.on_block_meta(100, None);
         assert!(t.pending.is_empty(), "must not leak until eviction");
@@ -301,17 +307,17 @@ mod tests {
             log_transactions: false,
             log_signatures: true,
         };
-        let mut t = LatencyTracker::new(300, opts);
+        let mut t = LatencyTracker::new(300, opts, true);
         t.on_block_meta(100, Some(1_000));
         t.on_transaction(StreamId::One, 100, "sig".into(), 1_150);
 
-        let [s1, _] = t.stats_lines();
-        assert_eq!(s1, "[STATS] S1 n=1 p50=+150ms p95=+150ms p99=+150ms");
+        let lines = t.stats_lines();
+        assert_eq!(lines[0], "[STATS] S1 n=1 p50=+150ms p95=+150ms p99=+150ms");
     }
 
     #[test]
     fn stats_lines_report_and_then_reset() {
-        let mut t = LatencyTracker::new(300, LogOptions::default());
+        let mut t = LatencyTracker::new(300, LogOptions::default(), true);
         for recv in [1_100, 1_200, 1_300] {
             t.on_block_meta(100, Some(1_000));
             t.on_transaction(StreamId::One, 100, "sig".into(), recv);
@@ -319,21 +325,32 @@ mod tests {
         t.on_block_meta(200, Some(2_000));
         t.on_transaction(StreamId::Two, 200, "sig".into(), 2_050);
 
-        let [s1, s2] = t.stats_lines();
-        assert_eq!(s1, "[STATS] S1 n=3 p50=+200ms p95=+300ms p99=+300ms");
-        assert_eq!(s2, "[STATS] S2 n=1 p50=+50ms p95=+50ms p99=+50ms");
+        let lines = t.stats_lines();
+        assert_eq!(lines[0], "[STATS] S1 n=3 p50=+200ms p95=+300ms p99=+300ms");
+        assert_eq!(lines[1], "[STATS] S2 n=1 p50=+50ms p95=+50ms p99=+50ms");
 
         // A second call with no new activity must report zero, not the same
         // samples again — otherwise every report after a quiet stream would
         // repeat stale numbers forever.
-        let [s1_again, s2_again] = t.stats_lines();
-        assert_eq!(s1_again, "[STATS] S1 n=0 (no samples since last report)");
-        assert_eq!(s2_again, "[STATS] S2 n=0 (no samples since last report)");
+        let lines_again = t.stats_lines();
+        assert_eq!(lines_again[0], "[STATS] S1 n=0 (no samples since last report)");
+        assert_eq!(lines_again[1], "[STATS] S2 n=0 (no samples since last report)");
+    }
+
+    #[test]
+    fn stats_lines_omit_stream_2_when_disabled() {
+        let mut t = LatencyTracker::new(300, LogOptions::default(), false);
+        t.on_block_meta(100, Some(1_000));
+        t.on_transaction(StreamId::One, 100, "sig".into(), 1_150);
+
+        let lines = t.stats_lines();
+        assert_eq!(lines.len(), 1, "stream 2 must be left out entirely, not printed as n=0");
+        assert_eq!(lines[0], "[STATS] S1 n=1 p50=+150ms p95=+150ms p99=+150ms");
     }
 
     #[test]
     fn stale_slots_are_evicted_once_the_head_moves_on() {
-        let mut t = LatencyTracker::new(10, LogOptions::default());
+        let mut t = LatencyTracker::new(10, LogOptions::default(), true);
         t.on_transaction(StreamId::One, 100, "old".into(), 1_000);
         t.on_block_meta(100, Some(900));
 

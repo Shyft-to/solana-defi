@@ -7,12 +7,17 @@ use yellowstone_grpc_proto::prelude::CommitmentLevel;
 pub struct Config {
     /// Yellowstone gRPC endpoint, e.g. "https://grpc.example.com"
     pub grpc_endpoint: String,
+    /// Region label for this deployment, included in startup and disconnect
+    /// logs so multi-region runs can be told apart at a glance.
+    pub region: String,
     /// Optional x-token header value required by some Yellowstone nodes
     pub grpc_x_token: Option<String>,
     /// Accounts watched by transaction stream 1
     pub account_include_1: Vec<String>,
-    /// Accounts watched by transaction stream 2
-    pub account_include_2: Vec<String>,
+    /// Accounts watched by transaction stream 2. `None` when
+    /// `ACCOUNT_INCLUDE_2` is unset — stream 2 is then disabled entirely: no
+    /// connection is opened for it and it is left out of every report.
+    pub account_include_2: Option<Vec<String>>,
     /// Commitment level for transaction stream 1
     pub commitment_1: CommitmentLevel,
     /// Commitment level for transaction stream 2
@@ -41,7 +46,20 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Result<Self> {
         let account_include_1 = parse_accounts(&env_require("ACCOUNT_INCLUDE_1")?);
-        let account_include_2 = parse_accounts(&env_require("ACCOUNT_INCLUDE_2")?);
+
+        // ACCOUNT_INCLUDE_2 is optional: when unset, stream 2 is disabled —
+        // no connection is opened for it and it is left out of every report.
+        // When set, it follows the same "at least one account" rule as stream 1.
+        let account_include_2 = match env::var("ACCOUNT_INCLUDE_2").ok() {
+            Some(raw) => {
+                let accounts = parse_accounts(&raw);
+                if accounts.is_empty() {
+                    bail!("ACCOUNT_INCLUDE_2 must contain at least one account, or be unset to disable stream 2");
+                }
+                Some(accounts)
+            }
+            None => None,
+        };
 
         // `COMMITMENT` sets the default for all three streams; each stream can
         // override it, which is what lets you time the same accounts at two
@@ -54,12 +72,10 @@ impl Config {
         if account_include_1.is_empty() {
             bail!("ACCOUNT_INCLUDE_1 must contain at least one account");
         }
-        if account_include_2.is_empty() {
-            bail!("ACCOUNT_INCLUDE_2 must contain at least one account");
-        }
 
         Ok(Self {
             grpc_endpoint: env_require("GRPC_ENDPOINT")?,
+            region: env::var("REGION").unwrap_or_else(|_| "unknown".to_owned()),
             grpc_x_token: env::var("GRPC_X_TOKEN").ok(),
             account_include_1,
             account_include_2,
@@ -85,6 +101,11 @@ impl Config {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(10),
         })
+    }
+
+    /// Whether transaction stream 2 is active, i.e. `ACCOUNT_INCLUDE_2` was set.
+    pub fn stream_2_enabled(&self) -> bool {
+        self.account_include_2.is_some()
     }
 }
 
