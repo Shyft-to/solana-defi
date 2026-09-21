@@ -1,15 +1,20 @@
 # multi-stream-checker
 
-Measures how long after a block is executed on-chain each of two Yellowstone
-gRPC transaction streams delivers its transactions.
+Measures how long after a block is executed on-chain a Yellowstone gRPC
+transaction stream delivers its transactions — one stream, or two side by
+side for comparison.
 
-Three subscriptions run concurrently against the same endpoint:
+Up to three subscriptions run concurrently against the same endpoint:
 
 | Stream | Filter | Purpose |
 |---|---|---|
 | `tx-S1` | `transactions`, `account_include = ACCOUNT_INCLUDE_1` | transaction arrivals |
 | `tx-S2` | `transactions`, `account_include = ACCOUNT_INCLUDE_2` | transaction arrivals |
 | `blocks-meta` | `blocks_meta` | the block's on-chain execution timestamp |
+
+`ACCOUNT_INCLUDE_2` is optional. When it is unset, stream 2 is disabled
+entirely: no connection is opened for it, and it is left out of every log
+line and `[STATS]` report — only stream 1 (plus `blocks-meta`) runs.
 
 Each is its own gRPC connection — Yellowstone endpoints commonly cap a
 subscription at one filter, and independent connections keep a stall on one
@@ -93,6 +98,9 @@ One line per transaction, tagged with the stream that delivered it:
 A transaction touching accounts in both lists is delivered on both streams and
 prints twice, once per tag — that is the comparison case.
 
+With `ACCOUNT_INCLUDE_2` unset, stream 2 never connects, so only `[S1]` lines
+appear.
+
 Set `LOG_SIGNATURES=false` to drop `sig=...` from the line:
 
 ```
@@ -123,10 +131,14 @@ A stream with no resolved transactions in the interval reports `n=0 (no
 samples since last report)` instead of stale numbers. Set
 `STATS_INTERVAL_SECS=0` to disable this entirely.
 
+With `ACCOUNT_INCLUDE_2` unset, the `[STATS] S2` line is left out of every
+report entirely, rather than printed as a perpetual `n=0`.
+
 ## Running
 
 ```bash
-cp .env.example .env      # then fill in GRPC_ENDPOINT and the two account lists
+cp .env.example .env      # then fill in GRPC_ENDPOINT and ACCOUNT_INCLUDE_1
+                           # (ACCOUNT_INCLUDE_2 is optional — see Configuration below)
 cargo run --release
 ```
 
@@ -136,7 +148,7 @@ cargo run --release
 |---|---|---|---|
 | `GRPC_ENDPOINT` | yes | — | Yellowstone gRPC endpoint |
 | `ACCOUNT_INCLUDE_1` | yes | — | comma-separated accounts for stream 1 |
-| `ACCOUNT_INCLUDE_2` | yes | — | comma-separated accounts for stream 2 |
+| `ACCOUNT_INCLUDE_2` | no | unset | comma-separated accounts for stream 2; unset disables stream 2 entirely |
 | `GRPC_X_TOKEN` | no | unset | auth token, if the node requires one |
 | `COMMITMENT` | no | `confirmed` | default level for all streams |
 | `COMMITMENT_1` | no | `COMMITMENT` | override for stream 1 |
@@ -149,9 +161,11 @@ cargo run --release
 | `STATS_INTERVAL_SECS` | no | `10` | seconds between p50/p95/p99 reports; `0` disables |
 | `RUST_LOG` | no | `info` | `debug` also logs every raw stream update |
 
-Both account lists must be non-empty: an empty `account_include` on a
-transactions filter means *every transaction on the chain*, which is never the
-intent here, so startup fails instead.
+`ACCOUNT_INCLUDE_1` is required and, like `ACCOUNT_INCLUDE_2` when it is set,
+must be non-empty: an empty `account_include` on a transactions filter means
+*every transaction on the chain*, which is never the intent here, so startup
+fails instead. `ACCOUNT_INCLUDE_2` may instead be left unset entirely, which
+disables stream 2 rather than failing.
 
 ## Behaviour under load
 
@@ -159,7 +173,7 @@ The reader tasks apply backpressure — if the event loop falls behind, the gRPC
 streams block rather than dropping transactions. A dropped transaction would
 otherwise vanish from the output with no trace.
 
-All three streams reconnect indefinitely, 3s apart, on error or clean close.
+Every active stream reconnects indefinitely, 3s apart, on error or clean close.
 Every disconnect is logged locally at `error` (or `warn` for a clean close);
 when `SLACK_WEBHOOK_URL` is set, the same event is also posted there. Console
 logging always happens regardless of Slack configuration.

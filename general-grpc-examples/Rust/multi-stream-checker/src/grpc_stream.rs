@@ -14,7 +14,7 @@ use yellowstone_grpc_proto::prelude::{
 use crate::config::Config;
 use crate::slack;
 use crate::types::{StreamEvent, StreamId};
-
+use tonic::codec::CompressionEncoding;
 /// Reconnect backoff after a stream error or clean close.
 const RECONNECT_DELAY: Duration = Duration::from_secs(3);
 
@@ -58,21 +58,25 @@ impl Subscription {
 /// three forward onto the same `tx` channel; the consumer demultiplexes on
 /// [`StreamEvent`].
 pub fn spawn_all(cfg: Config, tx: mpsc::Sender<StreamEvent>) {
-    let subs = [
+    let mut subs = vec![
         Subscription::Transactions {
             stream: StreamId::One,
             account_include: cfg.account_include_1.clone(),
             commitment: cfg.commitment_1,
         },
-        Subscription::Transactions {
-            stream: StreamId::Two,
-            account_include: cfg.account_include_2.clone(),
-            commitment: cfg.commitment_2,
-        },
         Subscription::BlocksMeta {
             commitment: cfg.commitment_blocks_meta,
         },
     ];
+
+    // Stream 2 only gets a connection when ACCOUNT_INCLUDE_2 was configured.
+    if let Some(account_include_2) = cfg.account_include_2.clone() {
+        subs.push(Subscription::Transactions {
+            stream: StreamId::Two,
+            account_include: account_include_2,
+            commitment: cfg.commitment_2,
+        });
+    }
 
     for sub in subs {
         spawn_reader(cfg.clone(), sub, tx.clone());
@@ -90,18 +94,18 @@ fn spawn_reader(cfg: Config, sub: Subscription, tx: mpsc::Sender<StreamEvent>) {
         loop {
             match run_stream(&cfg, &sub, &tx).await {
                 Ok(()) => {
-                    warn!("[{label}] stream ended cleanly; reconnecting …");
+                    warn!("[{}] [{label}] stream ended cleanly; reconnecting …", cfg.region);
                     slack::report(
                         &cfg.slack_webhook_url,
-                        &format!(":warning: *[{label}]* stream disconnected (clean close); reconnecting in 3s …"),
+                        &format!(":warning: *[{}] [{label}]* stream disconnected (clean close); reconnecting in 3s …", cfg.region),
                     )
                     .await;
                 }
                 Err(e) => {
-                    error!("[{label}] stream error: {e:#}; reconnecting in 3 s …");
+                    error!("[{}] [{label}] stream error: {e:#}; reconnecting in 3 s …", cfg.region);
                     slack::report(
                         &cfg.slack_webhook_url,
-                        &format!(":red_circle: *[{label}]* stream disconnected: {e:#}; reconnecting in 3s …"),
+                        &format!(":red_circle: *[{}] [{label}]* stream disconnected: {e:#}; reconnecting in 3s …", cfg.region),
                     )
                     .await;
                 }
@@ -118,7 +122,7 @@ async fn run_stream(
     tx: &mpsc::Sender<StreamEvent>,
 ) -> Result<()> {
     let label = sub.label();
-    info!("[{label}] connecting to {}", cfg.grpc_endpoint);
+    info!("[{}] [{label}] connecting to {}", cfg.region, cfg.grpc_endpoint);
 
     let mut client = GeyserGrpcClient::build_from_shared(cfg.grpc_endpoint.clone())?
         .x_token(cfg.grpc_x_token.clone())?
@@ -127,6 +131,8 @@ async fn run_stream(
         // idle for longer than any fixed timeout while its accounts are quiet.
         .tls_config(ClientTlsConfig::new().with_native_roots())?
         .max_decoding_message_size(1024 * 1024 * 1024)
+        .send_compressed(CompressionEncoding::Gzip)     // <-- add here
+    .accept_compressed(CompressionEncoding::Gzip) 
         .connect()
         .await
         .with_context(|| format!("[{label}] failed to connect to Yellowstone gRPC"))?;
@@ -179,8 +185,6 @@ fn build_subscribe_request(sub: &Subscription) -> SubscribeRequest {
                     failed: Some(false),
                     signature: None,
                     account_include: account_include.clone(),
-                    account_exclude: vec![],
-                    account_required: vec![],
                     ..Default::default()
                 },
             );
