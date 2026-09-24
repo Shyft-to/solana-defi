@@ -41,6 +41,15 @@ pub struct Config {
     /// How often (seconds) to print p50/p95/p99 latency for each stream, over
     /// the samples recorded since the previous report. `0` disables it.
     pub stats_interval_secs: u64,
+    /// When true, print the slot number of every blocks_meta update as it
+    /// arrives. Off by default — mainly useful for confirming the
+    /// blocks_meta stream is actually advancing.
+    pub log_blocks_meta: bool,
+    /// How long the blocks_meta stream may go without a single update before
+    /// it is treated as stalled and force-reconnected. Unlike the
+    /// transaction streams, blocks_meta should never legitimately go quiet
+    /// for long, so — unlike them — it gets an idle timeout.
+    pub blocks_meta_idle_timeout_secs: u64,
 }
 
 impl Config {
@@ -100,6 +109,14 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(10),
+            log_blocks_meta: env::var("LOG_BLOCKS_META")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(false),
+            blocks_meta_idle_timeout_secs: env::var("BLOCKS_META_IDLE_TIMEOUT_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(30),
         })
     }
 

@@ -13,7 +13,12 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use config::Config;
 use latency::{LatencyTracker, LogOptions};
-use types::StreamEvent;
+use types::{StreamEvent, StreamId};
+
+/// Consecutive `[STATS] n=0` reports for a stream before it's treated as
+/// worth a health check — one alone is normal for a quiet account, three in a
+/// row is not.
+const ZERO_SAMPLE_STREAK_ALERT: u32 = 3;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -34,7 +39,7 @@ async fn main() -> Result<()> {
     };
     info!(
         "region={}   S1: {} account(s) @ {:?}   S2: {s2_summary}   blocks_meta @ {:?}   buffer={} slots   \
-         slack_alerts={}   log_transactions={}   stats_interval={}s",
+         slack_alerts={}   log_transactions={}   log_blocks_meta={}   stats_interval={}s",
         cfg.region,
         cfg.account_include_1.len(),
         cfg.commitment_1,
@@ -42,6 +47,7 @@ async fn main() -> Result<()> {
         cfg.latency_buffer_slots,
         cfg.slack_webhook_url.is_some(),
         cfg.log_transactions,
+        cfg.log_blocks_meta,
         cfg.stats_interval_secs,
     );
 
@@ -86,6 +92,7 @@ async fn main() -> Result<()> {
         LogOptions {
             log_transactions: cfg.log_transactions,
             log_signatures: cfg.log_signatures,
+            log_blocks_meta: cfg.log_blocks_meta,
         },
         cfg.stream_2_enabled(),
     );
@@ -98,6 +105,10 @@ async fn main() -> Result<()> {
         // a full interval of samples rather than firing the moment we start.
         ticker.tick().await;
 
+        // Consecutive zero-sample streaks per stream, used to trigger a grpc
+        // health check — see `check_zero_streak`.
+        let mut zero_streak = [0u32; 2];
+
         loop {
             tokio::select! {
                 event = event_rx.recv() => match event {
@@ -105,8 +116,17 @@ async fn main() -> Result<()> {
                     None => break,
                 },
                 _ = ticker.tick() => {
+                    // Sample counts must be read before `stats_lines()`, which
+                    // drains them.
+                    let (s1_count, s2_count) = tracker.sample_counts();
+
                     for line in tracker.stats_lines() {
                         info!("{line}");
+                    }
+
+                    check_zero_streak(&cfg, StreamId::One, s1_count, &mut zero_streak[0]).await;
+                    if cfg.stream_2_enabled() {
+                        check_zero_streak(&cfg, StreamId::Two, s2_count, &mut zero_streak[1]).await;
                     }
                 }
             }
@@ -119,6 +139,45 @@ async fn main() -> Result<()> {
 
     warn!("Event channel closed — exiting");
     Ok(())
+}
+
+/// Track a stream's consecutive zero-sample streak across `[STATS]` reports.
+/// On the third report in a row with nothing recorded, run a unary `get_slot`
+/// health check against the grpc endpoint and alert with the outcome — a
+/// healthy response means the endpoint is up but this stream specifically has
+/// gone quiet, an error means the endpoint itself looks dead. The streak
+/// resets either way, so the next alert only fires after another full streak.
+async fn check_zero_streak(cfg: &Config, stream: StreamId, sample_count: usize, streak: &mut u32) {
+    if sample_count > 0 {
+        *streak = 0;
+        return;
+    }
+
+    *streak += 1;
+    if *streak < ZERO_SAMPLE_STREAK_ALERT {
+        return;
+    }
+    *streak = 0;
+
+    let quiet_secs = ZERO_SAMPLE_STREAK_ALERT as u64 * cfg.stats_interval_secs;
+    warn!(
+        "[{}] [{stream}] no samples for {ZERO_SAMPLE_STREAK_ALERT} consecutive stats reports (~{quiet_secs}s) — checking grpc health",
+        cfg.region
+    );
+
+    let text = match grpc_stream::health_check(cfg).await {
+        Ok(slot) => format!(
+            ":warning: *[{}] [{stream}]* no transactions for {ZERO_SAMPLE_STREAK_ALERT} consecutive stats reports (~{quiet_secs}s). \
+             grpc endpoint is responsive (get_slot={slot}) — likely no matching activity, not a dead stream.",
+            cfg.region
+        ),
+        Err(e) => format!(
+            ":red_circle: *[{}] [{stream}]* no transactions for {ZERO_SAMPLE_STREAK_ALERT} consecutive stats reports (~{quiet_secs}s), \
+             AND the grpc health check failed: {e:#} — endpoint appears dead.",
+            cfg.region
+        ),
+    };
+    slack::report(&cfg.slack_webhook_url, &text).await;
 }
 
 fn apply_event(tracker: &mut LatencyTracker, event: StreamEvent) {
