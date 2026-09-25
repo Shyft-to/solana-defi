@@ -50,6 +50,19 @@ pub struct Config {
     /// transaction streams, blocks_meta should never legitimately go quiet
     /// for long, so — unlike them — it gets an idle timeout.
     pub blocks_meta_idle_timeout_secs: u64,
+    /// Solana JSON-RPC endpoint polled for `getSlot`, independent of the
+    /// Yellowstone gRPC endpoint. `None` when `RPC_URL` is unset — the
+    /// poller then never starts.
+    pub rpc_url: Option<String>,
+    /// How often (seconds) to call `getSlot` against `rpc_url`. `0` (the
+    /// default, including when `RPC_POLL_INTERVAL_SECS` is unset) disables
+    /// the poller even if `rpc_url` is set.
+    pub rpc_poll_interval_secs: u64,
+    /// Commitment level passed to the `getSlot` poller (processed | confirmed
+    /// | finalized). Defaults to `processed`, matching the gRPC-side
+    /// `get_slot` health check — the plain Solana JSON-RPC default of
+    /// `finalized` would otherwise report a much older slot.
+    pub rpc_commitment: String,
 }
 
 impl Config {
@@ -117,12 +130,24 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(30),
+            rpc_url: env::var("RPC_URL").ok(),
+            rpc_poll_interval_secs: env::var("RPC_POLL_INTERVAL_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0),
+            rpc_commitment: rpc_commitment_from_env("RPC_COMMITMENT", "processed")?,
         })
     }
 
     /// Whether transaction stream 2 is active, i.e. `ACCOUNT_INCLUDE_2` was set.
     pub fn stream_2_enabled(&self) -> bool {
         self.account_include_2.is_some()
+    }
+
+    /// Whether the `getSlot` RPC poller should run, i.e. `RPC_URL` is set
+    /// and `RPC_POLL_INTERVAL_SECS` is non-zero.
+    pub fn rpc_poller_enabled(&self) -> bool {
+        self.rpc_url.is_some() && self.rpc_poll_interval_secs > 0
     }
 }
 
@@ -145,6 +170,22 @@ fn commitment_from_env(key: &str) -> Result<Option<CommitmentLevel>> {
     };
 
     Ok(Some(level))
+}
+
+/// Read a commitment level from `key` for the plain Solana JSON-RPC poller,
+/// falling back to `default` when unset. Unlike [`commitment_from_env`], this
+/// returns the lowercase string the JSON-RPC `commitment` param expects
+/// rather than yellowstone's protobuf enum.
+fn rpc_commitment_from_env(key: &str, default: &str) -> Result<String> {
+    let raw = match env::var(key) {
+        Ok(v) => v,
+        Err(_) => return Ok(default.to_owned()),
+    };
+
+    match raw.trim().to_ascii_lowercase().as_str() {
+        v @ ("processed" | "confirmed" | "finalized") => Ok(v.to_owned()),
+        other => bail!("{key}: unknown commitment `{other}` (expected processed|confirmed|finalized)"),
+    }
 }
 
 /// Split a comma-separated account list, trimming whitespace and dropping blanks.

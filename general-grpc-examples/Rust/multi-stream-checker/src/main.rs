@@ -1,6 +1,7 @@
 mod config;
 mod grpc_stream;
 mod latency;
+mod rpc_poller;
 mod slack;
 mod types;
 
@@ -82,6 +83,16 @@ async fn main() -> Result<()> {
     // OS threads/cores concurrently. Generous buffer: transactions arrive in bursts.
     let (event_tx, mut event_rx) = mpsc::channel::<StreamEvent>(65_536);
     grpc_stream::spawn_all(cfg.clone(), event_tx);
+
+    if cfg.rpc_poller_enabled() {
+        tokio::spawn(rpc_poller::run(
+            cfg.region.clone(),
+            cfg.slack_webhook_url.clone(),
+            cfg.rpc_url.clone().expect("rpc_poller_enabled implies rpc_url is set"),
+            cfg.rpc_poll_interval_secs,
+            cfg.rpc_commitment.clone(),
+        ));
+    }
 
     // ── Event loop ────────────────────────────────────────────────────────────
     // Single-threaded ownership of the tracker: every event is joined here, so
