@@ -1,5 +1,5 @@
 [package]
-name = "rabbitstream-address-verifer"
+name = "rabbitstream-timestamp-compare"
 version = "0.1.0"
 edition = "2021"
 
