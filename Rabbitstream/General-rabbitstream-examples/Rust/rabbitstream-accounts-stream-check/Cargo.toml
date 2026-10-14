@@ -1,0 +1,24 @@
+[package]
+name = "rabbitstream-accounts-stream-check"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+bs58 = "0.5"
+clap = { version = "4", features = ["derive", "env"] }
+dotenvy = "0.15"
+futures = "0.3"
+humantime = "2"
+log = "0.4"
+env_logger = "0.11"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "rustls-native-certs"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tonic = { version = "0.14", features = ["tls-native-roots", "tls-ring"] }
+yellowstone-grpc-client = "13"
+yellowstone-grpc-proto = "12"
+
+[patch.crates-io]
+yellowstone-grpc-client = { git = "https://github.com/rpcpool/yellowstone-grpc", tag = "v12.3.0+solana.3.1.14" }
+yellowstone-grpc-proto  = { git = "https://github.com/rpcpool/yellowstone-grpc", tag = "v12.3.0+solana.3.1.14" }
