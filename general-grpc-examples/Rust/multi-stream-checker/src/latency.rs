@@ -23,6 +23,8 @@ pub struct LogOptions {
     /// Include the transaction signature on that line. Ignored when
     /// `log_transactions` is off.
     pub log_signatures: bool,
+    /// Print the slot number of every blocks_meta update as it arrives.
+    pub log_blocks_meta: bool,
 }
 
 impl Default for LogOptions {
@@ -30,6 +32,7 @@ impl Default for LogOptions {
         Self {
             log_transactions: true,
             log_signatures: true,
+            log_blocks_meta: false,
         }
     }
 }
@@ -96,6 +99,9 @@ impl LatencyTracker {
     /// transactions — otherwise they sit until eviction and are reported as
     /// unresolved, which would misread as a stream fault.
     pub fn on_block_meta(&mut self, slot: u64, block_time_ms: Option<i64>) {
+        if self.log_opts.log_blocks_meta {
+            info!("blocks_meta slot={slot}");
+        }
         match block_time_ms {
             Some(block_time_ms) => {
                 self.block_time_ms.insert(slot, block_time_ms);
@@ -123,6 +129,13 @@ impl LatencyTracker {
         if self.log_opts.log_transactions {
             emit(stream, slot, signature, recv_ms, block_time_ms, self.log_opts.log_signatures);
         }
+    }
+
+    /// Sample counts recorded since the last `stats_lines()` call, without
+    /// draining them — read this first if a caller also needs `stats_lines()`
+    /// for the same interval, since that call clears the underlying buffers.
+    pub fn sample_counts(&self) -> (usize, usize) {
+        (self.samples_s1.len(), self.samples_s2.len())
     }
 
     /// Build the periodic `[STATS]` lines — p50/p95/p99 over every latency
@@ -306,6 +319,7 @@ mod tests {
         let opts = LogOptions {
             log_transactions: false,
             log_signatures: true,
+            log_blocks_meta: false,
         };
         let mut t = LatencyTracker::new(300, opts, true);
         t.on_block_meta(100, Some(1_000));

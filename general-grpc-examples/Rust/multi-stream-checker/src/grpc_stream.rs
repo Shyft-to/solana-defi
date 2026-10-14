@@ -132,7 +132,7 @@ async fn run_stream(
         .tls_config(ClientTlsConfig::new().with_native_roots())?
         .max_decoding_message_size(1024 * 1024 * 1024)
         .send_compressed(CompressionEncoding::Gzip)     // <-- add here
-    .accept_compressed(CompressionEncoding::Gzip) 
+    .accept_compressed(CompressionEncoding::Gzip)
         .connect()
         .await
         .with_context(|| format!("[{label}] failed to connect to Yellowstone gRPC"))?;
@@ -147,7 +147,28 @@ async fn run_stream(
         sub.commitment()
     );
 
-    while let Some(msg) = stream.next().await {
+    // blocks_meta should never legitimately go quiet — unlike the transaction
+    // streams (see the connect_timeout comment above), an idle blocks_meta
+    // stream is a stall, not low activity. A dead TCP connection that never
+    // sends a FIN/RST leaves `stream.next()` awaiting forever with no error to
+    // react to, so this is the only thing that ever notices such a stall.
+    let idle_timeout = match sub {
+        Subscription::BlocksMeta { .. } => {
+            Some(Duration::from_secs(cfg.blocks_meta_idle_timeout_secs))
+        }
+        Subscription::Transactions { .. } => None,
+    };
+
+    loop {
+        let next = match idle_timeout {
+            Some(timeout) => match tokio::time::timeout(timeout, stream.next()).await {
+                Ok(next) => next,
+                Err(_) => return Err(stall_error(cfg, &label, timeout).await),
+            },
+            None => stream.next().await,
+        };
+
+        let Some(msg) = next else { break };
         let update = msg.map_err(|status| anyhow::anyhow!("[{label}] stream error: {status}"))?;
 
         // Stamp arrival before doing anything else with the update.
@@ -165,6 +186,45 @@ async fn run_stream(
     }
 
     Ok(())
+}
+
+/// Build the error returned when a stream stalls (no update within
+/// `timeout`). Runs a unary `get_slot` health check first, so the error text
+/// — which `spawn_reader` logs and posts to Slack — says whether the gRPC
+/// endpoint is dead or just this one subscription stalled.
+async fn stall_error(cfg: &Config, label: &str, timeout: Duration) -> anyhow::Error {
+    warn!("[{}] [{label}] no update in {timeout:?} — checking grpc health", cfg.region);
+
+    match health_check(cfg).await {
+        Ok(slot) => anyhow::anyhow!(
+            "[{label}] stalled — no update in {timeout:?}; grpc still responsive (get_slot={slot}) — stream-specific stall, forcing reconnect"
+        ),
+        Err(e) => anyhow::anyhow!(
+            "[{label}] stalled — no update in {timeout:?}; grpc health check also failed: {e:#} — endpoint appears dead"
+        ),
+    }
+}
+
+/// Open a short-lived connection and call the unary `get_slot` RPC, purely to
+/// check whether the gRPC endpoint itself is still responsive. A fresh
+/// connection (rather than reusing a stalled stream's client) is deliberate:
+/// it tests the endpoint at large, not just the one connection that stalled.
+pub async fn health_check(cfg: &Config) -> Result<u64> {
+    let mut client = GeyserGrpcClient::build_from_shared(cfg.grpc_endpoint.clone())?
+        .x_token(cfg.grpc_x_token.clone())?
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(10))
+        .tls_config(ClientTlsConfig::new().with_native_roots())?
+        .connect()
+        .await
+        .context("health check: failed to connect")?;
+
+    let resp = client
+        .get_slot(Some(CommitmentLevel::Processed))
+        .await
+        .context("health check: get_slot failed")?;
+
+    Ok(resp.slot)
 }
 
 /// Build the [`SubscribeRequest`] for one subscription — exactly one filter each.

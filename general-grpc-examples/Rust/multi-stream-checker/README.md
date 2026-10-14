@@ -159,6 +159,9 @@ cargo run --release
 | `LOG_TRANSACTIONS` | no | `true` | `false` prints no per-transaction line at all |
 | `LOG_SIGNATURES` | no | `true` | `false` drops `sig=...` from each latency line |
 | `STATS_INTERVAL_SECS` | no | `10` | seconds between p50/p95/p99 reports; `0` disables |
+| `RPC_URL` | no | unset | Solana JSON-RPC endpoint polled for `getSlot`; unset disables the poller |
+| `RPC_POLL_INTERVAL_SECS` | no | `0` | seconds between `getSlot` polls against `RPC_URL`; `0` or unset disables the poller |
+| `RPC_COMMITMENT` | no | `processed` | commitment level for the `RPC_URL` `getSlot` poller |
 | `RUST_LOG` | no | `info` | `debug` also logs every raw stream update |
 
 `ACCOUNT_INCLUDE_1` is required and, like `ACCOUNT_INCLUDE_2` when it is set,
