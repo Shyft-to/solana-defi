@@ -1,28 +1,36 @@
 [package]
-name = "yellowstone-watcher"
+name = "yellowstone-grpc-verifier"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "yellowstone-watcher"
+name = "yellowstone-grpc-verifier"
 path = "src/main.rs"
 
 [dependencies]
-# Yellowstone gRPC client
-yellowstone-grpc-client = "13.1.0"
-yellowstone-grpc-proto  = "12.3.0"
+# Yellowstone gRPC
+yellowstone-grpc-client = "12.2.0"
+yellowstone-grpc-proto  = "12"
 
 # Async runtime
-tokio          = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 
-# gRPC / tonic
-tonic          = { version = "0.14", features = ["tls-native-roots"] }
+# gRPC / TLS
+tonic  = { version = "0.14", features = ["tls-native-roots"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
-# Logging / config
+# Solana RPC + block types
+solana-client             = "2"
+solana-transaction-status = "2"
+solana-sdk                = "2"
+
+# Per-slot tracking
+dashmap = "5"
+
+# Utilities
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow             = "1"
 dotenvy            = "0.15"
 futures            = "0.3"
 bs58               = "0.5"
-rustls             = { version = "0.23", default-features = false, features = ["ring"] }
